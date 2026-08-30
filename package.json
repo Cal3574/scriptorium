@@ -6,6 +6,7 @@
     "serve": "nx run-many -t serve -p client api worker"
   },
   "private": true,
+  "packageManager": "pnpm@9.14.4",
   "devDependencies": {
     "@eslint/js": "^9.8.0",
     "@module-federation/vite": "^1.15.5",
@@ -15,14 +16,14 @@
     "@nx/eslint-plugin": "23.1.1",
     "@nx/jest": "23.1.1",
     "@nx/js": "23.1.1",
-    "@nx/nest": "^23.1.1",
+    "@nx/nest": "23.1.1",
     "@nx/node": "23.1.1",
-    "@nx/react": "^23.1.1",
+    "@nx/react": "23.1.1",
     "@nx/web": "23.1.1",
     "@nx/webpack": "23.1.1",
     "@swc-node/register": "1.11.1",
     "@swc/core": "1.15.8",
-    "@swc/helpers": "0.5.18",
+    "@swc/helpers": "0.5.23",
     "@swc/jest": "~0.2.38",
     "@types/jest": "~30.0.0",
     "@types/node": "^24.0.0",
@@ -46,9 +47,6 @@
     "webpack-cli": "^7.0.0",
     "webpack-dev-server": "^5.2.1"
   },
-  "workspaces": [
-    "packages/*"
-  ],
   "dependencies": {
     "@module-federation/runtime": "^2.4.0",
     "@nestjs/common": "^11.0.0",
