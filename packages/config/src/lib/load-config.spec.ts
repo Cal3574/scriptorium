@@ -15,7 +15,9 @@ const validApiEnv = {
   REDIS_URL: 'redis://localhost:6379',
   CLERK_SECRET_KEY: 'sk_test_x',
   CLERK_PUBLISHABLE_KEY: 'pk_test_x',
+  CLERK_JWT_KEY: '-----BEGIN PUBLIC KEY-----\nMIIB\n-----END PUBLIC KEY-----',
   API_URL: 'http://localhost:3000',
+  CLIENT_ORIGIN: 'http://localhost:4200',
   ...liveProviderKeys,
 };
 
@@ -62,6 +64,19 @@ describe('parseApiConfig', () => {
     expect(() =>
       parseApiConfig({ ...validApiEnv, DATABASE_URL: 'not-a-url' }),
     ).toThrow(/DATABASE_URL/);
+  });
+
+  it('requires the Clerk JWT key and client origin', () => {
+    const { CLERK_JWT_KEY, CLIENT_ORIGIN, ...rest } = validApiEnv;
+    void [CLERK_JWT_KEY, CLIENT_ORIGIN];
+    try {
+      parseApiConfig(rest);
+      fail('expected ConfigError');
+    } catch (error) {
+      expect((error as ConfigError).keys).toEqual(
+        expect.arrayContaining(['CLERK_JWT_KEY', 'CLIENT_ORIGIN']),
+      );
+    }
   });
 });
 

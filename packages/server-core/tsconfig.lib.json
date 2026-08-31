@@ -6,13 +6,15 @@
     "tsBuildInfoFile": "dist/tsconfig.lib.tsbuildinfo",
     "emitDeclarationOnly": true,
     "forceConsistentCasingInFileNames": true,
+    "experimentalDecorators": true,
+    "emitDecoratorMetadata": true,
     "types": ["node"]
   },
   "include": ["src/**/*.ts"],
   "references": [
-    {
-      "path": "../providers/tsconfig.lib.json"
-    }
+    { "path": "../providers/tsconfig.lib.json" },
+    { "path": "../contracts/tsconfig.lib.json" },
+    { "path": "../database/tsconfig.lib.json" }
   ],
   "exclude": [
     "jest.config.ts",

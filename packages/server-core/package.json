@@ -21,7 +21,12 @@
     ]
   },
   "dependencies": {
+    "@clerk/backend": "^3.16.13",
     "@nestjs/common": "^11.0.0",
-    "@scriptorium/providers": "workspace:*"
+    "@nestjs/core": "^11.0.0",
+    "@scriptorium/contracts": "workspace:*",
+    "@scriptorium/database": "workspace:*",
+    "@scriptorium/providers": "workspace:*",
+    "drizzle-orm": "^0.45.2"
   }
 }

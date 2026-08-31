@@ -9,7 +9,9 @@
     "preview": "vite preview --port 4200 --strictPort"
   },
   "dependencies": {
+    "@clerk/react": "^6.14.8",
     "@module-federation/runtime": "^2.4.0",
+    "@scriptorium/contracts": "workspace:*",
     "react": "^19.0.0",
     "react-dom": "^19.0.0"
   },

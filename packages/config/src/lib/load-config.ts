@@ -57,7 +57,13 @@ const apiConfigSchema = z
     PORT: z.coerce.number().int().positive().default(3000),
     CLERK_SECRET_KEY: z.string().min(1),
     CLERK_PUBLISHABLE_KEY: z.string().min(1),
+    // The PEM public key from the Clerk API-keys page. Enables networkless
+    // (`verifyToken`) RSA verification in the auth guard - no JWKS fetch.
+    CLERK_JWT_KEY: z.string().min(1),
     API_URL: z.string().url(),
+    // The single browser origin allowed through CORS and accepted as the
+    // token's `azp` (authorized party). Never `*`.
+    CLIENT_ORIGIN: z.string().url(),
   })
   .superRefine(requireProviderKeysWhenLive);
 

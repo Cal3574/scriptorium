@@ -1,7 +1,7 @@
 // @scriptorium/server-core carries cross-cutting server building blocks shared
-// by the api and worker apps. Today that is the provider wiring: the DI module
-// and binding logic that turn `PROVIDER_MODE` into a bound set of the four
-// external-service adapters from `@scriptorium/providers`.
+// by the api and worker apps: the provider wiring (the DI module that turns
+// `PROVIDER_MODE` into a bound set of external-service adapters) and the HTTP
+// core - identity, request correlation, and the RFC 9457 problem filter.
 
 export { ProvidersModule } from './providers/providers.module.js';
 export { selectProviderBindings } from './providers/provider-bindings.js';
@@ -11,3 +11,36 @@ export {
   type EnvProviderConfig,
   type ProviderRuntimeConfig,
 } from './providers/provider-config.js';
+
+export { DatabaseModule, DB } from './database/database.module.js';
+export { UsersRepository, type LocalUser } from './users/users.repository.js';
+
+export {
+  HttpCoreModule,
+  type HttpCoreConfig,
+} from './http/http-core.module.js';
+export { ClerkAuthGuard } from './auth/clerk-auth.guard.js';
+export { Public, IS_PUBLIC_KEY } from './auth/public.decorator.js';
+export {
+  CurrentUser,
+  type AuthenticatedUser,
+} from './auth/current-user.decorator.js';
+export {
+  TokenVerifier,
+  ClerkTokenVerifier,
+  type VerifiedToken,
+  type ClerkTokenVerifierConfig,
+} from './auth/token-verifier.js';
+
+export { ProblemDetailsFilter } from './http/problem-details.filter.js';
+export { RequestAwareLogger } from './http/request-aware-logger.js';
+export {
+  ProblemException,
+  ResourceNotFoundException,
+} from './http/problem.exception.js';
+export { assertOwnership } from './http/ownership.js';
+export {
+  RequestIdMiddleware,
+  REQUEST_ID_HEADER,
+} from './http/request-id.middleware.js';
+export { getRequestId, runWithRequestContext } from './http/request-context.js';

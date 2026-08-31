@@ -1,12 +1,20 @@
-import { Component, Suspense, type ReactNode } from 'react';
+import { SignIn, useAuth, UserButton } from '@clerk/react';
+import {
+  Component,
+  Suspense,
+  useEffect,
+  useState,
+  type ReactNode,
+} from 'react';
+import type { UserDto } from '@scriptorium/contracts';
 import { lazyProvider } from './mf';
 import { env } from './env';
+import { useApi } from './auth/use-api';
 
 // ProviderBoundary catches the lazy() rejection that fires when a provider's
 // remoteEntry.js can't be fetched (provider not running, network error,
 // etc.). Without it any one missing provider unmounts the whole consumer
 // tree. React has no built-in functional error boundary so this is a class.
-// Wrap each <ProviderBoundary> in your router of choice if you need routing.
 class ProviderBoundary extends Component<
   { children: ReactNode; name: string },
   { error: Error | null }
@@ -36,14 +44,64 @@ class ProviderBoundary extends Component<
 
 const ProviderMyProvider = lazyProvider('my-provider', 'App');
 
-export function App() {
+function Identity() {
+  const api = useApi();
+  const [me, setMe] = useState<UserDto | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    api('/api/v1/me')
+      .then(async (res) => {
+        if (!res.ok) throw new Error(`me failed: ${res.status}`);
+        return (await res.json()) as UserDto;
+      })
+      .then((user) => !cancelled && setMe(user))
+      .catch((err: Error) => !cancelled && setError(err.message));
+    return () => {
+      cancelled = true;
+    };
+  }, [api]);
+
+  if (error) return <p role="alert">{error}</p>;
+  if (!me) return <p>Loading your account...</p>;
   return (
-    <main>
-      <h1>client</h1>
+    <p>
+      Signed in as {me.email} (id {me.id})
+    </p>
+  );
+}
+
+function SignedInApp() {
+  return (
+    <>
+      <header style={{ display: 'flex', justifyContent: 'space-between' }}>
+        <h1>Scriptorium</h1>
+        <UserButton />
+      </header>
       <p>API: {env.apiUrl}</p>
+      <Identity />
       <ProviderBoundary name="my-provider">
         <ProviderMyProvider />
       </ProviderBoundary>
+    </>
+  );
+}
+
+export function App() {
+  // Core 3 dropped <SignedIn>/<SignedOut>; gate on the hook instead. An
+  // unauthenticated visitor only ever sees <SignIn />.
+  const { isLoaded, isSignedIn } = useAuth();
+
+  return (
+    <main>
+      {!isLoaded ? (
+        <p>Loading...</p>
+      ) : isSignedIn ? (
+        <SignedInApp />
+      ) : (
+        <SignIn />
+      )}
     </main>
   );
 }
