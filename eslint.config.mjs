@@ -40,9 +40,15 @@ export default [
               sourceTag: 'scope:providers',
               notDependOnLibsWithTags: ['scope:database'],
             },
-            // No catch-all: api, worker, config, database and server-core may
-            // depend on any lib. The constraints above are additive bans, so
-            // the open default is gone rather than re-stated here.
+            // Catch-all: api, worker, config, database and server-core may
+            // depend on any lib. Every constraint that matches a file is
+            // enforced, so the specific bans above still apply on top of this
+            // (e.g. contracts still resolves to "depend on nothing", providers
+            // still cannot see database).
+            {
+              sourceTag: '*',
+              onlyDependOnLibsWithTags: ['*'],
+            },
           ],
         },
       ],
