@@ -10,32 +10,72 @@ permissions:
   actions: read
   contents: read
 
+env:
+  DATABASE_URL: postgres://scriptorium:scriptorium@localhost:5432/scriptorium
+  REDIS_URL: redis://localhost:6379
+
 jobs:
-  main:
+  verify:
     runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: pgvector/pgvector:pg17
+        env:
+          POSTGRES_USER: scriptorium
+          POSTGRES_PASSWORD: scriptorium
+          POSTGRES_DB: scriptorium
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U scriptorium -d scriptorium"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
     steps:
       - uses: actions/checkout@v5
         with:
-          filter: tree:0
           fetch-depth: 0
-
-      # This enables task distribution via Nx Cloud
-      # Run this command as early as possible, before dependencies are installed
-      # Learn more at https://nx.dev/docs/reference/nx-cloud-cli#npx-nxcloud-startcirun
-      - run: npx nx start-ci-run --distribute-on="3 linux-medium-js" --stop-agents-after="e2e"
 
       - uses: pnpm/action-setup@v4
 
       - uses: actions/setup-node@v5
         with:
-          node-version: 24
+          node-version: 22
           cache: 'pnpm'
 
       - run: pnpm install --frozen-lockfile
 
-      # Prepend any command with "nx record --" to record its logs to Nx Cloud
-      - run: pnpm exec nx record -- pnpm exec nx format:check --base="remotes/origin/main"
-      - run: pnpm exec nx affected -t lint test build typecheck e2e
-      # Nx Cloud recommends fixes for failures to help you get CI green faster. Learn more: https://nx.dev/docs/features/ci-features/self-healing-ci
-      - run: pnpm exec nx fix-ci
-        if: always()
+      - name: Derive nx affected base
+        uses: nrwl/nx-set-shas@v4
+
+      - name: Check TS project references are in sync
+        run: pnpm exec nx sync:check
+
+      - name: Lint
+        run: pnpm exec nx run-many -t lint
+
+      - name: Typecheck
+        run: pnpm exec nx run-many -t typecheck
+
+      - name: Unit tests
+        run: pnpm exec nx affected -t test
+
+      - name: Migrate database
+        run: pnpm exec nx run database:migrate
+
+      - name: Integration tests
+        run: pnpm exec nx run-many -t test-integration
+
+      - name: Build
+        run: pnpm exec nx run-many -t build

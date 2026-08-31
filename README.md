@@ -1,5 +1,50 @@
 # Scriptorium
 
+An Nx monorepo, `@scriptorium/*`.
+
+## Projects
+
+| Project        | Type | May depend on                          |
+| -------------- | ---- | -------------------------------------- |
+| `client`       | app  | `contracts` only                      |
+| `api`          | app  | any lib                               |
+| `worker`       | app  | any lib                               |
+| `contracts`    | lib  | nothing (leaf of the graph)          |
+| `config`       | lib  | any lib                               |
+| `database`     | lib  | any lib                               |
+| `providers`    | lib  | any lib except `database`             |
+| `server-core`  | lib  | any lib                               |
+
+Apps may never import another app. These rules are enforced by
+`@nx/enforce-module-boundaries` in `eslint.config.mjs` via `type:` / `scope:`
+tags.
+
+## Local development
+
+Requires Docker and pnpm.
+
+```sh
+pnpm install
+cp .env.example .env   # then fill in real secrets
+pnpm dev               # compose up --wait -> migrate -> seed -> serve all apps
+```
+
+Database lifecycle without the app servers:
+
+```sh
+pnpm db:up      # start postgres + redis
+pnpm db:down    # stop them
+pnpm db:reset   # wipe volumes, recreate, migrate, seed
+```
+
+## CI
+
+`.github/workflows/ci.yml` runs, in order: lint -> typecheck ->
+`nx affected -t test` -> `test-integration` (against Postgres + Redis service
+containers) -> build.
+
+---
+
 <a alt="Nx logo" href="https://nx.dev" target="_blank" rel="noreferrer"><img src="https://raw.githubusercontent.com/nrwl/nx/master/images/nx-logo.png" width="45"></a>
 
 ✨ Your new, shiny [Nx workspace](https://nx.dev) is ready ✨.

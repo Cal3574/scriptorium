@@ -1,5 +1,6 @@
 import { Component, Suspense, type ReactNode } from 'react';
 import { lazyProvider } from './mf';
+import { env } from './env';
 
 // ProviderBoundary catches the lazy() rejection that fires when a provider's
 // remoteEntry.js can't be fetched (provider not running, network error,
@@ -39,6 +40,7 @@ export function App() {
   return (
     <main>
       <h1>client</h1>
+      <p>API: {env.apiUrl}</p>
       <ProviderBoundary name="my-provider">
         <ProviderMyProvider />
       </ProviderBoundary>

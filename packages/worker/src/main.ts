@@ -5,9 +5,12 @@
 
 import { Logger } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
+import { loadWorkerConfig } from '@scriptorium/config';
 import { AppModule } from './app/app.module';
 
 async function bootstrap() {
+  const config = loadWorkerConfig();
+  Logger.log(`Worker concurrency: ${config.WORKER_CONCURRENCY}`);
   const app = await NestFactory.create(AppModule);
   const globalPrefix = 'worker';
   app.setGlobalPrefix(globalPrefix);
