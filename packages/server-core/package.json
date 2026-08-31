@@ -20,5 +20,8 @@
       "scope:server-core"
     ]
   },
-  "dependencies": {}
+  "dependencies": {
+    "@nestjs/common": "^11.0.0",
+    "@scriptorium/providers": "workspace:*"
+  }
 }
