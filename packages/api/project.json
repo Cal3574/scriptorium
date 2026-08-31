@@ -69,6 +69,13 @@
       "options": {
         "passWithNoTests": true
       }
+    },
+    "test-integration": {
+      "executor": "@nx/jest:jest",
+      "options": {
+        "jestConfig": "packages/api/jest.integration.config.cts",
+        "runInBand": true
+      }
     }
   }
 }
