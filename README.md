@@ -1,13 +1,57 @@
 # Scriptorium
 
+An Nx monorepo, `@scriptorium/*`.
+
+## Projects
+
+| Project       | Type | May depend on               |
+| ------------- | ---- | --------------------------- |
+| `client`      | app  | `contracts` only            |
+| `api`         | app  | any lib                     |
+| `worker`      | app  | any lib                     |
+| `contracts`   | lib  | nothing (leaf of the graph) |
+| `config`      | lib  | any lib                     |
+| `database`    | lib  | any lib                     |
+| `providers`   | lib  | any lib except `database`   |
+| `server-core` | lib  | any lib                     |
+
+Apps may never import another app.
+These rules are enforced by `@nx/enforce-module-boundaries` in `eslint.config.mjs` via `type:` / `scope:` tags.
+
+## Local development
+
+Requires Docker and pnpm.
+
+```sh
+pnpm install
+cp .env.example .env   # then fill in real secrets
+pnpm dev               # compose up --wait -> migrate -> seed -> serve all apps
+```
+
+Database lifecycle without the app servers:
+
+```sh
+pnpm db:up      # start postgres + redis
+pnpm db:down    # stop them
+pnpm db:reset   # wipe volumes, recreate, migrate, seed
+```
+
+## CI
+
+`.github/workflows/ci.yml` runs, in order: format:check, sync:check, lint, typecheck, `nx affected -t test`, `test-integration` (against Postgres + Redis service containers), build.
+
+---
+
 <a alt="Nx logo" href="https://nx.dev" target="_blank" rel="noreferrer"><img src="https://raw.githubusercontent.com/nrwl/nx/master/images/nx-logo.png" width="45"></a>
 
 ✨ Your new, shiny [Nx workspace](https://nx.dev) is ready ✨.
 
 [Learn more about this workspace setup and its capabilities](https://nx.dev/docs/technologies/typescript/introduction?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects) or run `npx nx graph` to visually explore what was created. Now, let's get you up to speed!
+
 ## Finish your Nx platform setup
 
 🚀 [Finish setting up your workspace](https://cloud.nx.app/connect/yCJsy1pdeM) to get faster builds with remote caching, distributed task execution, and self-healing CI. [Learn more about Nx Cloud](https://nx.dev/ci/intro/why-nx-cloud).
+
 ## Generate a library
 
 ```sh

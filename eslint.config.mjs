@@ -16,10 +16,33 @@ export default [
           enforceBuildableLibDependency: true,
           allow: ['^.*/eslint(\\.base)?\\.config\\.[cm]?[jt]s$'],
           depConstraints: [
+            // Apps are composition roots: they may consume libs but never
+            // another app.
             {
-              sourceTag: '*',
-              onlyDependOnLibsWithTags: ['*'],
+              sourceTag: 'type:app',
+              onlyDependOnLibsWithTags: ['type:lib'],
             },
+            // The browser client is deliberately starved: the only server
+            // code it may see is the shared wire contract.
+            {
+              sourceTag: 'scope:client',
+              onlyDependOnLibsWithTags: ['scope:contracts'],
+            },
+            // contracts is the leaf of the graph - pure types/schemas, no
+            // internal imports at all.
+            {
+              sourceTag: 'scope:contracts',
+              onlyDependOnLibsWithTags: [],
+            },
+            // Provider adapters talk to external APIs only; persistence is
+            // owned by the layers above them.
+            {
+              sourceTag: 'scope:providers',
+              notDependOnLibsWithTags: ['scope:database'],
+            },
+            // No catch-all: api, worker, config, database and server-core may
+            // depend on any lib. The constraints above are additive bans, so
+            // the open default is gone rather than re-stated here.
           ],
         },
       ],

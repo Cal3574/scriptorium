@@ -1,0 +1,50 @@
+{
+  "name": "@scriptorium/database",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "import": "./src/index.ts",
+      "default": "./src/index.ts"
+    },
+    "./package.json": "./package.json"
+  },
+  "nx": {
+    "name": "database",
+    "tags": [
+      "type:lib",
+      "scope:database"
+    ],
+    "targets": {
+      "migrate": {
+        "command": "node scripts/migrate.mjs",
+        "options": {
+          "cwd": "packages/database"
+        }
+      },
+      "seed": {
+        "command": "node scripts/seed.mjs",
+        "options": {
+          "cwd": "packages/database"
+        }
+      },
+      "test-integration": {
+        "executor": "@nx/jest:jest",
+        "options": {
+          "jestConfig": "packages/database/jest.integration.config.cts",
+          "runInBand": true
+        }
+      }
+    }
+  },
+  "dependencies": {
+    "pg": "^8.23.0"
+  },
+  "devDependencies": {
+    "@types/pg": "^8.23.1"
+  }
+}

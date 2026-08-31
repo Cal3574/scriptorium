@@ -8,6 +8,21 @@
     },
     {
       "path": "./packages/worker"
+    },
+    {
+      "path": "./packages/contracts"
+    },
+    {
+      "path": "./packages/config"
+    },
+    {
+      "path": "./packages/database"
+    },
+    {
+      "path": "./packages/providers"
+    },
+    {
+      "path": "./packages/server-core"
     }
   ],
   "compilerOptions": {}
