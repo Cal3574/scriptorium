@@ -1,0 +1,18 @@
+{
+  "name": "rag-query-prototype",
+  "private": true,
+  "type": "module",
+  "description": "THROWAWAY PROTOTYPE for wayfinder ticket #11 - RAG query spec. Not production code.",
+  "scripts": {
+    "fetch": "node 1-fetch.mjs",
+    "ingest": "node 2-ingest.mjs",
+    "retrieve": "node 3-retrieve.mjs",
+    "synthesize": "node 4-synthesize.mjs"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.68.0",
+    "dotenv": "^16.4.7",
+    "gpt-tokenizer": "^3.0.1",
+    "openai": "^6.10.0"
+  }
+}

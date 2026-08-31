@@ -21,3 +21,13 @@
 - The `nx-generate` skill handles generator discovery internally - don't call nx_docs just to look up generator syntax
 
 <!-- nx configuration end-->
+
+## Agent skills
+
+### Issue tracker
+
+Issues and PRDs live as GitHub issues in `Cal3574/scriptorium`, managed via the `gh` CLI. See `docs/agents/issue-tracker.md`.
+
+### Domain docs
+
+Multi-context layout: root `CONTEXT-MAP.md` points at per-package `CONTEXT.md` files; `docs/adr/` holds system-wide decisions. See `docs/agents/domain.md`.
