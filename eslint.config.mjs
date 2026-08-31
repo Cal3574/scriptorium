@@ -40,11 +40,9 @@ export default [
               sourceTag: 'scope:providers',
               notDependOnLibsWithTags: ['scope:database'],
             },
-            // Everything else may depend on any workspace project.
-            {
-              sourceTag: '*',
-              onlyDependOnLibsWithTags: ['*'],
-            },
+            // No catch-all: api, worker, config, database and server-core may
+            // depend on any lib. The constraints above are additive bans, so
+            // the open default is gone rather than re-stated here.
           ],
         },
       ],

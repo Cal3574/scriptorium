@@ -59,6 +59,9 @@ jobs:
       - name: Derive nx affected base
         uses: nrwl/nx-set-shas@v4
 
+      - name: Check formatting
+        run: pnpm exec nx format:check
+
       - name: Check TS project references are in sync
         run: pnpm exec nx sync:check
 

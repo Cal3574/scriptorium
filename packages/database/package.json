@@ -22,15 +22,22 @@
     "targets": {
       "migrate": {
         "command": "node scripts/migrate.mjs",
-        "options": { "cwd": "packages/database" }
+        "options": {
+          "cwd": "packages/database"
+        }
       },
       "seed": {
         "command": "node scripts/seed.mjs",
-        "options": { "cwd": "packages/database" }
+        "options": {
+          "cwd": "packages/database"
+        }
       },
       "test-integration": {
-        "command": "jest --config jest.integration.config.cts --runInBand",
-        "options": { "cwd": "packages/database" }
+        "executor": "@nx/jest:jest",
+        "options": {
+          "jestConfig": "packages/database/jest.integration.config.cts",
+          "runInBand": true
+        }
       }
     }
   },

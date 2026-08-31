@@ -4,20 +4,16 @@
 import { readFileSync, readdirSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import pg from 'pg';
+import { withClient } from './db-client.mjs';
 
-const migrationsDir = join(dirname(fileURLToPath(import.meta.url)), '..', 'migrations');
+const migrationsDir = join(
+  dirname(fileURLToPath(import.meta.url)),
+  '..',
+  'migrations',
+);
 
-const connectionString = process.env.DATABASE_URL;
-if (!connectionString) {
-  console.error('DATABASE_URL is not set');
-  process.exit(1);
-}
-
-const client = new pg.Client({ connectionString });
-
-async function main() {
-  await client.connect();
+await withClient(async (client) => {
+  // The runner owns its own bookkeeping table - it is not a migration.
   await client.query(
     'CREATE TABLE IF NOT EXISTS schema_migrations (id text PRIMARY KEY, run_at timestamptz NOT NULL DEFAULT now())',
   );
@@ -34,7 +30,9 @@ async function main() {
     await client.query('BEGIN');
     try {
       await client.query(sql);
-      await client.query('INSERT INTO schema_migrations (id) VALUES ($1)', [file]);
+      await client.query('INSERT INTO schema_migrations (id) VALUES ($1)', [
+        file,
+      ]);
       await client.query('COMMIT');
       console.log(`applied ${file}`);
     } catch (error) {
@@ -43,11 +41,4 @@ async function main() {
     }
   }
   console.log('migrations up to date');
-}
-
-main()
-  .catch((error) => {
-    console.error(error);
-    process.exitCode = 1;
-  })
-  .finally(() => client.end());
+});
