@@ -5,29 +5,70 @@ import { z } from 'zod';
 // the process with a non-zero exit code and the list of offending keys -
 // there is no "run with a broken config" path.
 
+// `PROVIDER_MODE` selects, all-or-nothing, whether the app binds the live
+// external adapters (LlamaParse / OpenAI / Claude) or the offline fakes. It
+// defaults to `live` - the only value used outside local dev, where `.env`
+// sets `fake` explicitly. The three provider keys are required only in `live`
+// mode, and ignored otherwise.
+const providerKeys = [
+  'LLAMAPARSE_API_KEY',
+  'OPENAI_API_KEY',
+  'ANTHROPIC_API_KEY',
+] as const;
+
 const sharedShape = {
   NODE_ENV: z
     .enum(['development', 'test', 'production'])
     .default('development'),
   DATABASE_URL: z.string().url(),
   REDIS_URL: z.string().url(),
+  PROVIDER_MODE: z.enum(['live', 'fake']).default('live'),
+  LLAMAPARSE_API_KEY: z.string().min(1).optional(),
+  OPENAI_API_KEY: z.string().min(1).optional(),
+  ANTHROPIC_API_KEY: z.string().min(1).optional(),
 };
 
-const apiConfigSchema = z.object({
-  ...sharedShape,
-  PORT: z.coerce.number().int().positive().default(3000),
-  CLERK_SECRET_KEY: z.string().min(1),
-  CLERK_PUBLISHABLE_KEY: z.string().min(1),
-  API_URL: z.string().url(),
-});
+// Attach to every process schema: in `live` mode each provider key must be a
+// non-empty string, reported against its own key so the offending-keys list
+// stays precise.
+type MaybeProviderConfig = {
+  PROVIDER_MODE?: string;
+} & Partial<Record<(typeof providerKeys)[number], string>>;
 
-const workerConfigSchema = z.object({
-  ...sharedShape,
-  WORKER_PORT: z.coerce.number().int().positive().default(3001),
-  WORKER_CONCURRENCY: z.coerce.number().int().positive().default(4),
-  OPENAI_API_KEY: z.string().min(1),
-  STORAGE_BUCKET_URL: z.string().url(),
-});
+function requireProviderKeysWhenLive(
+  cfg: MaybeProviderConfig,
+  ctx: z.RefinementCtx,
+): void {
+  if (cfg.PROVIDER_MODE !== 'live') return;
+  for (const key of providerKeys) {
+    if (!cfg[key]) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: [key],
+        message: `${key} is required when PROVIDER_MODE=live`,
+      });
+    }
+  }
+}
+
+const apiConfigSchema = z
+  .object({
+    ...sharedShape,
+    PORT: z.coerce.number().int().positive().default(3000),
+    CLERK_SECRET_KEY: z.string().min(1),
+    CLERK_PUBLISHABLE_KEY: z.string().min(1),
+    API_URL: z.string().url(),
+  })
+  .superRefine(requireProviderKeysWhenLive);
+
+const workerConfigSchema = z
+  .object({
+    ...sharedShape,
+    WORKER_PORT: z.coerce.number().int().positive().default(3001),
+    WORKER_CONCURRENCY: z.coerce.number().int().positive().default(4),
+    STORAGE_BUCKET_URL: z.string().url(),
+  })
+  .superRefine(requireProviderKeysWhenLive);
 
 export type ApiConfig = z.infer<typeof apiConfigSchema>;
 export type WorkerConfig = z.infer<typeof workerConfigSchema>;

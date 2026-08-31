@@ -4,19 +4,26 @@ import {
   parseWorkerConfig,
 } from './load-config.js';
 
+const liveProviderKeys = {
+  LLAMAPARSE_API_KEY: 'llx-test',
+  OPENAI_API_KEY: 'sk-openai',
+  ANTHROPIC_API_KEY: 'sk-ant-test',
+};
+
 const validApiEnv = {
   DATABASE_URL: 'postgres://localhost:5432/scriptorium',
   REDIS_URL: 'redis://localhost:6379',
   CLERK_SECRET_KEY: 'sk_test_x',
   CLERK_PUBLISHABLE_KEY: 'pk_test_x',
   API_URL: 'http://localhost:3000',
+  ...liveProviderKeys,
 };
 
 const validWorkerEnv = {
   DATABASE_URL: 'postgres://localhost:5432/scriptorium',
   REDIS_URL: 'redis://localhost:6379',
-  OPENAI_API_KEY: 'sk-openai',
   STORAGE_BUCKET_URL: 'http://localhost:9000/bucket',
+  ...liveProviderKeys,
 };
 
 describe('parseApiConfig', () => {
@@ -66,9 +73,42 @@ describe('parseWorkerConfig', () => {
     expect(config.OPENAI_API_KEY).toBe('sk-openai');
   });
 
-  it('throws when OPENAI_API_KEY is absent', () => {
-    const { OPENAI_API_KEY, ...rest } = validWorkerEnv;
-    void OPENAI_API_KEY;
-    expect(() => parseWorkerConfig(rest)).toThrow(/OPENAI_API_KEY/);
+  it('defaults PROVIDER_MODE to live', () => {
+    expect(parseWorkerConfig({ ...validWorkerEnv }).PROVIDER_MODE).toBe('live');
+  });
+});
+
+describe('PROVIDER_MODE', () => {
+  it('requires all three provider keys when live', () => {
+    const { LLAMAPARSE_API_KEY, OPENAI_API_KEY, ANTHROPIC_API_KEY, ...rest } =
+      validApiEnv;
+    void [LLAMAPARSE_API_KEY, OPENAI_API_KEY, ANTHROPIC_API_KEY];
+    try {
+      parseApiConfig({ ...rest, PROVIDER_MODE: 'live' });
+      fail('expected ConfigError');
+    } catch (error) {
+      expect((error as ConfigError).keys).toEqual(
+        expect.arrayContaining([
+          'LLAMAPARSE_API_KEY',
+          'OPENAI_API_KEY',
+          'ANTHROPIC_API_KEY',
+        ]),
+      );
+    }
+  });
+
+  it('does not require the provider keys when fake', () => {
+    const { LLAMAPARSE_API_KEY, OPENAI_API_KEY, ANTHROPIC_API_KEY, ...rest } =
+      validWorkerEnv;
+    void [LLAMAPARSE_API_KEY, OPENAI_API_KEY, ANTHROPIC_API_KEY];
+    const config = parseWorkerConfig({ ...rest, PROVIDER_MODE: 'fake' });
+    expect(config.PROVIDER_MODE).toBe('fake');
+    expect(config.OPENAI_API_KEY).toBeUndefined();
+  });
+
+  it('rejects an unknown PROVIDER_MODE', () => {
+    expect(() =>
+      parseApiConfig({ ...validApiEnv, PROVIDER_MODE: 'hybrid' }),
+    ).toThrow(/PROVIDER_MODE/);
   });
 });

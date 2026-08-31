@@ -20,5 +20,10 @@
       "scope:providers"
     ]
   },
-  "dependencies": {}
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.122.0",
+    "@scriptorium/contracts": "workspace:*",
+    "bullmq": "^6.3.3",
+    "openai": "^7.8.0"
+  }
 }

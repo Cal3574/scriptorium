@@ -57,10 +57,13 @@
     "webpack-dev-server": "^5.2.1"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.122.0",
     "@module-federation/runtime": "^2.4.0",
     "@nestjs/common": "^11.0.0",
     "@nestjs/core": "^11.0.0",
     "@nestjs/platform-express": "^11.0.0",
+    "bullmq": "^6.3.3",
+    "openai": "^7.8.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "reflect-metadata": "^0.2.0",
