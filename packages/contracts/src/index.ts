@@ -1,7 +1,12 @@
 // @scriptorium/contracts is the wire contract shared between the browser
-// client and the API: request/response DTOs and the runtime validators that
-// guard them. It is the leaf of the dependency graph - it has no runtime
-// dependencies and imports no other workspace package.
-//
-// No product contracts yet.
-export {};
+// client and the API: request/response DTOs, the SSE event schemas, and the
+// BullMQ job payloads, all as Zod schemas that are the single source of truth
+// for every cross-boundary shape. It is the leaf of the dependency graph -
+// `zod` is its only runtime dependency and it imports no other workspace
+// package.
+
+export * from './primitives.js';
+export * from './user.js';
+export * from './book.js';
+export * from './query.js';
+export * from './ingest.js';

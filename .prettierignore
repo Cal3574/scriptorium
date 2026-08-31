@@ -4,3 +4,9 @@
 /.nx/cache
 /.nx/workspace-data
 .nx/self-healing
+
+# SWC runtime config - prettier cannot infer a parser for the .swcrc extension
+# and errors the whole `nx format:check` run when it is included.
+*.swcrc
+# Drizzle-generated migration bookkeeping - owned by drizzle-kit, not prettier.
+/packages/database/migrations

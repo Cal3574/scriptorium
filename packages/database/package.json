@@ -20,6 +20,18 @@
       "scope:database"
     ],
     "targets": {
+      "generate": {
+        "command": "drizzle-kit generate",
+        "options": {
+          "cwd": "packages/database"
+        }
+      },
+      "check": {
+        "command": "drizzle-kit check",
+        "options": {
+          "cwd": "packages/database"
+        }
+      },
       "migrate": {
         "command": "node scripts/migrate.mjs",
         "options": {
@@ -28,6 +40,9 @@
       },
       "seed": {
         "command": "node scripts/seed.mjs",
+        "dependsOn": [
+          "migrate"
+        ],
         "options": {
           "cwd": "packages/database"
         }
@@ -41,10 +56,17 @@
       }
     }
   },
+  "bin": {
+    "scriptorium-migrate": "./scripts/migrate.mjs"
+  },
   "dependencies": {
+    "@scriptorium/contracts": "workspace:*",
+    "drizzle-orm": "^0.45.2",
     "pg": "^8.23.0"
   },
   "devDependencies": {
-    "@types/pg": "^8.23.1"
+    "@swc-node/register": "1.11.1",
+    "@types/pg": "^8.23.1",
+    "drizzle-kit": "^0.31.10"
   }
 }

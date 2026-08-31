@@ -74,6 +74,13 @@ jobs:
       - name: Unit tests
         run: pnpm exec nx affected -t test
 
+      - name: Check migrations match the Drizzle schema
+        run: |
+          pnpm exec nx run database:check
+          pnpm exec nx run database:generate
+          git diff --exit-code -- packages/database/migrations \
+            || (echo "::error::Drizzle schema changed without a committed migration. Run 'nx run database:generate' and commit the result." && exit 1)
+
       - name: Migrate database
         run: pnpm exec nx run database:migrate
 
