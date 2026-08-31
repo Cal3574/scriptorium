@@ -121,6 +121,17 @@ describe('PROVIDER_MODE', () => {
     expect(config.OPENAI_API_KEY).toBeUndefined();
   });
 
+  it('treats an empty-string provider key as unset in fake mode', () => {
+    const config = parseWorkerConfig({
+      ...validWorkerEnv,
+      PROVIDER_MODE: 'fake',
+      LLAMAPARSE_API_KEY: '',
+      OPENAI_API_KEY: '',
+      ANTHROPIC_API_KEY: '',
+    });
+    expect(config.OPENAI_API_KEY).toBeUndefined();
+  });
+
   it('rejects an unknown PROVIDER_MODE', () => {
     expect(() =>
       parseApiConfig({ ...validApiEnv, PROVIDER_MODE: 'hybrid' }),

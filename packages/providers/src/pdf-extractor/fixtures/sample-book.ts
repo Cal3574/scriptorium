@@ -1,4 +1,11 @@
-# The Quiet Craft of Habit
+// The committed fixture book used by `FakePdfExtractor`. Inlined as a string
+// module rather than a `.md` file read at runtime: the api and worker bundle
+// `@scriptorium/providers` through webpack, which rewrites `__dirname` and does
+// not copy loose asset files, so a `readFileSync` here fails in a built app.
+// Real `#`/`##` headings and a handful of `chapter N` headings so chapter
+// detection, chunking and summarisation all have honest input.
+
+export const SAMPLE_BOOK_MARKDOWN = `# The Quiet Craft of Habit
 
 ## Introduction
 
@@ -64,3 +71,4 @@ No streak survives forever. The skill that matters is not perfection but recover
 the ability to miss once and return without the missed day becoming a missed
 month. Never miss twice. A single lapse is an accident; a second in a row is the
 start of a new, unwanted habit.
+`;

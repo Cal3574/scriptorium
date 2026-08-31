@@ -1,0 +1,30 @@
+[
+  {
+    "id": "how-we-think",
+    "title": "How We Think",
+    "author": "John Dewey",
+    "gutenberg": 37423,
+    "file": "how-we-think.txt"
+  },
+  {
+    "id": "thinking-as-a-science",
+    "title": "Thinking as a Science",
+    "author": "Henry Hazlitt",
+    "gutenberg": 18887,
+    "file": "thinking-as-a-science.txt"
+  },
+  {
+    "id": "the-art-of-war",
+    "title": "The Art of War",
+    "author": "Sun Tzu",
+    "gutenberg": 132,
+    "file": "the-art-of-war.txt"
+  },
+  {
+    "id": "the-prince",
+    "title": "The Prince",
+    "author": "Niccolo Machiavelli",
+    "gutenberg": 1232,
+    "file": "the-prince.txt"
+  }
+]

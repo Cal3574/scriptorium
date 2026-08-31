@@ -1,11 +1,10 @@
-import { readFileSync } from 'node:fs';
-import { join } from 'node:path';
 import type {
   PdfExtractInput,
   PdfExtraction,
   PdfExtractor,
   PdfHeadingItem,
 } from './pdf-extractor.js';
+import { SAMPLE_BOOK_MARKDOWN } from './fixtures/sample-book.js';
 
 // Roughly how many markdown characters map to one printed page. Only used to
 // synthesise plausible, monotonically increasing `page` numbers for the
@@ -13,13 +12,8 @@ import type {
 // ranges. The exact value does not matter; consistency across a run does.
 const CHARS_PER_PAGE = 900;
 
-// The committed fixture. Read once at module load. `join(__dirname, ...)` is
-// resolved by both `@swc/jest` (jest injects `__dirname`) and the webpack
-// node build used by the apps.
-const FIXTURE_MARKDOWN = readFileSync(
-  join(__dirname, 'fixtures', 'sample-book.md'),
-  'utf8',
-);
+// The committed fixture, inlined as a string module (see `sample-book.ts`).
+const FIXTURE_MARKDOWN = SAMPLE_BOOK_MARKDOWN;
 
 function parseHeadings(markdown: string): PdfHeadingItem[] {
   const items: PdfHeadingItem[] = [];
