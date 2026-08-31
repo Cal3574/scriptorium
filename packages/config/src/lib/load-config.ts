@@ -88,8 +88,20 @@ export class ConfigError extends Error {
   }
 }
 
+// A shell that sources `.env` exports every listed key, so an unfilled line
+// like `LLAMAPARSE_API_KEY=` arrives as `''` rather than absent. Treat an
+// empty string as unset so `.optional()` and `.default()` behave the way the
+// `.env.example` comments promise.
+function stripEmpty(env: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
+  const out: NodeJS.ProcessEnv = {};
+  for (const [key, value] of Object.entries(env)) {
+    if (value !== '') out[key] = value;
+  }
+  return out;
+}
+
 function parse<T>(schema: z.ZodType<T>, env: NodeJS.ProcessEnv): T {
-  const result = schema.safeParse(env);
+  const result = schema.safeParse(stripEmpty(env));
   if (result.success) return result.data;
   const keys = Array.from(
     new Set(
