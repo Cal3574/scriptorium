@@ -1,0 +1,27 @@
+# Keep the workspace coherent before anything leaves the machine: TS project
+# references in sync (nx sync) and formatting clean (nx format). Both mirror a
+# CI gate, so catching them here saves a red pipeline. On drift we run the
+# corresponding write command, leave the changes in the working tree for you
+# to review, and abort the push.
+
+drift=0
+
+echo "▸ nx sync:check"
+if ! pnpm exec nx sync:check; then
+  echo "  project references out of sync - writing the fix with 'nx sync'"
+  pnpm exec nx sync
+  drift=1
+fi
+
+echo "▸ nx format:check"
+if ! pnpm exec nx format:check; then
+  echo "  formatting drift - writing the fix with 'nx format:write'"
+  pnpm exec nx format:write
+  drift=1
+fi
+
+if [ "$drift" -ne 0 ]; then
+  echo
+  echo "✗ push aborted. Fixes were written to the working tree - review, commit, and push again."
+  exit 1
+fi

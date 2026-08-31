@@ -12,7 +12,8 @@
     "typecheck": "nx run-many -t typecheck",
     "test": "nx run-many -t test",
     "test-integration": "nx run-many -t test-integration",
-    "build": "nx run-many -t build"
+    "build": "nx run-many -t build",
+    "prepare": "husky"
   },
   "private": true,
   "packageManager": "pnpm@9.14.4",
@@ -42,6 +43,7 @@
     "@vitejs/plugin-react": "^6.0.2",
     "eslint": "^9.8.0",
     "eslint-config-prettier": "^10.0.0",
+    "husky": "^9.1.7",
     "jest": "~30.3.0",
     "jest-environment-node": "~30.3.0",
     "jest-util": "~30.3.0",

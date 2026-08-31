@@ -117,7 +117,10 @@ function build(
 
 function flattenZodIssues(exception: ZodValidationException): ProblemDetail[] {
   const { issues } = exception.getZodError() as {
-    issues: ReadonlyArray<{ path: ReadonlyArray<PropertyKey>; message: string }>;
+    issues: ReadonlyArray<{
+      path: ReadonlyArray<PropertyKey>;
+      message: string;
+    }>;
   };
   return issues.map((issue) => ({
     path: issue.path.map(String).join('.'),
