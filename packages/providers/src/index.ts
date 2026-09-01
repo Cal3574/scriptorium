@@ -44,6 +44,22 @@ export {
   type ClaudeLlmClientOptions,
 } from './llm-client/claude-llm-client.js';
 
+export type {
+  ObjectStorage,
+  PresignedPutRequest,
+  StoredObjectHead,
+} from './object-storage/object-storage.js';
+export { OBJECT_STORAGE } from './object-storage/object-storage.js';
+export {
+  FakeObjectStorage,
+  FAKE_UPLOAD_ROUTE,
+  type FakeObjectStorageOptions,
+} from './object-storage/fake-object-storage.js';
+export {
+  S3ObjectStorage,
+  type S3ObjectStorageOptions,
+} from './object-storage/s3-object-storage.js';
+
 export type { Queue, DeleteJobData } from './queue/queue.js';
 export { QUEUE } from './queue/queue.js';
 export { FakeQueue, type RecordedJob } from './queue/fake-queue.js';

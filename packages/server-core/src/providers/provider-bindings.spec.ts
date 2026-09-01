@@ -2,8 +2,11 @@ import {
   EMBEDDING_CLIENT,
   FakeEmbeddingClient,
   FakeLlmClient,
+  FakeObjectStorage,
   FakePdfExtractor,
+  FakeQueue,
   LLM_CLIENT,
+  OBJECT_STORAGE,
   PDF_EXTRACTOR,
   QUEUE,
 } from '@scriptorium/providers';
@@ -33,6 +36,7 @@ describe('selectProviderBindings', () => {
         EMBEDDING_CLIENT,
         LLM_CLIENT,
         QUEUE,
+        OBJECT_STORAGE,
       ]),
     );
   });
@@ -48,6 +52,18 @@ describe('selectProviderBindings', () => {
     expect(
       (byToken(bindings, LLM_CLIENT) as FactoryProvider).useFactory(),
     ).toBeInstanceOf(FakeLlmClient);
+    expect((byToken(bindings, QUEUE) as ClassProvider).useClass).toBe(
+      FakeQueue,
+    );
+    expect(
+      (byToken(bindings, OBJECT_STORAGE) as FactoryProvider).useFactory(),
+    ).toBeInstanceOf(FakeObjectStorage);
+  });
+
+  it('binds the live S3 storage and fails fast without its keys', () => {
+    const live = selectProviderBindings({ ...base, mode: 'live' });
+    const storage = byToken(live, OBJECT_STORAGE) as FactoryProvider;
+    expect(() => storage.useFactory()).toThrow(/S3_BUCKET/);
   });
 
   it('does not require provider keys in fake mode', () => {

@@ -5,12 +5,16 @@ import {
   EMBEDDING_CLIENT,
   FakeEmbeddingClient,
   FakeLlmClient,
+  FakeObjectStorage,
   FakePdfExtractor,
+  FakeQueue,
   LLM_CLIENT,
   LlamaParseExtractor,
+  OBJECT_STORAGE,
   OpenAiEmbeddingClient,
   PDF_EXTRACTOR,
   QUEUE,
+  S3ObjectStorage,
 } from '@scriptorium/providers';
 import { requireKey, type ProviderRuntimeConfig } from './provider-config.js';
 
@@ -20,8 +24,9 @@ import { requireKey, type ProviderRuntimeConfig } from './provider-config.js';
 // is deliberately no per-provider override - a real LLM with fake embeddings
 // produces incoherent RAG results.
 //
-// The queue is always the live BullMQ adapter: local dev runs a real Redis
-// from docker-compose, so there is no fake for it.
+// The queue and object storage follow the same switch. Fake mode binds the
+// in-memory `FakeQueue` / `FakeObjectStorage` so the API runs with no network;
+// live mode binds BullMQ on Redis and S3.
 export function selectProviderBindings(
   config: ProviderRuntimeConfig,
 ): Provider[] {
@@ -59,10 +64,38 @@ export function selectProviderBindings(
           },
         ];
 
-  const queueBinding: Provider = {
-    provide: QUEUE,
-    useFactory: () => new BullMqQueue({ redisUrl: config.redisUrl }),
-  };
+  const queueBinding: Provider =
+    config.mode === 'fake'
+      ? { provide: QUEUE, useClass: FakeQueue }
+      : {
+          provide: QUEUE,
+          useFactory: () => new BullMqQueue({ redisUrl: config.redisUrl }),
+        };
 
-  return [...aiBindings, queueBinding];
+  const objectStorageBinding: Provider =
+    config.mode === 'fake'
+      ? {
+          provide: OBJECT_STORAGE,
+          useFactory: () =>
+            new FakeObjectStorage({ publicBaseUrl: config.apiUrl }),
+        }
+      : {
+          provide: OBJECT_STORAGE,
+          useFactory: () =>
+            new S3ObjectStorage({
+              bucket: requireKey(config.s3Bucket, 'S3_BUCKET'),
+              region: requireKey(config.s3Region, 'S3_REGION'),
+              accessKeyId: requireKey(
+                config.awsAccessKeyId,
+                'AWS_ACCESS_KEY_ID',
+              ),
+              secretAccessKey: requireKey(
+                config.awsSecretAccessKey,
+                'AWS_SECRET_ACCESS_KEY',
+              ),
+              endpoint: config.s3Endpoint,
+            }),
+        };
+
+  return [...aiBindings, queueBinding, objectStorageBinding];
 }

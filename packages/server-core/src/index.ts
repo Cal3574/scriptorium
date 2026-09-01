@@ -4,6 +4,12 @@
 // core - identity, request correlation, and the RFC 9457 problem filter.
 
 export { ProvidersModule } from './providers/providers.module.js';
+export {
+  OBJECT_STORAGE,
+  QUEUE,
+  type ObjectStorage,
+  type Queue,
+} from '@scriptorium/providers';
 export { selectProviderBindings } from './providers/provider-bindings.js';
 export {
   toProviderRuntimeConfig,
@@ -14,6 +20,12 @@ export {
 
 export { DatabaseModule, DB } from './database/database.module.js';
 export { UsersRepository, type LocalUser } from './users/users.repository.js';
+export {
+  BooksRepository,
+  type BookRow,
+  type CreateBookInput,
+  type CreateBookResult,
+} from './books/books.repository.js';
 
 export {
   HttpCoreModule,

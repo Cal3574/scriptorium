@@ -25,9 +25,20 @@
     "eslint.config.mjs"
   ],
   "references": [
-    { "path": "../config/tsconfig.lib.json" },
-    { "path": "../contracts/tsconfig.lib.json" },
-    { "path": "../database/tsconfig.lib.json" },
-    { "path": "../server-core/tsconfig.lib.json" }
+    {
+      "path": "../server-core/tsconfig.lib.json"
+    },
+    {
+      "path": "../providers/tsconfig.lib.json"
+    },
+    {
+      "path": "../database/tsconfig.lib.json"
+    },
+    {
+      "path": "../contracts/tsconfig.lib.json"
+    },
+    {
+      "path": "../config/tsconfig.lib.json"
+    }
   ]
 }

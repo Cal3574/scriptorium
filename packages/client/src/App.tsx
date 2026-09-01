@@ -10,6 +10,7 @@ import type { UserDto } from '@scriptorium/contracts';
 import { lazyProvider } from './mf';
 import { env } from './env';
 import { useApi } from './auth/use-api';
+import { Library } from './books/Library';
 
 // ProviderBoundary catches the lazy() rejection that fires when a provider's
 // remoteEntry.js can't be fetched (provider not running, network error,
@@ -81,6 +82,7 @@ function SignedInApp() {
       </header>
       <p>API: {env.apiUrl}</p>
       <Identity />
+      <Library />
       <ProviderBoundary name="my-provider">
         <ProviderMyProvider />
       </ProviderBoundary>

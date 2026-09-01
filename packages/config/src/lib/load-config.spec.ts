@@ -10,6 +10,13 @@ const liveProviderKeys = {
   ANTHROPIC_API_KEY: 'sk-ant-test',
 };
 
+const liveS3Keys = {
+  S3_BUCKET: 'scriptorium-uploads-test',
+  S3_REGION: 'eu-west-2',
+  AWS_ACCESS_KEY_ID: 'AKIATEST',
+  AWS_SECRET_ACCESS_KEY: 'secret-test',
+};
+
 const validApiEnv = {
   DATABASE_URL: 'postgres://localhost:5432/scriptorium',
   REDIS_URL: 'redis://localhost:6379',
@@ -19,6 +26,7 @@ const validApiEnv = {
   API_URL: 'http://localhost:3000',
   CLIENT_ORIGIN: 'http://localhost:4200',
   ...liveProviderKeys,
+  ...liveS3Keys,
 };
 
 const validWorkerEnv = {
@@ -136,5 +144,42 @@ describe('PROVIDER_MODE', () => {
     expect(() =>
       parseApiConfig({ ...validApiEnv, PROVIDER_MODE: 'hybrid' }),
     ).toThrow(/PROVIDER_MODE/);
+  });
+
+  it('requires the S3 upload keys when live', () => {
+    const {
+      S3_BUCKET,
+      S3_REGION,
+      AWS_ACCESS_KEY_ID,
+      AWS_SECRET_ACCESS_KEY,
+      ...rest
+    } = validApiEnv;
+    void [S3_BUCKET, S3_REGION, AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY];
+    try {
+      parseApiConfig({ ...rest, PROVIDER_MODE: 'live' });
+      fail('expected ConfigError');
+    } catch (error) {
+      expect((error as ConfigError).keys).toEqual(
+        expect.arrayContaining([
+          'S3_BUCKET',
+          'S3_REGION',
+          'AWS_ACCESS_KEY_ID',
+          'AWS_SECRET_ACCESS_KEY',
+        ]),
+      );
+    }
+  });
+
+  it('does not require the S3 keys when fake, and defaults MAX_UPLOAD_BYTES', () => {
+    const {
+      S3_BUCKET,
+      S3_REGION,
+      AWS_ACCESS_KEY_ID,
+      AWS_SECRET_ACCESS_KEY,
+      ...rest
+    } = validApiEnv;
+    void [S3_BUCKET, S3_REGION, AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY];
+    const config = parseApiConfig({ ...rest, PROVIDER_MODE: 'fake' });
+    expect(config.MAX_UPLOAD_BYTES).toBe(50 * 1024 * 1024);
   });
 });

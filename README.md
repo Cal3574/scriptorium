@@ -28,6 +28,10 @@ cp .env.example .env   # then fill in real secrets
 pnpm dev               # compose up --wait -> migrate -> seed -> serve all apps
 ```
 
+For `PROVIDER_MODE=live`, the reader-upload S3 bucket needs a one-time CORS +
+scoped IAM setup: see [`docs/s3-setup.md`](docs/s3-setup.md). `fake` mode keeps
+uploads in memory and needs no setup.
+
 Database lifecycle without the app servers:
 
 ```sh

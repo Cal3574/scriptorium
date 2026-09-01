@@ -2,6 +2,7 @@ import { type DynamicModule, Module } from '@nestjs/common';
 import {
   EMBEDDING_CLIENT,
   LLM_CLIENT,
+  OBJECT_STORAGE,
   PDF_EXTRACTOR,
   QUEUE,
 } from '@scriptorium/providers';
@@ -11,7 +12,13 @@ import {
   type EnvProviderConfig,
 } from './provider-config.js';
 
-const EXPORTED_TOKENS = [PDF_EXTRACTOR, EMBEDDING_CLIENT, LLM_CLIENT, QUEUE];
+const EXPORTED_TOKENS = [
+  PDF_EXTRACTOR,
+  EMBEDDING_CLIENT,
+  LLM_CLIENT,
+  QUEUE,
+  OBJECT_STORAGE,
+];
 
 /**
  * The api and worker apps import `ProvidersModule.forRoot(config)` to get the

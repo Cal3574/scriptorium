@@ -51,6 +51,32 @@ function requireProviderKeysWhenLive(
   }
 }
 
+// Reader-upload storage keys. Required only in `live` mode - `fake` keeps
+// uploads in an in-memory bucket. Reported against their own keys.
+const s3Keys = [
+  'S3_BUCKET',
+  'S3_REGION',
+  'AWS_ACCESS_KEY_ID',
+  'AWS_SECRET_ACCESS_KEY',
+] as const;
+
+type MaybeS3Config = {
+  PROVIDER_MODE?: string;
+} & Partial<Record<(typeof s3Keys)[number], string>>;
+
+function requireS3KeysWhenLive(cfg: MaybeS3Config, ctx: z.RefinementCtx): void {
+  if (cfg.PROVIDER_MODE !== 'live') return;
+  for (const key of s3Keys) {
+    if (!cfg[key]) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: [key],
+        message: `${key} is required when PROVIDER_MODE=live`,
+      });
+    }
+  }
+}
+
 const apiConfigSchema = z
   .object({
     ...sharedShape,
@@ -64,8 +90,24 @@ const apiConfigSchema = z
     // The single browser origin allowed through CORS and accepted as the
     // token's `azp` (authorized party). Never `*`.
     CLIENT_ORIGIN: z.string().url(),
+    // The reader-upload S3 bucket and the credentials that sign presigned
+    // PUTs (see `docs/s3-setup.md`). Required only in `live` mode.
+    S3_BUCKET: z.string().min(1).optional(),
+    S3_REGION: z.string().min(1).optional(),
+    // Set for an S3-compatible endpoint (MinIO, LocalStack); omit for AWS.
+    S3_ENDPOINT: z.string().url().optional(),
+    AWS_ACCESS_KEY_ID: z.string().min(1).optional(),
+    AWS_SECRET_ACCESS_KEY: z.string().min(1).optional(),
+    // The presigned-upload size ceiling the upload-url endpoint enforces.
+    // Default 50 MiB.
+    MAX_UPLOAD_BYTES: z.coerce
+      .number()
+      .int()
+      .positive()
+      .default(50 * 1024 * 1024),
   })
-  .superRefine(requireProviderKeysWhenLive);
+  .superRefine(requireProviderKeysWhenLive)
+  .superRefine(requireS3KeysWhenLive);
 
 const workerConfigSchema = z
   .object({
