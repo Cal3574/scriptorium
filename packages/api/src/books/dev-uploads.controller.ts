@@ -22,13 +22,13 @@ export class DevUploadsController {
   @Public()
   @Put('*path')
   @HttpCode(200)
-  put(
+  async put(
     @Param('path') path: string | string[],
     @Req() req: RawRequest,
-  ): { ok: true } {
+  ): Promise<{ ok: true }> {
     const key = Array.isArray(path) ? path.join('/') : path;
     const body = req.rawBody ?? Buffer.alloc(0);
-    this.storage.putObject(key, body.length);
+    await this.storage.putObject(key, body, 'application/pdf');
     return { ok: true };
   }
 }

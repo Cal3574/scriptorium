@@ -16,6 +16,11 @@ interface FakePutUrl {
   expiresInSeconds: number;
 }
 
+interface FakeStoredObject {
+  body: Buffer;
+  contentType: string;
+}
+
 export interface FakeObjectStorageOptions {
   // The api's public origin, used as the base of the presigned PUT URL. When
   // omitted the URL is still well-formed (against a placeholder host) but only
@@ -27,12 +32,13 @@ export interface FakeObjectStorageOptions {
 /**
  * In-memory {@link ObjectStorage}. `createPresignedPutUrl` returns a URL that
  * points back at the api's dev upload route (see {@link FAKE_UPLOAD_ROUTE});
- * the object is not stored until bytes are PUT there (or a test calls
- * {@link putObject}). `headObject` reads the in-memory map, so
- * `upload_not_found` and `file_size_mismatch` are both reachable offline.
+ * the object is not stored until bytes are PUT there (or a caller uses
+ * {@link putObject} / {@link simulateUpload} directly). `headObject` and
+ * `getObject` read the in-memory map, so `upload_not_found` and
+ * `file_size_mismatch` are both reachable offline.
  */
 export class FakeObjectStorage implements ObjectStorage {
-  private readonly objects = new Map<string, number>();
+  private readonly objects = new Map<string, FakeStoredObject>();
   private readonly baseUrl: string;
   // Every presign request, in order - handy for assertions.
   readonly presigned: FakePutUrl[] = [];
@@ -53,13 +59,32 @@ export class FakeObjectStorage implements ObjectStorage {
   }
 
   headObject(key: string): Promise<StoredObjectHead | null> {
-    const size = this.objects.get(key);
-    return Promise.resolve(size === undefined ? null : { contentLength: size });
+    const object = this.objects.get(key);
+    return Promise.resolve(
+      object === undefined ? null : { contentLength: object.body.length },
+    );
   }
 
-  /** Simulate a completed client PUT of `sizeBytes` bytes to `key`. */
-  putObject(key: string, sizeBytes: number): void {
-    this.objects.set(key, sizeBytes);
+  putObject(
+    key: string,
+    body: Uint8Array,
+    contentType: string,
+  ): Promise<void> {
+    this.objects.set(key, { body: Buffer.from(body), contentType });
+    return Promise.resolve();
+  }
+
+  getObject(key: string): Promise<Uint8Array | null> {
+    const object = this.objects.get(key);
+    return Promise.resolve(object === undefined ? null : object.body);
+  }
+
+  /** Simulate a completed client PUT of `sizeBytes` arbitrary bytes to `key`. */
+  simulateUpload(key: string, sizeBytes: number): void {
+    this.objects.set(key, {
+      body: Buffer.alloc(sizeBytes, 7),
+      contentType: 'application/pdf',
+    });
   }
 
   /** Simulate a deleted / never-uploaded object. */

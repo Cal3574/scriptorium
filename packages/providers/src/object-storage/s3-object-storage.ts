@@ -1,5 +1,7 @@
 import {
+  GetObjectCommand,
   HeadObjectCommand,
+  NoSuchKey,
   NotFound,
   PutObjectCommand,
   S3Client,
@@ -68,6 +70,34 @@ export class S3ObjectStorage implements ObjectStorage {
       return { contentLength: head.ContentLength ?? 0 };
     } catch (error) {
       if (error instanceof NotFound) return null;
+      throw error;
+    }
+  }
+
+  async putObject(
+    key: string,
+    body: Uint8Array,
+    contentType: string,
+  ): Promise<void> {
+    await this.client.send(
+      new PutObjectCommand({
+        Bucket: this.options.bucket,
+        Key: key,
+        Body: body,
+        ContentType: contentType,
+      }),
+    );
+  }
+
+  async getObject(key: string): Promise<Uint8Array | null> {
+    try {
+      const result = await this.client.send(
+        new GetObjectCommand({ Bucket: this.options.bucket, Key: key }),
+      );
+      if (!result.Body) return null;
+      return await result.Body.transformToByteArray();
+    } catch (error) {
+      if (error instanceof NoSuchKey || error instanceof NotFound) return null;
       throw error;
     }
   }

@@ -111,7 +111,7 @@ describe('upload a book to the library (Seam 1)', () => {
       const url: CreateUploadUrlResponse = (
         await requestUploadUrl(validUploadBody)
       ).body;
-      storage.putObject(
+      storage.simulateUpload(
         url.s3Key,
         overrides.size ?? validUploadBody.fileSizeBytes,
       );

@@ -114,9 +114,17 @@ const workerConfigSchema = z
     ...sharedShape,
     WORKER_PORT: z.coerce.number().int().positive().default(3001),
     WORKER_CONCURRENCY: z.coerce.number().int().positive().default(4),
-    STORAGE_BUCKET_URL: z.string().url(),
+    // The worker reads the original PDF back and writes the extracted-markdown
+    // blob, so it needs the same S3 credentials as the api. Required only in
+    // `live` mode; `fake` keeps objects in an in-memory bucket.
+    S3_BUCKET: z.string().min(1).optional(),
+    S3_REGION: z.string().min(1).optional(),
+    S3_ENDPOINT: z.string().url().optional(),
+    AWS_ACCESS_KEY_ID: z.string().min(1).optional(),
+    AWS_SECRET_ACCESS_KEY: z.string().min(1).optional(),
   })
-  .superRefine(requireProviderKeysWhenLive);
+  .superRefine(requireProviderKeysWhenLive)
+  .superRefine(requireS3KeysWhenLive);
 
 export type ApiConfig = z.infer<typeof apiConfigSchema>;
 export type WorkerConfig = z.infer<typeof workerConfigSchema>;

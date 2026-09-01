@@ -23,10 +23,37 @@ describe('FakeObjectStorage', () => {
     const storage = new FakeObjectStorage();
     expect(await storage.headObject(key)).toBeNull();
 
-    storage.putObject(key, 4096);
+    storage.simulateUpload(key, 4096);
     expect(await storage.headObject(key)).toEqual({ contentLength: 4096 });
 
     storage.removeObject(key);
     expect(await storage.headObject(key)).toBeNull();
+  });
+
+  it('round-trips bytes through putObject / getObject', async () => {
+    const storage = new FakeObjectStorage();
+    const markdownKey = 'books/user-1/abc.md';
+    expect(await storage.getObject(markdownKey)).toBeNull();
+
+    const body = Buffer.from('# Title\n\n## Chapter 1\n', 'utf-8');
+    await storage.putObject(markdownKey, body, 'text/markdown');
+
+    const readBack = await storage.getObject(markdownKey);
+    expect(readBack).not.toBeNull();
+    expect(Buffer.from(readBack as Uint8Array).toString()).toBe(
+      '# Title\n\n## Chapter 1\n',
+    );
+    expect(await storage.headObject(markdownKey)).toEqual({
+      contentLength: body.length,
+    });
+  });
+
+  it('putObject copies the incoming bytes so later mutation is not seen', async () => {
+    const storage = new FakeObjectStorage();
+    const body = Buffer.from('original');
+    await storage.putObject(key, body, 'application/octet-stream');
+    body.fill(0);
+    const readBack = await storage.getObject(key);
+    expect(Buffer.from(readBack as Uint8Array).toString()).toBe('original');
   });
 });
