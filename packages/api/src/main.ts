@@ -1,5 +1,6 @@
 import { Logger } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
+import type { NestExpressApplication } from '@nestjs/platform-express';
 import { loadApiConfig } from '@scriptorium/config';
 import {
   RequestAwareLogger,
@@ -9,10 +10,20 @@ import { AppModule } from './app/app.module';
 
 async function bootstrap() {
   const config = loadApiConfig();
-  const app = await NestFactory.create(AppModule.forRoot(config), {
-    bufferLogs: true,
-  });
+  const app = await NestFactory.create<NestExpressApplication>(
+    AppModule.forRoot(config),
+    { bufferLogs: true, rawBody: true },
+  );
   app.useLogger(new RequestAwareLogger());
+
+  // The dev upload route (fake mode only) receives raw PDF bytes; scope the
+  // raw body parser to that content type so JSON routes are untouched.
+  if (config.PROVIDER_MODE === 'fake') {
+    app.useBodyParser('raw', {
+      type: 'application/pdf',
+      limit: config.MAX_UPLOAD_BYTES,
+    });
+  }
 
   // Everything lives under `/api/v1`; `GET /health` is the one exception so
   // infra checks do not depend on the version segment.

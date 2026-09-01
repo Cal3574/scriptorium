@@ -67,10 +67,13 @@ export type BookDetailDto = z.infer<typeof BookDetailDto>;
 // --- Request bodies ---
 
 // `POST /api/v1/books/upload-url`. The client proposes a filename and size; the
-// server pins the presigned PUT to a key it chooses.
+// server pins the presigned PUT to a key it chooses. `contentType` is a free
+// string here so the endpoint can answer a non-PDF with the domain-specific
+// `not_a_pdf` problem rather than a generic schema `422`; the same goes for an
+// over-size `fileSizeBytes` and `file_too_large`.
 export const CreateUploadUrlRequest = z.object({
   filename: z.string().min(1),
-  contentType: z.literal('application/pdf'),
+  contentType: z.string().min(1),
   fileSizeBytes: z.number().int().positive(),
 });
 export type CreateUploadUrlRequest = z.infer<typeof CreateUploadUrlRequest>;

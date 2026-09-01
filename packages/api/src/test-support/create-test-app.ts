@@ -1,5 +1,6 @@
 import type { INestApplication } from '@nestjs/common';
 import { Module } from '@nestjs/common';
+import type { NestExpressApplication } from '@nestjs/platform-express';
 import { Test } from '@nestjs/testing';
 import { parseApiConfig } from '@scriptorium/config';
 import { RequestAwareLogger } from '@scriptorium/server-core';
@@ -42,8 +43,16 @@ export async function createTestApp(
     imports: [TestAppModule],
   }).compile();
 
-  const app = moduleRef.createNestApplication({ bufferLogs: true });
+  const app = moduleRef.createNestApplication<NestExpressApplication>({
+    bufferLogs: true,
+    rawBody: true,
+  });
   app.useLogger(new RequestAwareLogger());
+  // Mirrors `main.ts`: the fake-mode dev upload route takes raw PDF bytes.
+  app.useBodyParser('raw', {
+    type: 'application/pdf',
+    limit: 64 * 1024 * 1024,
+  });
   app.setGlobalPrefix('api/v1', { exclude: ['health'] });
   app.enableShutdownHooks();
   await app.init();

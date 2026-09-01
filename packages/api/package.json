@@ -14,6 +14,7 @@
     "@scriptorium/config": "workspace:*",
     "@scriptorium/contracts": "workspace:*",
     "@scriptorium/database": "workspace:*",
+    "@scriptorium/providers": "workspace:*",
     "@scriptorium/server-core": "workspace:*"
   },
   "devDependencies": {
