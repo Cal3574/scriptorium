@@ -31,6 +31,9 @@ export async function createTestApp(
     API_URL: 'http://localhost:3000',
     CLIENT_ORIGIN: options.clientOrigin ?? 'http://localhost:4200',
     PROVIDER_MODE: 'fake',
+    // Fast keep-alive so the SSE suite can assert the delete-detection path
+    // without waiting the production 15 seconds.
+    SSE_HEARTBEAT_MS: '300',
   });
 
   @Module({
