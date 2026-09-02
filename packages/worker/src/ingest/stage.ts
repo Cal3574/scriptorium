@@ -1,5 +1,6 @@
 import type { BookStatus, PipelineStage } from '@scriptorium/contracts';
 import type {
+  EmbeddingClient,
   LlmClient,
   ObjectStorage,
   PdfExtractor,
@@ -20,6 +21,7 @@ export interface StageDeps {
   storage: ObjectStorage;
   pdfExtractor: PdfExtractor;
   llm: LlmClient;
+  embeddings: EmbeddingClient;
   events: StageEventPublisher;
   logger: StageLogger;
 }

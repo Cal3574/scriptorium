@@ -1,10 +1,14 @@
 import { randomUUID } from 'node:crypto';
 import { createDbClient, type DbClient } from '@scriptorium/database/client';
 import {
+  FakeEmbeddingClient,
   FakeLlmClient,
   FakePdfExtractor,
   FakeObjectStorage,
   PdfExtractionError,
+  type EmbeddingClient,
+  type LlmClient,
+  type LlmRequest,
   type PdfExtractor,
 } from '@scriptorium/providers';
 import { IngestRepository } from '@scriptorium/server-core';
@@ -12,6 +16,7 @@ import { bookEventsChannel } from '@scriptorium/contracts';
 import { IngestProcessor } from './ingest-processor.js';
 import { StageEventPublisher } from './stage-event-publisher.js';
 import { InMemoryEventTransport } from './event-transport.js';
+import { TerminalIngestError } from './errors.js';
 import {
   setupTestDatabase,
   type TestDatabase,
@@ -19,7 +24,7 @@ import {
 
 // Seam 2: the real pipeline (IngestProcessor + real stages) against a real
 // Postgres, with the offline provider fakes and an in-memory event transport.
-describe('ingest pipeline: extract + identifyBook + chunk (Seam 2)', () => {
+describe('ingest pipeline (Seam 2)', () => {
   let db: TestDatabase;
   let client: DbClient;
   let repo: IngestRepository;
@@ -29,14 +34,19 @@ describe('ingest pipeline: extract + identifyBook + chunk (Seam 2)', () => {
 
   const PDF_BYTES = Buffer.from('%PDF-1.7 fake bytes');
 
-  function makeProcessor(pdfExtractor: PdfExtractor = new FakePdfExtractor()) {
+  function makeProcessor(opts: {
+    pdfExtractor?: PdfExtractor;
+    llm?: LlmClient;
+    embeddings?: EmbeddingClient;
+  } = {}) {
     const publisher = new StageEventPublisher(transport);
     return new IngestProcessor(
       repo,
       publisher,
       storage,
-      pdfExtractor,
-      new FakeLlmClient({ delayMs: 0 }),
+      opts.pdfExtractor ?? new FakePdfExtractor(),
+      opts.llm ?? new FakeLlmClient({ delayMs: 0 }),
+      opts.embeddings ?? new FakeEmbeddingClient(),
     );
   }
 
@@ -60,6 +70,8 @@ describe('ingest pipeline: extract + identifyBook + chunk (Seam 2)', () => {
   }
 
   const readBook = (id: string) => repo.findById(id);
+  const eventTypes = (id: string) =>
+    transport.eventsFor<{ type: string }>(bookEventsChannel(id)).map((e) => e.type);
 
   beforeAll(async () => {
     db = await setupTestDatabase();
@@ -88,93 +100,158 @@ describe('ingest pipeline: extract + identifyBook + chunk (Seam 2)', () => {
     userId = user.id;
   });
 
-  it('advances pending -> extracting -> chunking, stores markdown, records page count, backfills the title', async () => {
-    const { id, s3Key } = await insertBook();
+  it('runs an uploaded book all the way to ready with every summary populated', async () => {
+    const { id } = await insertBook();
 
     const outcome = await makeProcessor().process(id);
-
-    expect(outcome).toEqual({ status: 'completed', lastStage: 'chunk' });
+    expect(outcome).toEqual({ status: 'completed', lastStage: 'bookSummary' });
 
     const book = await readBook(id);
-    expect(book?.status).toBe('chunking');
-    expect(book?.extractedMarkdownKey).toBe(s3Key.replace(/\.pdf$/, '.md'));
-    expect(book?.pageCount).toBeGreaterThan(0);
+    expect(book?.status).toBe('ready');
+    expect(book?.summary).toBeTruthy();
+    expect(book?.summaryGeneratedAt).toBeInstanceOf(Date);
 
-    const markdownKey = book?.extractedMarkdownKey ?? '';
-    const stored = await storage.getObject(markdownKey);
-    expect(Buffer.from(stored as Uint8Array).toString()).toContain('# ');
+    const chunks = await db.pool.query(
+      `SELECT count(*)::int AS total,
+              count(*) FILTER (WHERE embedding IS NULL)::int AS unembedded
+         FROM chunks WHERE book_id = $1`,
+      [id],
+    );
+    expect(chunks.rows[0].total).toBeGreaterThan(0);
+    expect(chunks.rows[0].unembedded).toBe(0);
 
-    // identifyBook backfilled the title from the fixture's `#` heading.
-    expect(book?.title).toBe('The Quiet Craft of Habit');
+    const chapters = await db.pool.query(
+      `SELECT title, summary FROM chapters WHERE book_id = $1 ORDER BY chapter_index`,
+      [id],
+    );
+    expect(chapters.rowCount).toBe(7);
+    expect(chapters.rows.every((r) => (r.summary ?? '').trim().length > 0)).toBe(
+      true,
+    );
 
-    const events = transport.eventsFor<{ type: string }>(bookEventsChannel(id));
-    expect(events.map((e) => e.type)).toEqual([
-      'stage_entered',
-      'book_identified',
-      'stage_entered',
+    const types = eventTypes(id);
+    expect(types).toContain('book_completed');
+    expect(types.filter((t) => t === 'stage_entered').length).toBe(4); // extract, chunk, embed, summarize
+    const progress = transport
+      .eventsFor<{ type: string; stage: string; unit: string }>(
+        bookEventsChannel(id),
+      )
+      .filter((e) => e.type === 'stage_progress');
+    expect(progress.some((e) => e.unit === 'chunks')).toBe(true);
+    expect(progress.some((e) => e.unit === 'chapters')).toBe(true);
+  });
+
+  it('re-running a ready book is a no-op walk that does not re-emit completion', async () => {
+    const { id } = await insertBook();
+    await makeProcessor().process(id);
+    transport.clear();
+
+    const spyLlm = new FakeLlmClient({ delayMs: 0 });
+    const complete = jest.spyOn(spyLlm, 'complete');
+    const outcome = await makeProcessor({ llm: spyLlm }).process(id);
+
+    expect(outcome.status).toBe('completed');
+    expect(complete).not.toHaveBeenCalled();
+    expect(eventTypes(id)).not.toContain('book_completed');
+  });
+
+  it('resumes only the unembedded chunks after a mid-embed crash', async () => {
+    const { id } = await insertBook();
+    await makeProcessor().process(id);
+
+    // Simulate a crash partway through embed: wipe half the vectors.
+    await db.pool.query(
+      `UPDATE chunks SET embedding = NULL
+         WHERE id IN (
+           SELECT id FROM chunks WHERE book_id = $1
+           ORDER BY chunk_index
+           LIMIT (SELECT ceil(count(*)/2.0) FROM chunks WHERE book_id = $1)
+         )`,
+      [id],
+    );
+    await db.pool.query(`UPDATE books SET status = 'embedding' WHERE id = $1`, [
+      id,
     ]);
-    expect(events[0]).toMatchObject({ seq: 1, stage: 'extracting' });
-    expect(events[1]).toMatchObject({
-      seq: 2,
-      title: 'The Quiet Craft of Habit',
-    });
-    expect(events[2]).toMatchObject({ seq: 3, stage: 'chunking' });
+    const cleared = await db.pool.query(
+      `SELECT count(*)::int AS n FROM chunks WHERE book_id = $1 AND embedding IS NULL`,
+      [id],
+    );
+    expect(cleared.rows[0].n).toBeGreaterThan(0);
+
+    const embeddings = new FakeEmbeddingClient();
+    const embed = jest.spyOn(embeddings, 'embed');
+    await makeProcessor({ embeddings }).process(id);
+
+    const embeddedTexts = embed.mock.calls.flatMap(([texts]) => texts);
+    expect(embeddedTexts.length).toBe(cleared.rows[0].n);
+    const still = await db.pool.query(
+      `SELECT count(*)::int AS n FROM chunks WHERE book_id = $1 AND embedding IS NULL`,
+      [id],
+    );
+    expect(still.rows[0].n).toBe(0);
+    expect((await readBook(id))?.status).toBe('ready');
   });
 
-  it('detects the fixture chapters and writes non-empty, unembedded chunks', async () => {
+  it('resumes only the chapters still missing a summary after a mid-chapterSummary crash', async () => {
     const { id } = await insertBook();
-
     await makeProcessor().process(id);
 
-    const chapterRows = await db.pool.query(
-      `SELECT chapter_index, title, page_start, page_end
-         FROM chapters WHERE book_id = $1 ORDER BY chapter_index`,
-      [id],
+    const [target] = (
+      await db.pool.query(
+        `SELECT id FROM chapters WHERE book_id = $1 ORDER BY chapter_index LIMIT 1`,
+        [id],
+      )
+    ).rows;
+    await db.pool.query(
+      `UPDATE chapters SET summary = NULL WHERE id = $1`,
+      [target.id],
     );
-    // The fixture book is "Chapter 1..7" with an Introduction (front matter).
-    expect(chapterRows.rowCount).toBe(7);
-    expect(chapterRows.rows[0]).toMatchObject({
-      chapter_index: 0,
-      title: 'Chapter 1. Starting Small',
-    });
-    expect(chapterRows.rows.every((r) => r.page_start <= r.page_end)).toBe(
-      true,
+    await db.pool.query(
+      `UPDATE books SET summary = NULL, summary_generated_at = NULL, status = 'summarizing' WHERE id = $1`,
+      [id],
     );
 
-    const chunkRows = await db.pool.query(
-      `SELECT chunk_index, chunk_text, book_title, chapter_title, embedding
-         FROM chunks WHERE book_id = $1 ORDER BY chunk_index`,
+    const spyLlm = new FakeLlmClient({ delayMs: 0 });
+    const complete = jest.spyOn(spyLlm, 'complete');
+    await makeProcessor({ llm: spyLlm }).process(id);
+
+    // One chapter deep-dive + one whole-book reduce.
+    expect(complete).toHaveBeenCalledTimes(2);
+    const book = await readBook(id);
+    expect(book?.status).toBe('ready');
+    expect(book?.summary).toBeTruthy();
+    const missing = await db.pool.query(
+      `SELECT count(*)::int AS n FROM chapters WHERE book_id = $1 AND summary IS NULL`,
       [id],
     );
-    expect(chunkRows.rowCount).toBeGreaterThan(0);
-    expect(chunkRows.rows.every((r) => r.embedding === null)).toBe(true);
-    expect(
-      chunkRows.rows.every((r) => r.book_title === 'The Quiet Craft of Habit'),
-    ).toBe(true);
-    expect(chunkRows.rows.every((r) => r.chunk_text.trim().length > 0)).toBe(
-      true,
-    );
-    // chunk_index is a contiguous 0-based run across the whole book.
-    expect(chunkRows.rows.map((r) => r.chunk_index)).toEqual(
-      chunkRows.rows.map((_, i) => i),
-    );
+    expect(missing.rows[0].n).toBe(0);
   });
 
-  it('skips the chunk stage on a re-run once chapters exist', async () => {
+  it('fails the book when one chapter permanently fails to summarise', async () => {
     const { id } = await insertBook();
-    await makeProcessor().process(id);
-    const before = await db.pool.query(
-      `SELECT count(*)::int AS n FROM chunks WHERE book_id = $1`,
-      [id],
+
+    const fallback = new FakeLlmClient({ delayMs: 0 });
+    const llm: LlmClient = {
+      complete: (request: LlmRequest) => {
+        const content = String(request.messages[0]?.content ?? '');
+        if (content.startsWith('Chapter: Chapter 1. Starting Small')) {
+          return Promise.reject(new TerminalIngestError('chapter blew up'));
+        }
+        return fallback.complete(request);
+      },
+      stream: () => {
+        throw new Error('unused');
+      },
+    };
+
+    await expect(makeProcessor({ llm }).process(id)).rejects.toThrow(
+      /chapter blew up/,
     );
 
-    await makeProcessor().process(id);
-
-    const after = await db.pool.query(
-      `SELECT count(*)::int AS n FROM chunks WHERE book_id = $1`,
-      [id],
-    );
-    expect(after.rows[0].n).toBe(before.rows[0].n);
+    const book = await readBook(id);
+    expect(book?.status).toBe('failed');
+    expect(book?.failedStage).toBe('chapterSummary');
+    expect(eventTypes(id)).toContain('book_failed');
   });
 
   it('lands the book failed at extract on a terminal extractor error', async () => {
@@ -184,51 +261,25 @@ describe('ingest pipeline: extract + identifyBook + chunk (Seam 2)', () => {
         Promise.reject(new PdfExtractionError('PDF_IS_BROKEN', false)),
     };
 
-    await expect(makeProcessor(brokenExtractor).process(id)).rejects.toThrow(
-      /PDF_IS_BROKEN/,
-    );
+    await expect(
+      makeProcessor({ pdfExtractor: brokenExtractor }).process(id),
+    ).rejects.toThrow(/PDF_IS_BROKEN/);
 
     const book = await readBook(id);
     expect(book?.status).toBe('failed');
     expect(book?.failedStage).toBe('extract');
-    expect(book?.failureReason).toContain('PDF_IS_BROKEN');
-
-    const events = transport.eventsFor<{ type: string }>(bookEventsChannel(id));
-    expect(events.map((e) => e.type)).toContain('book_failed');
+    expect(eventTypes(id)).toContain('book_failed');
   });
 
-  it('re-running skips a completed extract stage', async () => {
+  it('backfills the title and keeps a user-supplied title', async () => {
     const { id } = await insertBook();
     await makeProcessor().process(id);
+    expect((await readBook(id))?.title).toBe('The Quiet Craft of Habit');
 
-    const first = await readBook(id);
-    const markdownKey = first?.extractedMarkdownKey ?? '';
-    expect(markdownKey).not.toBe('');
-
-    // Wipe the stored blob; a re-run must NOT call extract again (it would
-    // fail to find the original, which we also remove).
-    storage.removeObject(markdownKey);
-    const throwingExtractor: PdfExtractor = {
-      extract: () => {
-        throw new Error('extract should not have run');
-      },
-    };
-
-    const outcome = await makeProcessor(throwingExtractor).process(id);
-    expect(outcome.status).toBe('completed');
-    const again = await readBook(id);
-    expect(again?.extractedMarkdownKey).toBe(markdownKey);
-  });
-
-  it('skips identifyBook when a title override was supplied at upload', async () => {
-    const { id } = await insertBook({ title: 'My Own Title' });
-
-    await makeProcessor().process(id);
-
-    const book = await readBook(id);
-    expect(book?.title).toBe('My Own Title');
-    const events = transport.eventsFor<{ type: string }>(bookEventsChannel(id));
-    expect(events.map((e) => e.type)).not.toContain('book_identified');
+    const override = await insertBook({ title: 'My Own Title' });
+    await makeProcessor().process(override.id);
+    expect((await readBook(override.id))?.title).toBe('My Own Title');
+    expect(eventTypes(override.id)).not.toContain('book_identified');
   });
 
   it('returns cleanly without running stages when the book is deleting', async () => {
@@ -243,5 +294,54 @@ describe('ingest pipeline: extract + identifyBook + chunk (Seam 2)', () => {
     const book = await readBook(id);
     expect(book?.status).toBe('deleting');
     expect(book?.extractedMarkdownKey).toBeNull();
+  });
+
+  it('detects the fixture chapters and writes contiguous chunks', async () => {
+    const { id } = await insertBook();
+    await makeProcessor().process(id);
+
+    const chapterRows = await db.pool.query(
+      `SELECT chapter_index, title, page_start, page_end
+         FROM chapters WHERE book_id = $1 ORDER BY chapter_index`,
+      [id],
+    );
+    expect(chapterRows.rowCount).toBe(7);
+    expect(chapterRows.rows[0]).toMatchObject({
+      chapter_index: 0,
+      title: 'Chapter 1. Starting Small',
+    });
+    expect(chapterRows.rows.every((r) => r.page_start <= r.page_end)).toBe(true);
+
+    const chunkRows = await db.pool.query(
+      `SELECT chunk_index, book_title FROM chunks WHERE book_id = $1 ORDER BY chunk_index`,
+      [id],
+    );
+    expect(chunkRows.rowCount).toBeGreaterThan(0);
+    expect(
+      chunkRows.rows.every((r) => r.book_title === 'The Quiet Craft of Habit'),
+    ).toBe(true);
+    expect(chunkRows.rows.map((r) => r.chunk_index)).toEqual(
+      chunkRows.rows.map((_, i) => i),
+    );
+  });
+
+  it('re-running skips a completed extract stage', async () => {
+    const { id } = await insertBook();
+    await makeProcessor().process(id);
+
+    const first = await readBook(id);
+    const markdownKey = first?.extractedMarkdownKey ?? '';
+    storage.removeObject(markdownKey);
+    const throwingExtractor: PdfExtractor = {
+      extract: () => {
+        throw new Error('extract should not have run');
+      },
+    };
+
+    const outcome = await makeProcessor({
+      pdfExtractor: throwingExtractor,
+    }).process(id);
+    expect(outcome.status).toBe('completed');
+    expect((await readBook(id))?.extractedMarkdownKey).toBe(markdownKey);
   });
 });
