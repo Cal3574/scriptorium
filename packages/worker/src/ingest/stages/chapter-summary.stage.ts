@@ -1,12 +1,8 @@
 import { withRetry } from '../retry.js';
 import { mapWithConcurrency } from '../concurrency.js';
 import { pageRangeMarkdown } from '../chapter-detection/detect-chapters.js';
-import { TerminalIngestError } from '../errors.js';
 import type { Stage } from '../stage.js';
-import {
-  extractionArtifactKey,
-  loadExtractionArtifact,
-} from './extraction-artifact.js';
+import { requireExtractionArtifact } from './extraction-artifact.js';
 import {
   CHAPTER_SUMMARY_SYSTEM,
   SUMMARY_MAX_TOKENS,
@@ -37,15 +33,7 @@ export const chapterSummaryStage: Stage = {
     const pending = await repo.listChaptersMissingSummary(book.id);
     if (pending.length === 0) return;
 
-    const artifact = await loadExtractionArtifact(
-      storage,
-      extractionArtifactKey(book),
-    );
-    if (!artifact) {
-      throw new TerminalIngestError(
-        `extraction sidecar is missing for book ${book.id}`,
-      );
-    }
+    const artifact = await requireExtractionArtifact(storage, book);
 
     const total = await repo.countChapters(book.id);
     let done = total - pending.length;

@@ -16,6 +16,8 @@ export const bookSummaryStage: Stage = {
 
   async isComplete(book, { repo }): Promise<boolean> {
     if (book.summary == null) return false;
+    const total = await repo.countChapters(book.id);
+    if (total === 0) return false;
     return (await repo.countChaptersMissingSummary(book.id)) === 0;
   },
 
@@ -28,9 +30,7 @@ export const bookSummaryStage: Stage = {
     }
 
     const reduceInput = chapters
-      .map(
-        (c, i) => `## ${c.title ?? `Chapter ${i + 1}`}\n\n${c.summary}`,
-      )
+      .map((c, i) => `## ${c.title ?? `Chapter ${i + 1}`}\n\n${c.summary}`)
       .join('\n\n');
 
     const summary = await withRetry(() =>

@@ -20,6 +20,7 @@ function makeDeps(
 ) {
   let written: string | null = null;
   const repo = {
+    countChapters: jest.fn(() => Promise.resolve(chapterSummaries.length || 3)),
     countChaptersMissingSummary: jest.fn(() => Promise.resolve(missing)),
     listChapterSummaries: jest.fn(() => Promise.resolve(chapterSummaries)),
     writeBookSummary: jest.fn((_id: string, summary: string) => {
@@ -28,7 +29,13 @@ function makeDeps(
     }),
   };
   const deps = { repo, llm, logger: silentLogger } as unknown as StageDeps;
-  return { deps, repo, get written() { return written; } };
+  return {
+    deps,
+    repo,
+    get written() {
+      return written;
+    },
+  };
 }
 
 describe('bookSummaryStage', () => {
@@ -38,7 +45,10 @@ describe('bookSummaryStage', () => {
       false,
     );
     expect(
-      await bookSummaryStage.isComplete(book({ summary: 'x' }), withMissing.deps),
+      await bookSummaryStage.isComplete(
+        book({ summary: 'x' }),
+        withMissing.deps,
+      ),
     ).toBe(false);
 
     const done = makeDeps([], 0);
@@ -73,7 +83,10 @@ describe('bookSummaryStage', () => {
   it('writes the summary via writeBookSummary', async () => {
     const { deps, repo } = makeDeps([{ title: 'A', summary: 's' }]);
     await bookSummaryStage.run(book(), deps);
-    expect(repo.writeBookSummary).toHaveBeenCalledWith('book-1', expect.any(String));
+    expect(repo.writeBookSummary).toHaveBeenCalledWith(
+      'book-1',
+      expect.any(String),
+    );
   });
 
   it('fails terminally if there are no chapter summaries', async () => {

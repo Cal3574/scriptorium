@@ -34,11 +34,13 @@ describe('ingest pipeline (Seam 2)', () => {
 
   const PDF_BYTES = Buffer.from('%PDF-1.7 fake bytes');
 
-  function makeProcessor(opts: {
-    pdfExtractor?: PdfExtractor;
-    llm?: LlmClient;
-    embeddings?: EmbeddingClient;
-  } = {}) {
+  function makeProcessor(
+    opts: {
+      pdfExtractor?: PdfExtractor;
+      llm?: LlmClient;
+      embeddings?: EmbeddingClient;
+    } = {},
+  ) {
     const publisher = new StageEventPublisher(transport);
     return new IngestProcessor(
       repo,
@@ -71,7 +73,9 @@ describe('ingest pipeline (Seam 2)', () => {
 
   const readBook = (id: string) => repo.findById(id);
   const eventTypes = (id: string) =>
-    transport.eventsFor<{ type: string }>(bookEventsChannel(id)).map((e) => e.type);
+    transport
+      .eventsFor<{ type: string }>(bookEventsChannel(id))
+      .map((e) => e.type);
 
   beforeAll(async () => {
     db = await setupTestDatabase();
@@ -125,9 +129,9 @@ describe('ingest pipeline (Seam 2)', () => {
       [id],
     );
     expect(chapters.rowCount).toBe(7);
-    expect(chapters.rows.every((r) => (r.summary ?? '').trim().length > 0)).toBe(
-      true,
-    );
+    expect(
+      chapters.rows.every((r) => (r.summary ?? '').trim().length > 0),
+    ).toBe(true);
 
     const types = eventTypes(id);
     expect(types).toContain('book_completed');
@@ -202,10 +206,9 @@ describe('ingest pipeline (Seam 2)', () => {
         [id],
       )
     ).rows;
-    await db.pool.query(
-      `UPDATE chapters SET summary = NULL WHERE id = $1`,
-      [target.id],
-    );
+    await db.pool.query(`UPDATE chapters SET summary = NULL WHERE id = $1`, [
+      target.id,
+    ]);
     await db.pool.query(
       `UPDATE books SET summary = NULL, summary_generated_at = NULL, status = 'summarizing' WHERE id = $1`,
       [id],
@@ -310,7 +313,9 @@ describe('ingest pipeline (Seam 2)', () => {
       chapter_index: 0,
       title: 'Chapter 1. Starting Small',
     });
-    expect(chapterRows.rows.every((r) => r.page_start <= r.page_end)).toBe(true);
+    expect(chapterRows.rows.every((r) => r.page_start <= r.page_end)).toBe(
+      true,
+    );
 
     const chunkRows = await db.pool.query(
       `SELECT chunk_index, book_title FROM chunks WHERE book_id = $1 ORDER BY chunk_index`,

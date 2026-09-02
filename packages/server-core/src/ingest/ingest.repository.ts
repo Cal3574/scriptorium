@@ -2,7 +2,7 @@ import { Inject, Injectable } from '@nestjs/common';
 import type { BookStatus } from '@scriptorium/contracts';
 import type { DbClient } from '@scriptorium/database/client';
 import { books, chapters, chunks } from '@scriptorium/database/schema';
-import { and, asc, eq, isNull, sql } from 'drizzle-orm';
+import { and, asc, eq, isNotNull, isNull, sql } from 'drizzle-orm';
 import { DB } from '../database/database.module.js';
 import type { BookRow } from '../books/books.repository.js';
 
@@ -287,13 +287,9 @@ export class IngestRepository {
     const rows = await this.db
       .select({ title: chapters.title, summary: chapters.summary })
       .from(chapters)
-      .where(eq(chapters.bookId, bookId))
+      .where(and(eq(chapters.bookId, bookId), isNotNull(chapters.summary)))
       .orderBy(asc(chapters.chapterIndex));
-    return rows
-      .filter((r): r is { title: string | null; summary: string } =>
-        Boolean(r.summary),
-      )
-      .map((r) => ({ title: r.title, summary: r.summary }));
+    return rows.map((r) => ({ title: r.title, summary: r.summary ?? '' }));
   }
 
   /** `bookSummary` write-back: the whole-book summary and its generated-at stamp. */

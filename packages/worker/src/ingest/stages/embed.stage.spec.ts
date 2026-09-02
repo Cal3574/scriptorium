@@ -1,4 +1,7 @@
-import { EMBEDDING_DIMENSIONS, type EmbeddingClient } from '@scriptorium/providers';
+import {
+  EMBEDDING_DIMENSIONS,
+  type EmbeddingClient,
+} from '@scriptorium/providers';
 import type { BookRow } from '@scriptorium/server-core';
 import { embedStage } from './embed.stage.js';
 import type { StageDeps, StageLogger } from '../stage.js';
@@ -42,7 +45,11 @@ function makeDeps(chunkCount: number) {
   };
   const events = {
     stageProgress: jest.fn(
-      (_id: string, _stage: string, p: { done: number; total: number; unit: string }) => {
+      (
+        _id: string,
+        _stage: string,
+        p: { done: number; total: number; unit: string },
+      ) => {
         progress.push(p);
         return Promise.resolve();
       },
@@ -81,9 +88,9 @@ describe('embedStage', () => {
     await embedStage.run(book, deps);
 
     // 300 chunks -> batches of 128, 128, 44.
-    expect(embed.mock.calls.map(([texts]) => texts.length).sort((a, b) => a - b)).toEqual(
-      [44, 128, 128],
-    );
+    expect(
+      embed.mock.calls.map(([texts]) => texts.length).sort((a, b) => a - b),
+    ).toEqual([44, 128, 128]);
     expect(repo.writeChunkEmbeddings).toHaveBeenCalledTimes(3);
     expect(progress.at(-1)).toEqual({ done: 300, total: 300, unit: 'chunks' });
   });
@@ -102,7 +109,10 @@ describe('embedStage', () => {
 
   it('throws when the client returns the wrong vector width', async () => {
     const { deps, embed } = makeDeps(2);
-    embed.mockResolvedValueOnce([[1, 2, 3], [1, 2, 3]]);
+    embed.mockResolvedValueOnce([
+      [1, 2, 3],
+      [1, 2, 3],
+    ]);
     await expect(embedStage.run(book, deps)).rejects.toThrow(/expected 1536/);
   });
 });

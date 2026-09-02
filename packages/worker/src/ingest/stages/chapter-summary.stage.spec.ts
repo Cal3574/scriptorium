@@ -97,7 +97,11 @@ describe('chapterSummaryStage', () => {
   it('writes a deep-dive per missing chapter using the chapter system prompt', async () => {
     const storage = new FakeObjectStorage();
     const book = bookRow();
-    await saveExtractionArtifact(storage, extractionArtifactKey(book), artifact());
+    await saveExtractionArtifact(
+      storage,
+      extractionArtifactKey(book),
+      artifact(),
+    );
     const llm = new FakeLlmClient({ delayMs: 0 });
     const complete = jest.spyOn(llm, 'complete');
     const { deps, summaries } = makeDeps(
@@ -120,7 +124,11 @@ describe('chapterSummaryStage', () => {
   it('only re-summarises the chapters still missing a summary', async () => {
     const storage = new FakeObjectStorage();
     const book = bookRow();
-    await saveExtractionArtifact(storage, extractionArtifactKey(book), artifact());
+    await saveExtractionArtifact(
+      storage,
+      extractionArtifactKey(book),
+      artifact(),
+    );
     const { deps, repo, summaries } = makeDeps(
       [chapter(0, 'A'), chapter(1, 'B'), chapter(2, 'C')],
       storage,
@@ -147,13 +155,19 @@ describe('chapterSummaryStage', () => {
   it('propagates an LLM failure so the book fails', async () => {
     const storage = new FakeObjectStorage();
     const book = bookRow();
-    await saveExtractionArtifact(storage, extractionArtifactKey(book), artifact());
+    await saveExtractionArtifact(
+      storage,
+      extractionArtifactKey(book),
+      artifact(),
+    );
     const llm = new FakeLlmClient({ delayMs: 0 });
     jest
       .spyOn(llm, 'complete')
       .mockRejectedValue(new TerminalIngestError('llm down'));
     const { deps } = makeDeps([chapter(0, 'A')], storage, llm);
 
-    await expect(chapterSummaryStage.run(book, deps)).rejects.toThrow('llm down');
+    await expect(chapterSummaryStage.run(book, deps)).rejects.toThrow(
+      'llm down',
+    );
   });
 });
