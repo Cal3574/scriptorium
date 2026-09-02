@@ -65,7 +65,7 @@ interface CapturedWrite {
     title: string | null;
     pageStart: number | null;
     pageEnd: number | null;
-    chunkChapterTitle: string;
+    chunkRowChapterTitle: string;
     chunks: Array<{ chunkText: string; tokenCount: number | null }>;
   }>;
 }
@@ -123,7 +123,7 @@ describe('chunkStage', () => {
       chapterIndex: 0,
       pageStart: 3,
       pageEnd: 10,
-      chunkChapterTitle: 'Chapter 1. Alpha',
+      chunkRowChapterTitle: 'Chapter 1. Alpha',
     });
     expect(write.chapters[2].pageEnd).toBe(24);
     const allChunks = write.chapters.flatMap((c) => c.chunks);

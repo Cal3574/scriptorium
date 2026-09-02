@@ -5,6 +5,7 @@ import { TerminalIngestError } from '../errors.js';
 import type { Stage } from '../stage.js';
 import {
   detectChapters,
+  pageRangeMarkdown,
   type DetectedChapter,
 } from '../chapter-detection/detect-chapters.js';
 import { chunkText } from '../chunking/chunk-text.js';
@@ -12,7 +13,6 @@ import { countTokens } from '../chunking/token-count.js';
 import {
   extractionArtifactKey,
   loadExtractionArtifact,
-  type ExtractionArtifact,
 } from './extraction-artifact.js';
 
 // The identify-book stage's JSON contract is reused here for the cheap
@@ -24,19 +24,6 @@ const GAP_TITLE_SYSTEM = [
 ].join(' ');
 
 const GAP_TITLE_CHAR_BUDGET = 2_000;
-
-function pageRangeText(
-  artifact: ExtractionArtifact,
-  startPage: number,
-  endPage: number,
-): string {
-  return artifact.pages
-    .filter((p) => p.page >= startPage && p.page <= endPage)
-    .sort((a, b) => a.page - b.page)
-    .map((p) => p.markdown)
-    .join('\n\n')
-    .trim();
-}
 
 /**
  * Stage 3. Turn the extracted book into ordered chapters and paragraph-aligned
@@ -82,7 +69,11 @@ export const chunkStage: Stage = {
     const payloads: ChapterInput[] = [];
 
     for (const chapter of chapters) {
-      const text = pageRangeText(artifact, chapter.startPage, chapter.endPage);
+      const text = pageRangeMarkdown(
+        artifact.pages,
+        chapter.startPage,
+        chapter.endPage,
+      );
       const slices = chunkText(text, { countTokens });
       const chapterTitle = displayTitle(chapter);
       payloads.push({
@@ -90,7 +81,7 @@ export const chunkStage: Stage = {
         title: chapter.title,
         pageStart: chapter.startPage,
         pageEnd: chapter.endPage,
-        chunkChapterTitle: chapterTitle,
+        chunkRowChapterTitle: chapterTitle,
         chunks: slices.map((slice) => ({
           chunkText: slice.text,
           tokenCount: slice.tokenCount,

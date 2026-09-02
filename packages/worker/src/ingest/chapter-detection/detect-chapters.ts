@@ -84,6 +84,30 @@ function normaliseTitle(raw: string): string {
     .trim();
 }
 
+// True when two headings plausibly name the same thing: after normalisation
+// one contains the other. Used for dedupe, outline corroboration and gap-title
+// lookup alike.
+function titlesOverlap(a: string, b: string): boolean {
+  const na = normaliseTitle(a);
+  const nb = normaliseTitle(b);
+  if (na.length === 0 || nb.length === 0) return false;
+  return na.includes(nb) || nb.includes(na);
+}
+
+// The markdown of an inclusive 1-based page range, in page order.
+export function pageRangeMarkdown(
+  pages: PdfPage[],
+  startPage: number,
+  endPage: number,
+): string {
+  return [...pages]
+    .sort((x, y) => x.page - y.page)
+    .filter((p) => p.page >= startPage && p.page <= endPage)
+    .map((p) => p.markdown)
+    .join('\n\n')
+    .trim();
+}
+
 // The 1-based pages that look like a table of contents: inside the leading
 // window and carrying at least three short "…\t42" lines.
 function findTocPages(pages: PdfPage[], pageCount: number): Set<number> {
@@ -108,24 +132,23 @@ function collectMarkers(
 ): Marker[] {
   const markers: Marker[] = [];
   for (const item of items) {
+    if (item.type !== 'heading') continue;
     const text = item.text.trim();
     if (text.length > SHORT_LINE_MAX) continue;
     if (tocPages.has(item.page)) continue;
     if (TRAILING_PAGE_NO_RE.test(text)) continue;
+    // Only a standalone front-matter heading is excluded here - a real
+    // chapter whose title merely starts with "Introduction" (e.g.
+    // "Chapter 1. Introduction to Testing") stays a chapter.
     if (FRONT_MATTER_RE.test(text)) continue;
     const match = MARKER_RE.exec(text);
     if (!match) continue;
-    const [, kind, token, title] = match;
-    if (FRONT_MATTER_RE.test(title.trim())) continue;
+    const [, kind, token] = match;
     // Collapse a `#`/`##` pair LlamaParse emitted for the same chapter opening:
     // same page, and one heading's text is contained in the other's. Two
     // genuinely different chapters that happen to share a page are kept.
-    const norm = normaliseTitle(text);
     const duplicate = markers.find(
-      (m) =>
-        m.page === item.page &&
-        (normaliseTitle(m.title).includes(norm) ||
-          norm.includes(normaliseTitle(m.title))),
+      (m) => m.page === item.page && titlesOverlap(m.title, text),
     );
     if (duplicate) continue;
     markers.push({
@@ -158,14 +181,9 @@ function corroboratePages(
   if (entries.length === 0) return markers;
 
   return markers.map((marker) => {
-    const markerNorm = normaliseTitle(marker.title);
-    const hit = entries.find((entry) => {
-      const entryNorm = normaliseTitle(entry.title);
-      return (
-        entryNorm.length > 0 &&
-        (markerNorm.includes(entryNorm) || entryNorm.includes(markerNorm))
-      );
-    });
+    const hit = entries.find((entry) =>
+      titlesOverlap(marker.title, entry.title),
+    );
     if (!hit) return marker;
     return Math.abs(hit.page - marker.page) <= 2
       ? marker
@@ -303,18 +321,6 @@ function toDetected(
   });
 }
 
-function pageRangeText(
-  pages: PdfPage[],
-  startPage: number,
-  endPage: number,
-): string {
-  return pages
-    .filter((p) => p.page >= startPage && p.page <= endPage)
-    .map((p) => p.markdown)
-    .join('\n\n')
-    .trim();
-}
-
 function largestSameLevelCluster(
   items: PdfHeadingItem[],
   tocPages: Set<number>,
@@ -437,7 +443,7 @@ async function fillGapTitles(
 
     // (b) a cheap LLM call.
     if (options.resolveGapTitle) {
-      const text = pageRangeText(pages, chapter.startPage, chapter.endPage);
+      const text = pageRangeMarkdown(pages, chapter.startPage, chapter.endPage);
       const llmTitle = await options.resolveGapTitle({ chapterNumber, text });
       if (llmTitle && llmTitle.trim().length > 0) {
         result.push({ ...chapter, title: llmTitle.trim() });

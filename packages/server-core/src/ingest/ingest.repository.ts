@@ -33,7 +33,9 @@ export interface ChapterInput {
   title: string | null;
   pageStart: number | null;
   pageEnd: number | null;
-  chunkChapterTitle: string;
+  // The non-null value stamped onto every `chunks.chapter_title` in this
+  // chapter (the `chapters.title` above may be null; a chunk row's is not).
+  chunkRowChapterTitle: string;
   chunks: ChunkInput[];
 }
 
@@ -45,11 +47,11 @@ export interface WriteChaptersInput {
 }
 
 /**
- * The ingest worker's writer for the `books` table. Kept apart from the
- * HTTP-layer {@link BooksRepository} (which only ever lands the initial
- * `pending` row): every later status transition and artifact write is the
- * worker's, and the pipeline stages derive resumption from the columns this
- * repository sets - never from `status`.
+ * The ingest worker's writer for the `books` table and its `chapters` /
+ * `chunks` children. Kept apart from the HTTP-layer {@link BooksRepository}
+ * (which only ever lands the initial `pending` row): every later status
+ * transition and artifact write is the worker's, and the pipeline stages
+ * derive resumption from the rows this repository sets - never from `status`.
  */
 @Injectable()
 export class IngestRepository {
@@ -156,7 +158,7 @@ export class IngestRepository {
             chunkIndex: chunkIndex++,
             chunkText: chunk.chunkText,
             bookTitle: input.bookTitle,
-            chapterTitle: chapter.chunkChapterTitle,
+            chapterTitle: chapter.chunkRowChapterTitle,
             tokenCount: chunk.tokenCount,
             pageStart: chunk.pageStart,
             pageEnd: chunk.pageEnd,

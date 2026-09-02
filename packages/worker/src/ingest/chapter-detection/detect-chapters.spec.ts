@@ -91,6 +91,39 @@ describe('detectChapters - markers', () => {
     expect(chapters[1].title).toBe('Chapter 2');
   });
 
+  it('keeps a chapter whose title merely starts with a front-matter word', async () => {
+    const chapters = await detectChapters(
+      baseInput({
+        pageCount: 20,
+        items: [
+          heading(2, 'Chapter 1. Introduction to Testing', 2),
+          heading(2, 'Chapter 2. Going Deeper', 11),
+        ],
+      }),
+    );
+    expect(chapters.map((c) => c.title)).toEqual([
+      'Chapter 1. Introduction to Testing',
+      'Chapter 2. Going Deeper',
+    ]);
+  });
+
+  it('excludes a standalone front-matter heading', async () => {
+    const chapters = await detectChapters(
+      baseInput({
+        pageCount: 20,
+        items: [
+          heading(2, 'Introduction', 2),
+          heading(2, 'Chapter 1. Real', 5),
+          heading(2, 'Chapter 2. Real', 12),
+        ],
+      }),
+    );
+    expect(chapters.map((c) => c.title)).toEqual([
+      'Chapter 1. Real',
+      'Chapter 2. Real',
+    ]);
+  });
+
   it('drops markers longer than 60 characters', async () => {
     const long = `Chapter 2. ${'x'.repeat(70)}`;
     const chapters = await detectChapters(
