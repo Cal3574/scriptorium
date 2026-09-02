@@ -34,6 +34,26 @@ export {
 } from './ingest/ingest.repository.js';
 
 export {
+  IngestEventSubscriber,
+  INGEST_EVENT_SUBSCRIBER,
+} from './ingest-events/ingest-event-subscriber.js';
+export { RedisIngestEventSubscriber } from './ingest-events/redis-ingest-event-subscriber.js';
+export {
+  buildIngestSnapshot,
+  type SnapshotInputs,
+} from './ingest-events/ingest-snapshot.js';
+export {
+  IngestEventStream,
+  IngestStreamSession,
+  type RunOptions,
+} from './ingest-events/ingest-event-stream.js';
+export {
+  sseFrame,
+  SSE_KEEPALIVE,
+  type SseSink,
+} from './ingest-events/sse.js';
+
+export {
   HttpCoreModule,
   type HttpCoreConfig,
 } from './http/http-core.module.js';

@@ -1,9 +1,12 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import type {
   BookListItemDto,
   CreateUploadUrlResponse,
 } from '@scriptorium/contracts';
 import { useApi } from '../auth/use-api';
+import { useIngestEvents } from './use-ingest-events';
+
+const TERMINAL: ReadonlySet<string> = new Set(['ready', 'failed']);
 
 const PDF_CONTENT_TYPE = 'application/pdf';
 
@@ -39,14 +42,84 @@ export function Library() {
       ) : (
         <ul>
           {books.map((book) => (
-            <li key={book.id}>
-              {book.title ?? book.originalFilename}{' '}
-              <span data-status={book.status}>({book.status})</span>
-            </li>
+            <BookRow
+              key={book.id}
+              book={book}
+              onSettled={() =>
+                refresh().catch((e: Error) => setError(e.message))
+              }
+            />
           ))}
         </ul>
       )}
     </section>
+  );
+}
+
+// One library row. While the book is not in a terminal state it subscribes to
+// the SSE progress stream and shows the live stage; a reload picks the stream
+// back up from the snapshot with nothing missed or repeated. When the stream
+// reports a terminal state it asks the list to refetch the canonical row.
+function BookRow({
+  book,
+  onSettled,
+}: {
+  book: BookListItemDto;
+  onSettled: () => void;
+}) {
+  const live = !TERMINAL.has(book.status);
+  const { progress, connected } = useIngestEvents(book.id, live);
+  const settledRef = useRef(false);
+
+  const status = progress?.status ?? book.status;
+  const title = progress?.title ?? book.title ?? book.originalFilename;
+
+  useEffect(() => {
+    if (live && TERMINAL.has(status) && !settledRef.current) {
+      settledRef.current = true;
+      onSettled();
+    }
+  }, [live, status, onSettled]);
+
+  return (
+    <li>
+      {title}{' '}
+      <span data-status={status}>({status})</span>
+      {live && status !== 'pending' && (
+        <LiveProgress
+          stage={progress?.stage ?? null}
+          progress={progress?.progress ?? null}
+          connected={connected}
+          failureReason={progress?.failureReason ?? null}
+        />
+      )}
+    </li>
+  );
+}
+
+function LiveProgress({
+  stage,
+  progress,
+  connected,
+  failureReason,
+}: {
+  stage: string | null;
+  progress: { done: number; total: number; unit: string } | null;
+  connected: boolean;
+  failureReason: string | null;
+}) {
+  if (failureReason) {
+    return (
+      <span role="status" data-live-progress>
+        {' '}- failed: {failureReason}
+      </span>
+    );
+  }
+  return (
+    <span role="status" data-live-progress data-connected={connected}>
+      {stage ? ` - ${stage}` : ''}
+      {progress ? ` ${progress.done}/${progress.total} ${progress.unit}` : ''}
+    </span>
   );
 }
 

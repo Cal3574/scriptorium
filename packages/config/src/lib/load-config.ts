@@ -87,6 +87,11 @@ const apiConfigSchema = z
     // (`verifyToken`) RSA verification in the auth guard - no JWKS fetch.
     CLERK_JWT_KEY: z.string().min(1),
     API_URL: z.string().url(),
+    // SSE keep-alive cadence for `GET /books/:id/events`, milliseconds.
+    // Optional: unset means the spec default (`DEFAULT_SSE_HEARTBEAT_MS` in
+    // `@scriptorium/contracts`); tests set a small value so the delete-poll
+    // path can be asserted without a 15-second wait.
+    SSE_HEARTBEAT_MS: z.coerce.number().int().positive().optional(),
     // The single browser origin allowed through CORS and accepted as the
     // token's `azp` (authorized party). Never `*`.
     CLIENT_ORIGIN: z.string().url(),
