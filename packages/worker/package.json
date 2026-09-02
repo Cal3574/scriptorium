@@ -9,9 +9,17 @@
     "reflect-metadata": "^0.2.0",
     "rxjs": "^7.8.0",
     "tslib": "^2.3.0",
-    "@scriptorium/config": "workspace:*"
+    "bullmq": "^6.3.3",
+    "ioredis": "^5.4.1",
+    "@scriptorium/config": "workspace:*",
+    "@scriptorium/contracts": "workspace:*",
+    "@scriptorium/database": "workspace:*",
+    "@scriptorium/providers": "workspace:*",
+    "@scriptorium/server-core": "workspace:*"
   },
   "devDependencies": {
-    "@nestjs/testing": "^11.0.0"
+    "@nestjs/testing": "^11.0.0",
+    "@types/pg": "^8.23.1",
+    "pg": "^8.23.0"
   }
 }

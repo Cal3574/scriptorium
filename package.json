@@ -68,6 +68,7 @@
     "@nestjs/core": "^11.0.0",
     "@nestjs/platform-express": "^11.0.0",
     "bullmq": "^6.3.3",
+    "ioredis": "^5.4.1",
     "nestjs-zod": "^5.5.0",
     "openai": "^7.8.0",
     "react": "^19.0.0",

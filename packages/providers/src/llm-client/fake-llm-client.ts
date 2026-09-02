@@ -95,6 +95,19 @@ export class FakeLlmClient implements LlmClient {
     const { bookTitle, heading, firstSentence, question, citations } =
       extractSalient(request);
 
+    // Identify-book shape: the stage asks for a strict JSON object. Echo the
+    // book title parsed from the opening pages so the pipeline has a real
+    // `{ title, author }` to persist offline.
+    if (
+      /JSON object/i.test(request.system ?? '') &&
+      /title/i.test(request.system ?? '')
+    ) {
+      return JSON.stringify({
+        title: bookTitle ?? heading ?? 'Untitled (offline)',
+        author: null,
+      });
+    }
+
     if (citations.length > 0 || question) {
       // Synthesis shape: a short paragraph that echoes the question, plus the
       // citation list with `[n]` markers so the answer's marker post-parser

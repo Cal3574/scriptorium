@@ -8,7 +8,7 @@ export default defineConfig({
   server: {
     port: PORT,
     strictPort: true,
-    host: '127.0.0.1',
+    host: 'localhost',
   },
   preview: { port: PORT, strictPort: true },
   build: { target: 'chrome89' },

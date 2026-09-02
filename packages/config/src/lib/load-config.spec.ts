@@ -32,8 +32,8 @@ const validApiEnv = {
 const validWorkerEnv = {
   DATABASE_URL: 'postgres://localhost:5432/scriptorium',
   REDIS_URL: 'redis://localhost:6379',
-  STORAGE_BUCKET_URL: 'http://localhost:9000/bucket',
   ...liveProviderKeys,
+  ...liveS3Keys,
 };
 
 describe('parseApiConfig', () => {
@@ -98,6 +98,44 @@ describe('parseWorkerConfig', () => {
 
   it('defaults PROVIDER_MODE to live', () => {
     expect(parseWorkerConfig({ ...validWorkerEnv }).PROVIDER_MODE).toBe('live');
+  });
+
+  it('requires the S3 keys when live (the worker reads and writes objects too)', () => {
+    const {
+      S3_BUCKET,
+      S3_REGION,
+      AWS_ACCESS_KEY_ID,
+      AWS_SECRET_ACCESS_KEY,
+      ...rest
+    } = validWorkerEnv;
+    void [S3_BUCKET, S3_REGION, AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY];
+    try {
+      parseWorkerConfig({ ...rest, PROVIDER_MODE: 'live' });
+      fail('expected ConfigError');
+    } catch (error) {
+      expect((error as ConfigError).keys).toEqual(
+        expect.arrayContaining([
+          'S3_BUCKET',
+          'S3_REGION',
+          'AWS_ACCESS_KEY_ID',
+          'AWS_SECRET_ACCESS_KEY',
+        ]),
+      );
+    }
+  });
+
+  it('does not require the S3 keys when fake', () => {
+    const {
+      S3_BUCKET,
+      S3_REGION,
+      AWS_ACCESS_KEY_ID,
+      AWS_SECRET_ACCESS_KEY,
+      ...rest
+    } = validWorkerEnv;
+    void [S3_BUCKET, S3_REGION, AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY];
+    expect(() =>
+      parseWorkerConfig({ ...rest, PROVIDER_MODE: 'fake' }),
+    ).not.toThrow();
   });
 });
 

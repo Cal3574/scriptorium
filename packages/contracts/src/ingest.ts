@@ -23,11 +23,23 @@ export const pipelineStages = [
   'identifyBook',
   'chunk',
   'embed',
-  'bookSummary',
   'chapterSummary',
+  'bookSummary',
 ] as const;
 export const PipelineStage = z.enum(pipelineStages);
 export type PipelineStage = z.infer<typeof PipelineStage>;
+
+// --- Redis pub/sub keys for SSE progress ---
+
+// The pub/sub channel the worker publishes stage events to and the API's
+// `GET /books/:id/events` endpoint subscribes to.
+export const bookEventsChannel = (bookId: string): string =>
+  `book:events:${bookId}`;
+
+// The Redis key whose `INCR` gives each event a per-book monotonic `seq`, so a
+// reconnecting client can drop anything it has already seen.
+export const bookEventsSeqKey = (bookId: string): string =>
+  `book:events:${bookId}:seq`;
 
 // The BullMQ job payload for an ingest job. `requestId` is threaded from
 // `POST /books` so one id traces an upload through the API and the pipeline.

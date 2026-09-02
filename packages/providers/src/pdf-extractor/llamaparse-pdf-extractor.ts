@@ -1,8 +1,9 @@
-import type {
-  PdfExtractInput,
-  PdfExtraction,
-  PdfExtractor,
-  PdfHeadingItem,
+import {
+  PdfExtractionError,
+  type PdfExtractInput,
+  type PdfExtraction,
+  type PdfExtractor,
+  type PdfHeadingItem,
 } from './pdf-extractor.js';
 
 // LlamaParse v2 REST. Per the integration research (#5) the worker owns its own
@@ -21,6 +22,11 @@ const TERMINAL_ERROR_STATUSES = new Set([
   'PDF_IS_BROKEN',
   'PDF_IS_PROTECTED',
 ]);
+
+// A 429 is a rate limit (retry); other 4xx are our fault - a bad key, a
+// malformed request - and will not fix themselves (terminal).
+const isRetryableStatus = (status: number): boolean =>
+  status === 429 || status >= 500;
 
 export interface LlamaParseExtractorOptions {
   apiKey: string;
@@ -80,8 +86,9 @@ export class LlamaParseExtractor implements PdfExtractor {
       body: form,
     });
     if (!res.ok) {
-      throw new Error(
+      throw new PdfExtractionError(
         `LlamaParse upload failed: ${res.status} ${await res.text()}`,
+        isRetryableStatus(res.status),
       );
     }
     return (await res.json()) as LlamaParseJob;
@@ -94,15 +101,30 @@ export class LlamaParseExtractor implements PdfExtractor {
         headers: { Authorization: `Bearer ${this.apiKey}` },
       });
       if (!res.ok) {
-        throw new Error(`LlamaParse status check failed: ${res.status}`);
+        throw new PdfExtractionError(
+          `LlamaParse status check failed: ${res.status}`,
+          isRetryableStatus(res.status),
+        );
       }
       const { status } = (await res.json()) as LlamaParseJob;
       if (status === 'SUCCESS' || status === 'PARTIAL_SUCCESS') return;
-      if (TERMINAL_ERROR_STATUSES.has(status) || status === 'TIMEOUT') {
-        throw new Error(`LlamaParse job ${jobId} ended in status ${status}`);
+      if (TERMINAL_ERROR_STATUSES.has(status)) {
+        throw new PdfExtractionError(
+          `LlamaParse job ${jobId} ended in status ${status}`,
+          false,
+        );
+      }
+      if (status === 'TIMEOUT') {
+        throw new PdfExtractionError(
+          `LlamaParse job ${jobId} ended in status ${status}`,
+          true,
+        );
       }
       if (Date.now() > deadline) {
-        throw new Error(`LlamaParse job ${jobId} timed out after polling`);
+        throw new PdfExtractionError(
+          `LlamaParse job ${jobId} timed out after polling`,
+          true,
+        );
       }
       await new Promise((resolve) => setTimeout(resolve, POLL_INTERVAL_MS));
     }
@@ -114,7 +136,10 @@ export class LlamaParseExtractor implements PdfExtractor {
       { headers: { Authorization: `Bearer ${this.apiKey}` } },
     );
     if (!res.ok) {
-      throw new Error(`LlamaParse result fetch failed: ${res.status}`);
+      throw new PdfExtractionError(
+        `LlamaParse result fetch failed: ${res.status}`,
+        isRetryableStatus(res.status),
+      );
     }
     return (await res.json()) as LlamaParseResult;
   }

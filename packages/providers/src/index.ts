@@ -14,7 +14,10 @@ export type {
   PdfExtraction,
   PdfHeadingItem,
 } from './pdf-extractor/pdf-extractor.js';
-export { PDF_EXTRACTOR } from './pdf-extractor/pdf-extractor.js';
+export {
+  PDF_EXTRACTOR,
+  PdfExtractionError,
+} from './pdf-extractor/pdf-extractor.js';
 export { FakePdfExtractor } from './pdf-extractor/fake-pdf-extractor.js';
 export {
   LlamaParseExtractor,

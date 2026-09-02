@@ -21,3 +21,17 @@
 - The `nx-generate` skill handles generator discovery internally - don't call nx_docs just to look up generator syntax
 
 <!-- nx configuration end-->
+
+# Finishing an /implement
+
+At the end of every `/implement`, after the code and automated tests are done, ALWAYS end your response with a **"Manual testing"** section written for the developer.
+
+It must:
+
+- List the exact commands to get the affected surface running locally (e.g. `pnpm nx serve api`, `pnpm nx serve client`, `docker compose up -d`, any required env or `PROVIDER_MODE`).
+- Give concrete, ordered steps to exercise the change by hand - what to click, what URL to open, what payload to send, what to type.
+- State the expected observable result of each step (UI state, HTTP status, DB row, log line, queue job) so the dev knows what "working" looks like.
+- Call out anything that cannot be verified end-to-end yet (missing worker, unimplemented pipeline, stubbed provider) and what the dev should expect to see instead.
+- Note any teardown or cleanup needed after testing.
+
+Keep it to the affected area only - do not dump a generic app walkthrough.

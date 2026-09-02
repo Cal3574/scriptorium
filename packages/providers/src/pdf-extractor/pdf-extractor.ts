@@ -42,6 +42,23 @@ export interface PdfExtractor {
   extract(input: PdfExtractInput): Promise<PdfExtraction>;
 }
 
+/**
+ * Thrown by an extractor when a parse fails. `retryable` is the seam the
+ * ingest pipeline keys off: `false` for a broken or password-protected PDF, a
+ * non-429 4xx, or an auth failure (the book is marked `failed`); `true` for
+ * 429 / 5xx / timeout / network blips (the job is retried).
+ */
+export class PdfExtractionError extends Error {
+  constructor(
+    message: string,
+    readonly retryable: boolean,
+    options?: { cause?: unknown },
+  ) {
+    super(message, options);
+    this.name = 'PdfExtractionError';
+  }
+}
+
 // Nest DI token. A plain symbol keeps `@scriptorium/providers` free of a
 // framework dependency; `server-core` binds it to an implementation.
 export const PDF_EXTRACTOR = Symbol('PdfExtractor');

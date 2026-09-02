@@ -26,6 +26,12 @@ export {
   type CreateBookInput,
   type CreateBookResult,
 } from './books/books.repository.js';
+export {
+  IngestRepository,
+  type ExtractionResult,
+  type Identification,
+  type FailureMark,
+} from './ingest/ingest.repository.js';
 
 export {
   HttpCoreModule,

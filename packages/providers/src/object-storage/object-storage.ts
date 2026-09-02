@@ -1,13 +1,18 @@
-// The seam between the app and blob storage for the original PDF uploads. The
-// browser never streams bytes through the API: `POST /books/upload-url` asks
-// this seam for a short-lived presigned PUT pinned to a server-chosen key and
-// content type, the client PUTs straight to the bucket, then `POST /books`
-// asks this seam to `head` the object to confirm the upload landed and its
-// size matches.
+// The seam between the app and blob storage. Two flows use it:
+//
+//  - Upload: the browser never streams bytes through the API. `POST
+//    /books/upload-url` asks this seam for a short-lived presigned PUT pinned
+//    to a server-chosen key and content type, the client PUTs straight to the
+//    bucket, then `POST /books` asks this seam to `head` the object to confirm
+//    the upload landed and its size matches.
+//  - Ingest: the worker's `extract` stage reads the original PDF back with
+//    `getObject`, then writes the full extracted markdown as a permanent
+//    object with `putObject` (the `extracted_markdown_key`), which later
+//    stages slice chapter prose from.
 //
 // The live adapter drives AWS S3 (or any S3-compatible endpoint); the fake
-// keeps an in-memory map of keys to sizes so the whole upload handoff runs
-// offline in tests.
+// keeps an in-memory map of keys to bytes so the whole handoff runs offline in
+// tests.
 
 export interface PresignedPutRequest {
   // The object key the PUT must target. The presigned URL is pinned to it -
@@ -29,6 +34,11 @@ export interface ObjectStorage {
   createPresignedPutUrl(request: PresignedPutRequest): Promise<string>;
   // `HEAD` the object. Resolves `null` when the key does not exist.
   headObject(key: string): Promise<StoredObjectHead | null>;
+  // Write an object directly (server-side). Used by the ingest pipeline to
+  // store derived artifacts such as the extracted markdown blob.
+  putObject(key: string, body: Uint8Array, contentType: string): Promise<void>;
+  // Read an object's bytes. Resolves `null` when the key does not exist.
+  getObject(key: string): Promise<Uint8Array | null>;
 }
 
 // Nest DI token; bound by `server-core` from `PROVIDER_MODE`.
