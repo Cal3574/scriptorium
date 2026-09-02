@@ -1,7 +1,6 @@
 import { setImmediate } from 'node:timers/promises';
 import type { LlmClient } from '@scriptorium/providers';
 import type { ChapterInput } from '@scriptorium/server-core';
-import { TerminalIngestError } from '../errors.js';
 import type { Stage } from '../stage.js';
 import {
   detectChapters,
@@ -10,10 +9,7 @@ import {
 } from '../chapter-detection/detect-chapters.js';
 import { chunkText } from '../chunking/chunk-text.js';
 import { countTokens } from '../chunking/token-count.js';
-import {
-  extractionArtifactKey,
-  loadExtractionArtifact,
-} from './extraction-artifact.js';
+import { requireExtractionArtifact } from './extraction-artifact.js';
 
 // The identify-book stage's JSON contract is reused here for the cheap
 // gap-title call: one heading, minified JSON back.
@@ -41,15 +37,7 @@ export const chunkStage: Stage = {
   },
 
   async run(book, { storage, llm, repo, logger }): Promise<void> {
-    const artifact = await loadExtractionArtifact(
-      storage,
-      extractionArtifactKey(book),
-    );
-    if (!artifact) {
-      throw new TerminalIngestError(
-        `extraction sidecar is missing for book ${book.id}`,
-      );
-    }
+    const artifact = await requireExtractionArtifact(storage, book);
 
     const chapters = await detectChapters(
       {

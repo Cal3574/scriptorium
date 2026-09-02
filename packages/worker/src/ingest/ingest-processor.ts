@@ -5,9 +5,11 @@ import type {
   ProcessingStage,
 } from '@scriptorium/contracts';
 import {
+  EMBEDDING_CLIENT,
   LLM_CLIENT,
   OBJECT_STORAGE,
   PDF_EXTRACTOR,
+  type EmbeddingClient,
   type LlmClient,
   type ObjectStorage,
   type PdfExtractor,
@@ -72,12 +74,14 @@ export class IngestProcessor {
     @Inject(OBJECT_STORAGE) storage: ObjectStorage,
     @Inject(PDF_EXTRACTOR) pdfExtractor: PdfExtractor,
     @Inject(LLM_CLIENT) llm: LlmClient,
+    @Inject(EMBEDDING_CLIENT) embeddings: EmbeddingClient,
   ) {
     this.deps = {
       repo,
       storage,
       pdfExtractor,
       llm,
+      embeddings,
       events,
       logger: {
         log: (m) => this.logger.log(m),
@@ -138,6 +142,16 @@ export class IngestProcessor {
       }
 
       lastStage = stage.name;
+    }
+
+    // Finalize: every stage is complete, so the book is `ready`. Guarded so a
+    // resumed run over an already-`ready` book does not re-emit completion.
+    const finalBook = await this.repo.findById(bookId);
+    if (!finalBook) return { status: 'gone' };
+    if (finalBook.status === 'deleting') return { status: 'aborted' };
+    if (finalBook.status !== 'ready') {
+      await this.repo.setStatus(bookId, 'ready');
+      await this.events.bookCompleted(bookId);
     }
 
     return { status: 'completed', lastStage };
