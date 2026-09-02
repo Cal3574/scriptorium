@@ -32,9 +32,7 @@ describe('withRetry', () => {
   });
 
   it('rethrows a TerminalIngestError immediately, no retry', async () => {
-    const fn = jest.fn(() =>
-      Promise.reject(new TerminalIngestError('broken')),
-    );
+    const fn = jest.fn(() => Promise.reject(new TerminalIngestError('broken')));
     await expect(withRetry(fn, { sleep: noSleep })).rejects.toThrow('broken');
     expect(fn).toHaveBeenCalledTimes(1);
     expect(noSleep).not.toHaveBeenCalled();
@@ -65,7 +63,9 @@ describe('withRetry', () => {
       () => {
         if (first) {
           first = false;
-          return Promise.reject(Object.assign(new Error('429'), { retryAfter: 5 }));
+          return Promise.reject(
+            Object.assign(new Error('429'), { retryAfter: 5 }),
+          );
         }
         return Promise.resolve('ok');
       },

@@ -45,15 +45,11 @@ export class IngestWorker implements OnModuleInit, OnApplicationShutdown {
   ) {}
 
   onModuleInit(): void {
-    this.worker = new Worker(
-      INGEST_QUEUE_NAME,
-      (job) => this.handle(job),
-      {
-        connection: { url: this.options.redisUrl },
-        concurrency: CONCURRENCY,
-        lockDuration: LOCK_DURATION_MS,
-      },
-    );
+    this.worker = new Worker(INGEST_QUEUE_NAME, (job) => this.handle(job), {
+      connection: { url: this.options.redisUrl },
+      concurrency: CONCURRENCY,
+      lockDuration: LOCK_DURATION_MS,
+    });
     this.worker.on('failed', (job, err) => {
       this.logger.error(
         `job ${job?.id} failed (attempt ${job?.attemptsMade}): ${err.message}`,

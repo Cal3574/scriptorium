@@ -7,7 +7,9 @@ describe('isRetryable', () => {
   });
 
   it('follows the PdfExtractionError flag', () => {
-    expect(isRetryable(new PdfExtractionError('rate limited', true))).toBe(true);
+    expect(isRetryable(new PdfExtractionError('rate limited', true))).toBe(
+      true,
+    );
     expect(isRetryable(new PdfExtractionError('broken', false))).toBe(false);
   });
 
@@ -45,7 +47,9 @@ describe('retryAfterMs', () => {
 
   it('treats an empty / whitespace header as absent, not zero', () => {
     expect(
-      retryAfterMs(Object.assign(new Error(), { headers: { 'retry-after': '' } })),
+      retryAfterMs(
+        Object.assign(new Error(), { headers: { 'retry-after': '' } }),
+      ),
     ).toBeNull();
     expect(
       retryAfterMs(Object.assign(new Error(), { retryAfter: '   ' })),

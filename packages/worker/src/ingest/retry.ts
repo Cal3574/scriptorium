@@ -11,7 +11,11 @@ export interface RetryOptions {
   // Injected for tests; defaults to a real timer.
   sleep?: (ms: number) => Promise<void>;
   // Called before each wait, for logging/telemetry.
-  onRetry?: (info: { attempt: number; delayMs: number; error: unknown }) => void;
+  onRetry?: (info: {
+    attempt: number;
+    delayMs: number;
+    error: unknown;
+  }) => void;
 }
 
 const defaultSleep = (ms: number): Promise<void> =>
@@ -41,10 +45,7 @@ export async function withRetry<T>(
       lastError = error;
       if (!isRetryable(error) || attempt === attempts) throw error;
 
-      const backoff = Math.min(
-        maxDelayMs,
-        baseDelayMs * 2 ** (attempt - 1),
-      );
+      const backoff = Math.min(maxDelayMs, baseDelayMs * 2 ** (attempt - 1));
       const delayMs = retryAfterMs(error) ?? backoff;
       options.onRetry?.({ attempt, delayMs, error });
       await sleep(delayMs);

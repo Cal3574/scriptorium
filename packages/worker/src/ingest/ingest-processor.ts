@@ -1,5 +1,9 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
-import type { BookStatus, PipelineStage, ProcessingStage } from '@scriptorium/contracts';
+import type {
+  BookStatus,
+  PipelineStage,
+  ProcessingStage,
+} from '@scriptorium/contracts';
 import {
   LLM_CLIENT,
   OBJECT_STORAGE,

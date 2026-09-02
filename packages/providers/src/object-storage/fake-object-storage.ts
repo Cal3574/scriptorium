@@ -65,11 +65,7 @@ export class FakeObjectStorage implements ObjectStorage {
     );
   }
 
-  putObject(
-    key: string,
-    body: Uint8Array,
-    contentType: string,
-  ): Promise<void> {
+  putObject(key: string, body: Uint8Array, contentType: string): Promise<void> {
     this.objects.set(key, { body: Buffer.from(body), contentType });
     return Promise.resolve();
   }

@@ -71,7 +71,10 @@ class FakeRepo {
   }
 }
 
-function build(book: BookRow, pdfExtractor: PdfExtractor = new FakePdfExtractor()) {
+function build(
+  book: BookRow,
+  pdfExtractor: PdfExtractor = new FakePdfExtractor(),
+) {
   const repo = new FakeRepo(book);
   const transport = new InMemoryEventTransport();
   const storage = new FakeObjectStorage();
@@ -128,7 +131,9 @@ describe('IngestProcessor', () => {
     expect(repo.current.status).toBe('failed');
     expect(repo.current.failedStage).toBe('extract');
     expect(
-      transport.eventsFor<{ type: string }>(`book:events:${book.id}`).map((e) => e.type),
+      transport
+        .eventsFor<{ type: string }>(`book:events:${book.id}`)
+        .map((e) => e.type),
     ).toContain('book_failed');
   });
 

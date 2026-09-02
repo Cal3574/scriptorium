@@ -1,5 +1,9 @@
 import type { BookStatus, PipelineStage } from '@scriptorium/contracts';
-import type { LlmClient, ObjectStorage, PdfExtractor } from '@scriptorium/providers';
+import type {
+  LlmClient,
+  ObjectStorage,
+  PdfExtractor,
+} from '@scriptorium/providers';
 import type { BookRow, IngestRepository } from '@scriptorium/server-core';
 import type { StageEventPublisher } from './stage-event-publisher.js';
 

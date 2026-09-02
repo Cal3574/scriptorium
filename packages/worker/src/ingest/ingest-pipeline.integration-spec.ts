@@ -113,7 +113,10 @@ describe('ingest pipeline: extract + identifyBook (Seam 2)', () => {
       'book_identified',
     ]);
     expect(events[0]).toMatchObject({ seq: 1, stage: 'extracting' });
-    expect(events[1]).toMatchObject({ seq: 2, title: 'The Quiet Craft of Habit' });
+    expect(events[1]).toMatchObject({
+      seq: 2,
+      title: 'The Quiet Craft of Habit',
+    });
   });
 
   it('lands the book failed at extract on a terminal extractor error', async () => {

@@ -29,9 +29,7 @@ export const extractStage: Stage = {
   async run(book, { storage, pdfExtractor, repo }): Promise<void> {
     const pdf = await storage.getObject(book.s3Key);
     if (!pdf) {
-      throw new TerminalIngestError(
-        `original PDF is missing at ${book.s3Key}`,
-      );
+      throw new TerminalIngestError(`original PDF is missing at ${book.s3Key}`);
     }
 
     const extraction = await withRetry(() =>

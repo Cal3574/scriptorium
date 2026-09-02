@@ -44,7 +44,9 @@ export function retryAfterMs(error: unknown): number | null {
     record.retryAfterMs ??
     record.retryAfter ??
     readHeader(record.headers) ??
-    readHeader((record.response as Record<string, unknown> | undefined)?.headers);
+    readHeader(
+      (record.response as Record<string, unknown> | undefined)?.headers,
+    );
 
   if (raw == null) return null;
   if (typeof raw === 'number') {

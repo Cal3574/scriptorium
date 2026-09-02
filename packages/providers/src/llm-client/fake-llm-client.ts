@@ -98,7 +98,10 @@ export class FakeLlmClient implements LlmClient {
     // Identify-book shape: the stage asks for a strict JSON object. Echo the
     // book title parsed from the opening pages so the pipeline has a real
     // `{ title, author }` to persist offline.
-    if (/JSON object/i.test(request.system ?? '') && /title/i.test(request.system ?? '')) {
+    if (
+      /JSON object/i.test(request.system ?? '') &&
+      /title/i.test(request.system ?? '')
+    ) {
       return JSON.stringify({
         title: bookTitle ?? heading ?? 'Untitled (offline)',
         author: null,
