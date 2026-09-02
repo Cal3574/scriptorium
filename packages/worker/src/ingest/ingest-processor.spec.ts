@@ -1,5 +1,6 @@
 import { UnrecoverableError } from 'bullmq';
 import {
+  FakeEmbeddingClient,
   FakeLlmClient,
   FakeObjectStorage,
   FakePdfExtractor,
@@ -11,6 +12,9 @@ import { IngestProcessor } from './ingest-processor.js';
 import { StageEventPublisher } from './stage-event-publisher.js';
 import { InMemoryEventTransport } from './event-transport.js';
 import type { Stage } from './stage.js';
+import { extractStage } from './stages/extract.stage.js';
+import { identifyBookStage } from './stages/identify-book.stage.js';
+import { chunkStage } from './stages/chunk.stage.js';
 import { TerminalIngestError } from './errors.js';
 
 function bookRow(overrides: Partial<BookRow>): BookRow {
@@ -90,23 +94,32 @@ function build(
     storage,
     pdfExtractor,
     new FakeLlmClient({ delayMs: 0 }),
+    new FakeEmbeddingClient(),
   );
   return { repo, transport, storage, processor };
 }
 
 describe('IngestProcessor', () => {
-  it('walks extract, identifyBook and chunk, then completes', async () => {
+  it('walks the early stages and finalizes the book to ready', async () => {
     const book = bookRow({ status: 'pending' });
-    const { processor, repo, storage } = build(book);
+    const { processor, repo, storage, transport } = build(book);
     await storage.putObject(book.s3Key, Buffer.from('pdf'), 'application/pdf');
+    // The DB-backed embed / summary stages are covered by the seam-2
+    // integration suite; here just drive the three data-only early stages.
+    processor.stages = [extractStage, identifyBookStage, chunkStage];
 
     const outcome = await processor.process(book.id);
 
     expect(outcome).toEqual({ status: 'completed', lastStage: 'chunk' });
-    expect(repo.current.status).toBe('chunking');
+    expect(repo.current.status).toBe('ready');
     expect(repo.current.extractedMarkdownKey).toBe('books/user-1/x.md');
     expect(repo.current.title).toBe('The Quiet Craft of Habit');
     expect(repo.writeChaptersAndChunks).toHaveBeenCalledTimes(1);
+    expect(
+      transport
+        .eventsFor<{ type: string }>(`book:events:${book.id}`)
+        .map((e) => e.type),
+    ).toContain('book_completed');
   });
 
   it('aborts at the first boundary when the book is deleting', async () => {
@@ -189,6 +202,7 @@ describe('IngestProcessor', () => {
         throw new Error('should not run');
       },
     });
+    processor.stages = [extractStage, identifyBookStage, chunkStage];
     // Chapters already written: chunk is complete too, so the whole pipeline
     // is a no-op walk.
     repo.chapterRows = 3;

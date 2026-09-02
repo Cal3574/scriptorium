@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { createDbClient, type DbClient } from '@scriptorium/database/client';
 import {
+  FakeEmbeddingClient,
   FakeLlmClient,
   FakeObjectStorage,
   FakePdfExtractor,
@@ -50,6 +51,7 @@ describe('live ingest progress: pipeline -> SSE bridge (Seam 2)', () => {
       storage,
       pdfExtractor,
       new FakeLlmClient({ delayMs: 0 }),
+      new FakeEmbeddingClient(),
     );
   }
 
@@ -166,27 +168,41 @@ describe('live ingest progress: pipeline -> SSE bridge (Seam 2)', () => {
     await new Promise((r) => setTimeout(r, 50));
 
     const outcome = await makeProcessor().process(bookId);
-    expect(outcome).toEqual({ status: 'completed', lastStage: 'chunk' });
+    expect(outcome).toEqual({ status: 'completed', lastStage: 'bookSummary' });
 
-    // snapshot + extracting + book_identified + chunking.
-    await sink.waitForCount(4);
+    await sink.waitFor('book_completed');
+    await running;
 
-    const types = sink.events().map((e) => e.type);
-    expect(types).toEqual([
-      'snapshot',
-      'stage_entered',
-      'book_identified',
-      'stage_entered',
+    const events = sink.events();
+    expect(events[0]).toMatchObject({ type: 'snapshot', seq: 0 });
+    expect(events.at(-1)).toMatchObject({
+      type: 'book_completed',
+      status: 'ready',
+    });
+    expect(sink.isClosed()).toBe(true);
+
+    // The four processing statuses reach the browser in pipeline order.
+    const stageEntered = events
+      .filter((e) => e.type === 'stage_entered')
+      .map((e) => (e as { stage: string }).stage);
+    expect(stageEntered).toEqual([
+      'extracting',
+      'chunking',
+      'embedding',
+      'summarizing',
     ]);
 
-    expect(sink.events()[1]).toMatchObject({ stage: 'extracting', seq: 1 });
-    expect(sink.events()[3]).toMatchObject({ stage: 'chunking', seq: 3 });
+    // `book_identified` lands while still under `extracting`, before `chunking`.
+    const types = events.map((e) => e.type);
+    expect(types.indexOf('book_identified')).toBeLessThan(
+      types.lastIndexOf('stage_entered'),
+    );
 
-    const seqs = sink.events().map((e) => e.seq);
-    expect(seqs).toEqual([0, 1, 2, 3]);
-
-    sink.disconnect();
-    await running;
+    // seq starts at the snapshot's 0 and strictly increases.
+    const seqs = events.map((e) => e.seq);
+    expect(seqs[0]).toBe(0);
+    expect(seqs).toEqual([...seqs].sort((a, b) => a - b));
+    expect(new Set(seqs).size).toBe(seqs.length);
   });
 
   it('forwards a terminal book_failed event and closes the stream', async () => {

@@ -1,3 +1,4 @@
+import { TerminalIngestError } from '../errors.js';
 import type {
   ObjectStorage,
   PdfExtraction,
@@ -59,4 +60,22 @@ export async function loadExtractionArtifact(
   const bytes = await storage.getObject(key);
   if (!bytes) return null;
   return JSON.parse(Buffer.from(bytes).toString('utf-8')) as ExtractionArtifact;
+}
+
+// The `chunk` and `chapterSummary` stages both need the sidecar and both treat
+// its absence as an unrecoverable pipeline invariant breach.
+export async function requireExtractionArtifact(
+  storage: ObjectStorage,
+  book: BookRow,
+): Promise<ExtractionArtifact> {
+  const artifact = await loadExtractionArtifact(
+    storage,
+    extractionArtifactKey(book),
+  );
+  if (!artifact) {
+    throw new TerminalIngestError(
+      `extraction sidecar is missing for book ${book.id}`,
+    );
+  }
+  return artifact;
 }
