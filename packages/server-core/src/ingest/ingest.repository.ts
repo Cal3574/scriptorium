@@ -169,6 +169,16 @@ export class IngestRepository {
     });
   }
 
+  /**
+   * Hard-delete the book row. Postgres does the rest: `chapters` and `chunks`
+   * cascade, and any `queries.book_id` that pointed here is set null (the
+   * history entry keeps its frozen `citations` snapshot). Idempotent - a
+   * second call for an already-gone id deletes zero rows.
+   */
+  async deleteBook(bookId: string): Promise<void> {
+    await this.db.delete(books).where(eq(books.id, bookId));
+  }
+
   /** Terminal failure: park the book as `failed` with a stage and a reason. */
   async markFailed(bookId: string, mark: FailureMark): Promise<void> {
     await this.db

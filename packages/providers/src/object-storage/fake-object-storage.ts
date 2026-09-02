@@ -75,6 +75,11 @@ export class FakeObjectStorage implements ObjectStorage {
     return Promise.resolve(object === undefined ? null : object.body);
   }
 
+  deleteObject(key: string): Promise<void> {
+    this.objects.delete(key);
+    return Promise.resolve();
+  }
+
   /** Simulate a completed client PUT of `sizeBytes` arbitrary bytes to `key`. */
   simulateUpload(key: string, sizeBytes: number): void {
     this.objects.set(key, {

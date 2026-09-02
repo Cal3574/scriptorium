@@ -6,6 +6,7 @@ import {
 } from '@nestjs/common';
 import {
   DELETE_JOB_NAME,
+  DeleteJobData,
   INGEST_JOB_NAME,
   INGEST_QUEUE_NAME,
   IngestJobData,
@@ -13,6 +14,7 @@ import {
 import { type Job, UnrecoverableError, Worker } from 'bullmq';
 import { runWithRequestContext } from '@scriptorium/server-core';
 import { IngestProcessor } from './ingest-processor.js';
+import { DeleteProcessor } from './delete-processor.js';
 import { errorMessage } from './errors.js';
 
 // Verbatim from the ingest-job spec. `lockDuration` is renewed automatically
@@ -30,9 +32,9 @@ export interface IngestWorkerOptions {
 }
 
 /**
- * The BullMQ consumer for the `ingest` queue. Delegates ingest jobs to
- * {@link IngestProcessor}; a delete job is out of scope for this ticket and is
- * logged and skipped (see #28).
+ * The BullMQ consumer for the `ingest` queue. Delegates an ingest job to
+ * {@link IngestProcessor} and a delete job to {@link DeleteProcessor}; worker
+ * concurrency 1 keeps the two serialised for any one book.
  */
 @Injectable()
 export class IngestWorker implements OnModuleInit, OnApplicationShutdown {
@@ -41,6 +43,7 @@ export class IngestWorker implements OnModuleInit, OnApplicationShutdown {
 
   constructor(
     private readonly processor: IngestProcessor,
+    private readonly deleteProcessor: DeleteProcessor,
     private readonly options: IngestWorkerOptions,
   ) {}
 
@@ -66,10 +69,11 @@ export class IngestWorker implements OnModuleInit, OnApplicationShutdown {
 
   private async handle(job: Job): Promise<unknown> {
     if (job.name === DELETE_JOB_NAME) {
-      this.logger.warn(
-        `delete job ${job.id} skipped - not implemented in this build (#28)`,
-      );
-      return { skipped: true };
+      const data = DeleteJobData.parse(job.data);
+      const run = () => this.deleteProcessor.process(data.bookId);
+      return data.requestId
+        ? runWithRequestContext({ requestId: data.requestId }, run)
+        : run();
     }
     if (job.name !== INGEST_JOB_NAME) {
       throw new UnrecoverableError(`unknown job name "${job.name}"`);

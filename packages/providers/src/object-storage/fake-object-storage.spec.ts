@@ -48,6 +48,16 @@ describe('FakeObjectStorage', () => {
     });
   });
 
+  it('deleteObject drops the object and is a no-op on a missing key', async () => {
+    const storage = new FakeObjectStorage();
+    await storage.putObject(key, Buffer.from('pdf'), 'application/pdf');
+
+    await storage.deleteObject(key);
+    expect(await storage.getObject(key)).toBeNull();
+
+    await expect(storage.deleteObject(key)).resolves.toBeUndefined();
+  });
+
   it('putObject copies the incoming bytes so later mutation is not seen', async () => {
     const storage = new FakeObjectStorage();
     const body = Buffer.from('original');

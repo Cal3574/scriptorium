@@ -39,6 +39,10 @@ export interface ObjectStorage {
   putObject(key: string, body: Uint8Array, contentType: string): Promise<void>;
   // Read an object's bytes. Resolves `null` when the key does not exist.
   getObject(key: string): Promise<Uint8Array | null>;
+  // Delete an object. Idempotent: deleting a key that is not there resolves
+  // without error. Used by the book hard-delete flow to drop the original PDF
+  // and the extracted markdown blob.
+  deleteObject(key: string): Promise<void>;
 }
 
 // Nest DI token; bound by `server-core` from `PROVIDER_MODE`.

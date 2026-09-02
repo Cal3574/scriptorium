@@ -49,6 +49,15 @@ export const IngestJobData = z.object({
 });
 export type IngestJobData = z.infer<typeof IngestJobData>;
 
+// The BullMQ job payload for a delete job. Shares the `ingest` queue with the
+// ingest job (worker concurrency 1 serialises them); `requestId` is threaded
+// from `DELETE /books/:id` so one id traces the hard delete end to end.
+export const DeleteJobData = z.object({
+  bookId: uuid,
+  requestId: uuid.optional(),
+});
+export type DeleteJobData = z.infer<typeof DeleteJobData>;
+
 // The keep-alive cadence for `GET /books/:id/events`, in milliseconds. The
 // spec fixes this at 15 seconds; the API config exposes it as an override so
 // tests need not wait that long. Defined here so the one value is shared by

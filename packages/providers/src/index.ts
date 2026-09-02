@@ -66,7 +66,8 @@ export {
   type S3ObjectStorageOptions,
 } from './object-storage/s3-object-storage.js';
 
-export type { Queue, DeleteJobData } from './queue/queue.js';
+export type { Queue, IngestJobLifecycle } from './queue/queue.js';
+export type { DeleteJobData } from '@scriptorium/contracts';
 export { QUEUE } from './queue/queue.js';
 export { FakeQueue, type RecordedJob } from './queue/fake-queue.js';
 export { BullMqQueue, type BullMqQueueOptions } from './queue/bullmq-queue.js';
