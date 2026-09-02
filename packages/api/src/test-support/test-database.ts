@@ -2,15 +2,18 @@ import { runMigrations } from '@scriptorium/database';
 import pg from 'pg';
 
 // Seam 1 tests run against a real Postgres + pgvector. To avoid ever touching
-// dev data we point at a sibling `<db>_test` database, creating it and
-// applying the committed migrations on first use. CI's throwaway container
-// makes the rename a no-op there but harmless.
+// dev data we point at a sibling `<db>_test_api` database, creating it and
+// applying the committed migrations on first use. The suffix is app-specific:
+// `nx run-many -t test-integration` runs the api and worker suites in parallel
+// and each `truncateAll`s between tests, so they must not share one database.
+const TEST_DB_SUFFIX = '_test_api';
+
 export function testDatabaseUrl(): string {
   const raw = process.env.DATABASE_URL;
   if (!raw) throw new Error('DATABASE_URL is not set');
   const url = new URL(raw);
-  if (!url.pathname.endsWith('_test')) {
-    url.pathname = `${url.pathname}_test`;
+  if (!url.pathname.endsWith(TEST_DB_SUFFIX)) {
+    url.pathname = `${url.pathname}${TEST_DB_SUFFIX}`;
   }
   return url.toString();
 }

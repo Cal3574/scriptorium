@@ -2,15 +2,20 @@ import { runMigrations } from '@scriptorium/database';
 import pg from 'pg';
 
 // Seam-2 tests run against a real Postgres + pgvector, on a sibling
-// `<db>_test` database created and migrated on first use so dev data is never
-// touched. Mirrors the api's test-support helper (cross-app import is banned
-// by the module-boundary rules, so the small helper is duplicated).
+// `<db>_test_worker` database created and migrated on first use so dev data is
+// never touched. The suffix is app-specific: `nx run-many -t test-integration`
+// runs the api and worker suites in parallel and each `truncateAll`s between
+// tests, so they must not share one database. Mirrors the api's test-support
+// helper (cross-app import is banned by the module-boundary rules, so the
+// small helper is duplicated).
+const TEST_DB_SUFFIX = '_test_worker';
+
 export function testDatabaseUrl(): string {
   const raw = process.env.DATABASE_URL;
   if (!raw) throw new Error('DATABASE_URL is not set');
   const url = new URL(raw);
-  if (!url.pathname.endsWith('_test')) {
-    url.pathname = `${url.pathname}_test`;
+  if (!url.pathname.endsWith(TEST_DB_SUFFIX)) {
+    url.pathname = `${url.pathname}${TEST_DB_SUFFIX}`;
   }
   return url.toString();
 }
