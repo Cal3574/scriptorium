@@ -31,6 +31,9 @@ export {
   type ExtractionResult,
   type Identification,
   type FailureMark,
+  type ChapterInput,
+  type ChunkInput,
+  type WriteChaptersInput,
 } from './ingest/ingest.repository.js';
 
 export {

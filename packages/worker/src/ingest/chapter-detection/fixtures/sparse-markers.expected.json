@@ -1,0 +1,20 @@
+[
+  {
+    "title": "The Opening",
+    "chapterIndex": 0,
+    "startPage": 4,
+    "endPage": 13
+  },
+  {
+    "title": "The Deepening",
+    "chapterIndex": 1,
+    "startPage": 14,
+    "endPage": 23
+  },
+  {
+    "title": "The Close",
+    "chapterIndex": 2,
+    "startPage": 24,
+    "endPage": 30
+  }
+]

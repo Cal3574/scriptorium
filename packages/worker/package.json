@@ -6,16 +6,17 @@
     "@nestjs/common": "^11.0.0",
     "@nestjs/core": "^11.0.0",
     "@nestjs/platform-express": "^11.0.0",
-    "reflect-metadata": "^0.2.0",
-    "rxjs": "^7.8.0",
-    "tslib": "^2.3.0",
-    "bullmq": "^6.3.3",
-    "ioredis": "^5.4.1",
     "@scriptorium/config": "workspace:*",
     "@scriptorium/contracts": "workspace:*",
     "@scriptorium/database": "workspace:*",
     "@scriptorium/providers": "workspace:*",
-    "@scriptorium/server-core": "workspace:*"
+    "@scriptorium/server-core": "workspace:*",
+    "bullmq": "^6.3.3",
+    "gpt-tokenizer": "^4.0.0",
+    "ioredis": "^5.4.1",
+    "reflect-metadata": "^0.2.0",
+    "rxjs": "^7.8.0",
+    "tslib": "^2.3.0"
   },
   "devDependencies": {
     "@nestjs/testing": "^11.0.0",
