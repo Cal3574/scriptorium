@@ -1,8 +1,10 @@
 // The seam between the ingest pipeline and PDF text extraction. The live
-// adapter drives LlamaParse's async v2 REST API; the fake returns a committed
-// book. Everything the pipeline needs from extraction is on `PdfExtraction`:
-// the concatenated markdown (with `#`/`##` headings) and the `items` heading
-// blocks that chapter detection keys off (see the chapter-detection spec).
+// adapter drives LlamaParse's async v2 REST API (plus a `pdfjs-dist` pass over
+// the same bytes for the bookmark outline); the fake returns a committed book.
+// Everything chapter detection and chunking need is on `PdfExtraction`: the
+// concatenated markdown, the per-page markdown, the `items` heading blocks, the
+// PDF bookmark `outline`, and the document `metadata` (see the
+// chapter-detection spec).
 
 // One structured block from the parse. The pipeline only consumes heading
 // blocks, so that is all the fake synthesises and all this type models; the
@@ -20,12 +22,46 @@ export interface PdfHeadingItem {
   page: number;
 }
 
+// One entry in the PDF's bookmark tree, from `pdfjs-dist`'s `getOutline()`.
+// The detector uses these to corroborate marker pages and as the primary
+// chapter list when the markdown yields fewer than two markers.
+export interface PdfOutlineItem {
+  // Bookmark label, verbatim.
+  title: string;
+  // 1-based page the bookmark points at, or null when its destination could
+  // not be resolved to a page (a malformed dest, an external link).
+  page: number | null;
+  // Nested bookmarks. Only the top level is treated as chapters.
+  children: PdfOutlineItem[];
+}
+
+// Document-level metadata. `title`/`author` here come from the PDF's own
+// metadata dictionary, distinct from the `identifyBook` LLM guess.
+export interface PdfMetadata {
+  title: string | null;
+  author: string | null;
+}
+
+// The markdown for a single printed page, 1-based.
+export interface PdfPage {
+  page: number;
+  markdown: string;
+}
+
 export interface PdfExtraction {
   // The full book as one markdown string, `#` for the book title and `##` for
   // chapters, matching what LlamaParse's `expand=markdown` concatenates.
   markdown: string;
+  // The same content split per printed page, in page order. Chapter detection
+  // reads individual pages (TOC scan) and chunking slices by page range.
+  pages: PdfPage[];
   // Heading blocks only, in document order.
   items: PdfHeadingItem[];
+  // The PDF bookmark tree, empty when the document has no bookmarks or the
+  // outline pass failed (non-fatal - detection has markdown fallbacks).
+  outline: PdfOutlineItem[];
+  // Document metadata from the PDF itself.
+  metadata: PdfMetadata;
   // Printed page count as reported by the parser.
   pageCount: number;
 }

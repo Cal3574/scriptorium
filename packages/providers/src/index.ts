@@ -13,6 +13,9 @@ export type {
   PdfExtractInput,
   PdfExtraction,
   PdfHeadingItem,
+  PdfOutlineItem,
+  PdfMetadata,
+  PdfPage,
 } from './pdf-extractor/pdf-extractor.js';
 export {
   PDF_EXTRACTOR,

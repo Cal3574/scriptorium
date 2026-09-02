@@ -4,7 +4,11 @@ import {
   type PdfExtraction,
   type PdfExtractor,
   type PdfHeadingItem,
+  type PdfMetadata,
+  type PdfOutlineItem,
+  type PdfPage,
 } from './pdf-extractor.js';
+import { extractPdfOutline } from './pdfjs-outline.js';
 
 // LlamaParse v2 REST. Per the integration research (#5) the worker owns its own
 // job lifecycle, so this adapter calls the raw endpoints - submit on `upload`,
@@ -52,8 +56,19 @@ interface LlamaParseResult {
     page?: number;
     page_number?: number;
   }>;
-  metadata?: { page_count?: number; num_pages?: number };
+  metadata?: {
+    page_count?: number;
+    num_pages?: number;
+    title?: string;
+    author?: string;
+  };
   job_metadata?: { page_count?: number };
+}
+
+function cleanString(value: unknown): string | null {
+  return typeof value === 'string' && value.trim().length > 0
+    ? value.trim()
+    : null;
 }
 
 export class LlamaParseExtractor implements PdfExtractor {
@@ -69,7 +84,11 @@ export class LlamaParseExtractor implements PdfExtractor {
     const job = await this.submit(input);
     await this.waitForCompletion(job.id);
     const result = await this.fetchResult(job.id);
-    return this.toExtraction(result);
+    // The bookmark outline comes from a local `pdfjs-dist` pass over the same
+    // bytes - LlamaParse does not expose it. Non-fatal: an empty outline just
+    // means the detector leans on the markdown markers.
+    const outline = await extractPdfOutline(input.data);
+    return this.toExtraction(result, outline);
   }
 
   private async submit(input: PdfExtractInput): Promise<LlamaParseJob> {
@@ -144,10 +163,19 @@ export class LlamaParseExtractor implements PdfExtractor {
     return (await res.json()) as LlamaParseResult;
   }
 
-  private toExtraction(result: LlamaParseResult): PdfExtraction {
+  private toExtraction(
+    result: LlamaParseResult,
+    outline: PdfOutlineItem[],
+  ): PdfExtraction {
+    const rawPages = (result.pages ?? [])
+      .map((p, index) => ({
+        page: p.page ?? index + 1,
+        markdown: (p.markdown ?? '').trim(),
+      }))
+      .sort((a, b) => a.page - b.page);
+
     const rawMarkdown =
-      result.markdown ??
-      (result.pages ?? []).map((p) => p.markdown ?? '').join('\n\n');
+      result.markdown ?? rawPages.map((p) => p.markdown).join('\n\n');
     const markdown = rawMarkdown.trim() + '\n';
 
     const items: PdfHeadingItem[] = (result.items ?? [])
@@ -164,9 +192,19 @@ export class LlamaParseExtractor implements PdfExtractor {
       result.metadata?.page_count ??
       result.metadata?.num_pages ??
       result.job_metadata?.page_count ??
-      result.pages?.length ??
+      rawPages.length ??
       0;
 
-    return { markdown, items, pageCount };
+    // When LlamaParse gives no per-page split, fall back to the whole book as
+    // one page so downstream page-range slicing still has something to read.
+    const pages: PdfPage[] =
+      rawPages.length > 0 ? rawPages : [{ page: 1, markdown }];
+
+    const metadata: PdfMetadata = {
+      title: cleanString(result.metadata?.title),
+      author: cleanString(result.metadata?.author),
+    };
+
+    return { markdown, pages, items, outline, metadata, pageCount };
   }
 }

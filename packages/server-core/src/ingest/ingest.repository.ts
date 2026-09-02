@@ -1,8 +1,8 @@
 import { Inject, Injectable } from '@nestjs/common';
 import type { BookStatus } from '@scriptorium/contracts';
 import type { DbClient } from '@scriptorium/database/client';
-import { books } from '@scriptorium/database/schema';
-import { eq } from 'drizzle-orm';
+import { books, chapters, chunks } from '@scriptorium/database/schema';
+import { eq, sql } from 'drizzle-orm';
 import { DB } from '../database/database.module.js';
 import type { BookRow } from '../books/books.repository.js';
 
@@ -21,12 +21,37 @@ export interface FailureMark {
   failureReason: string;
 }
 
+export interface ChunkInput {
+  chunkText: string;
+  tokenCount: number | null;
+  pageStart: number | null;
+  pageEnd: number | null;
+}
+
+export interface ChapterInput {
+  chapterIndex: number;
+  title: string | null;
+  pageStart: number | null;
+  pageEnd: number | null;
+  // The non-null value stamped onto every `chunks.chapter_title` in this
+  // chapter (the `chapters.title` above may be null; a chunk row's is not).
+  chunkRowChapterTitle: string;
+  chunks: ChunkInput[];
+}
+
+export interface WriteChaptersInput {
+  bookId: string;
+  userId: string;
+  bookTitle: string;
+  chapters: ChapterInput[];
+}
+
 /**
- * The ingest worker's writer for the `books` table. Kept apart from the
- * HTTP-layer {@link BooksRepository} (which only ever lands the initial
- * `pending` row): every later status transition and artifact write is the
- * worker's, and the pipeline stages derive resumption from the columns this
- * repository sets - never from `status`.
+ * The ingest worker's writer for the `books` table and its `chapters` /
+ * `chunks` children. Kept apart from the HTTP-layer {@link BooksRepository}
+ * (which only ever lands the initial `pending` row): every later status
+ * transition and artifact write is the worker's, and the pipeline stages
+ * derive resumption from the rows this repository sets - never from `status`.
  */
 @Injectable()
 export class IngestRepository {
@@ -88,6 +113,60 @@ export class IngestRepository {
       .set({ ...patch, updatedAt: new Date() })
       .where(eq(books.id, bookId));
     return true;
+  }
+
+  /**
+   * `chunk` stage completion check. True once at least one `chapters` row
+   * exists for the book - the whole chapters + chunks write is one
+   * transaction, so this is never half-true.
+   */
+  async hasChapters(bookId: string): Promise<boolean> {
+    const [row] = await this.db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(chapters)
+      .where(eq(chapters.bookId, bookId));
+    return (row?.count ?? 0) > 0;
+  }
+
+  /**
+   * `chunk` stage checkpoint. Inserts every detected chapter and all of its
+   * chunks in a single transaction: a crash leaves nothing behind, so a
+   * re-run redoes the whole stage rather than resuming a half-written book.
+   * `chunk_index` is assigned book-wide in chapter/chunk order.
+   */
+  async writeChaptersAndChunks(input: WriteChaptersInput): Promise<void> {
+    await this.db.transaction(async (tx) => {
+      let chunkIndex = 0;
+      for (const chapter of input.chapters) {
+        const [inserted] = await tx
+          .insert(chapters)
+          .values({
+            bookId: input.bookId,
+            chapterIndex: chapter.chapterIndex,
+            title: chapter.title,
+            pageStart: chapter.pageStart,
+            pageEnd: chapter.pageEnd,
+          })
+          .returning({ id: chapters.id });
+
+        if (chapter.chunks.length === 0) continue;
+        await tx.insert(chunks).values(
+          chapter.chunks.map((chunk) => ({
+            chapterId: inserted.id,
+            bookId: input.bookId,
+            userId: input.userId,
+            chunkIndex: chunkIndex++,
+            chunkText: chunk.chunkText,
+            bookTitle: input.bookTitle,
+            chapterTitle: chapter.chunkRowChapterTitle,
+            tokenCount: chunk.tokenCount,
+            pageStart: chunk.pageStart,
+            pageEnd: chunk.pageEnd,
+            embedding: null,
+          })),
+        );
+      }
+    });
   }
 
   /** Terminal failure: park the book as `failed` with a stage and a reason. */
