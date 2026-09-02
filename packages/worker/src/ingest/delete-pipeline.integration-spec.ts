@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { createDbClient, type DbClient } from '@scriptorium/database/client';
 import {
+  FakeEmbeddingClient,
   FakeLlmClient,
   FakeObjectStorage,
   FakePdfExtractor,
@@ -37,6 +38,7 @@ describe('book hard delete (Seam 2)', () => {
       storage,
       new FakePdfExtractor(),
       new FakeLlmClient({ delayMs: 0 }),
+      new FakeEmbeddingClient(),
     );
   }
 
