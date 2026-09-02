@@ -6,6 +6,7 @@ import {
   IngestEvent,
   PipelineStage,
   QueryEvent,
+  UpdateBookFields,
   UpdateBookRequest,
 } from './index.js';
 
@@ -41,6 +42,14 @@ describe('@scriptorium/contracts', () => {
   it('UpdateBookRequest requires at least one field', () => {
     expect(() => UpdateBookRequest.parse({})).toThrow();
     expect(UpdateBookRequest.parse({ author: null })).toEqual({ author: null });
+  });
+
+  it('UpdateBookFields leaves the "at least one field" rule to the endpoint', () => {
+    // The unrefined shape the API DTO uses - an empty body parses here and the
+    // endpoint answers it with the `no_fields` problem.
+    expect(UpdateBookFields.parse({})).toEqual({});
+    expect(() => UpdateBookFields.parse({ title: '' })).toThrow();
+    expect(() => UpdateBookFields.parse({ title: null })).toThrow();
   });
 
   it('discriminates IngestEvent by type', () => {

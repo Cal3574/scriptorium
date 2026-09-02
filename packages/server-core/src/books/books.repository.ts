@@ -1,13 +1,22 @@
 import { Inject, Injectable } from '@nestjs/common';
 import type { DbClient } from '@scriptorium/database/client';
 import { books, chapters } from '@scriptorium/database/schema';
-import { count, desc, eq } from 'drizzle-orm';
+import { asc, count, desc, eq } from 'drizzle-orm';
 import { DB } from '../database/database.module.js';
 
 // A `books` row exactly as Drizzle selects it. The API mappers strip the
 // storage-only columns (`s3Key`, `extractedMarkdownKey`, ...) before the shape
 // crosses the wire.
 export type BookRow = typeof books.$inferSelect;
+
+// A `chapters` row as Drizzle selects it. The API mapper drops nothing but
+// `bookId` / `updatedAt` by omission; chunk rows are never joined in.
+export type ChapterRow = typeof chapters.$inferSelect;
+
+export interface UpdateBookInput {
+  title?: string;
+  author?: string | null;
+}
 
 export interface CreateBookInput {
   userId: string;
@@ -73,6 +82,37 @@ export class BooksRepository {
       .update(books)
       .set({ status: 'deleting', updatedAt: new Date() })
       .where(eq(books.id, id));
+  }
+
+  /**
+   * Apply a user's `PATCH /books/:id`. Writes only the keys present in
+   * `input`, so an authoritative `title` / `author` set here is what the
+   * `identifyBook` stage sees as "already filled" and will not overwrite.
+   * Returns the updated row; callers ownership-check with {@link findById}
+   * first.
+   */
+  async update(id: string, input: UpdateBookInput): Promise<BookRow | null> {
+    const patch: Partial<typeof books.$inferInsert> = { updatedAt: new Date() };
+    if (input.title !== undefined) patch.title = input.title;
+    if (input.author !== undefined) patch.author = input.author;
+
+    const [row] = await this.db
+      .update(books)
+      .set(patch)
+      .where(eq(books.id, id))
+      .returning();
+    // The row can vanish between the caller's ownership check and here (a
+    // concurrent delete); the caller translates a miss into a `404`.
+    return row ?? null;
+  }
+
+  /** A book's chapters, ordered by `chapterIndex`. Never joins chunk rows. */
+  async listChapters(bookId: string): Promise<ChapterRow[]> {
+    return this.db
+      .select()
+      .from(chapters)
+      .where(eq(chapters.bookId, bookId))
+      .orderBy(asc(chapters.chapterIndex));
   }
 
   /** The owner's books, newest first. */

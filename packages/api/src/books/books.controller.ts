@@ -7,20 +7,25 @@ import {
   HttpCode,
   Inject,
   Param,
+  ParseUUIDPipe,
+  Patch,
   Post,
 } from '@nestjs/common';
 import {
+  type BookDetailDto,
   type BookDto,
   type BookListItemDto,
   CreateBookRequest,
   CreateUploadUrlRequest,
   type CreateUploadUrlResponse,
+  UpdateBookFields,
 } from '@scriptorium/contracts';
 import {
   assertOwnership,
   type AuthenticatedUser,
   CurrentUser,
   getRequestId,
+  ResourceNotFoundException,
   OBJECT_STORAGE,
   type ObjectStorage,
   QUEUE,
@@ -29,10 +34,11 @@ import {
 } from '@scriptorium/server-core';
 import { createZodDto } from 'nestjs-zod';
 import { MAX_UPLOAD_BYTES } from './books.tokens';
-import { toBookDto, toBookListItemDto } from './book.mapper';
+import { toBookDetailDto, toBookDto, toBookListItemDto } from './book.mapper';
 import {
   FileSizeMismatchException,
   FileTooLargeException,
+  NoFieldsException,
   NotAPdfException,
   S3KeyMismatchException,
   UploadNotFoundException,
@@ -43,6 +49,9 @@ const UPLOAD_URL_TTL_SECONDS = 300;
 
 class CreateUploadUrlDto extends createZodDto(CreateUploadUrlRequest) {}
 class CreateBookDto extends createZodDto(CreateBookRequest) {}
+// The "at least one field" rule is enforced in the handler as `no_fields`, so
+// the DTO validates only the field shapes.
+class UpdateBookDto extends createZodDto(UpdateBookFields) {}
 
 @Controller('books')
 export class BooksController {
@@ -119,6 +128,42 @@ export class BooksController {
     return toBookDto(book);
   }
 
+  // The full book: its whole-book summary plus every chapter in
+  // `chapterIndex` order, each with its own nullable deep-dive summary. Chunk
+  // rows are never joined in. An unknown or unowned id is an identical `404`.
+  @Get(':id')
+  async detail(
+    @Param('id', ParseUUIDPipe) id: string,
+    @CurrentUser() caller: AuthenticatedUser,
+  ): Promise<BookDetailDto> {
+    const found = await this.books.findById(id);
+    const book = assertOwnership(found, caller.id, 'book_not_found');
+    const chapters = await this.books.listChapters(id);
+    return toBookDetailDto(book, chapters);
+  }
+
+  // Correct a wrong title or author. At least one of `title` / `author` must
+  // be present (`no_fields` otherwise); `title` is non-nullable, an explicit
+  // `author: null` clears a wrong LLM guess. Allowed in any status. A value
+  // set here is authoritative: the `identifyBook` stage treats the column as
+  // already filled and never overwrites it.
+  @Patch(':id')
+  async update(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() body: UpdateBookDto,
+    @CurrentUser() caller: AuthenticatedUser,
+  ): Promise<BookDto> {
+    if (Object.keys(body).length === 0) {
+      throw new NoFieldsException();
+    }
+    const found = await this.books.findById(id);
+    assertOwnership(found, caller.id, 'book_not_found');
+    const updated = await this.books.update(id, body);
+    // The row can be deleted between the ownership check and the update.
+    if (!updated) throw new ResourceNotFoundException('book_not_found');
+    return toBookDto(updated);
+  }
+
   @Get()
   async list(
     @CurrentUser() caller: AuthenticatedUser,
@@ -138,7 +183,7 @@ export class BooksController {
   @Delete(':id')
   @HttpCode(202)
   async remove(
-    @Param('id') id: string,
+    @Param('id', ParseUUIDPipe) id: string,
     @CurrentUser() caller: AuthenticatedUser,
   ): Promise<void> {
     const found = await this.books.findById(id);

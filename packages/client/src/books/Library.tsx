@@ -12,7 +12,7 @@ const PDF_CONTENT_TYPE = 'application/pdf';
 
 // The library list plus the upload control. One screen: uploading a book and
 // seeing it land as `pending` are the same user moment.
-export function Library() {
+export function Library({ onOpen }: { onOpen: (bookId: string) => void }) {
   const api = useApi();
   const [books, setBooks] = useState<BookListItemDto[] | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -45,6 +45,7 @@ export function Library() {
             <BookRow
               key={book.id}
               book={book}
+              onOpen={onOpen}
               onSettled={() =>
                 refresh().catch((e: Error) => setError(e.message))
               }
@@ -62,9 +63,11 @@ export function Library() {
 // reports a terminal state it asks the list to refetch the canonical row.
 function BookRow({
   book,
+  onOpen,
   onSettled,
 }: {
   book: BookListItemDto;
+  onOpen: (bookId: string) => void;
   onSettled: () => void;
 }) {
   const api = useApi();
@@ -106,7 +109,22 @@ function BookRow({
 
   return (
     <li>
-      {title} <span data-status={status}>({status})</span>
+      <button
+        type="button"
+        onClick={() => onOpen(book.id)}
+        style={{
+          background: 'none',
+          border: 'none',
+          padding: 0,
+          font: 'inherit',
+          color: '#1d4ed8',
+          textDecoration: 'underline',
+          cursor: 'pointer',
+        }}
+      >
+        {title}
+      </button>{' '}
+      <span data-status={status}>({status})</span>
       {live && status !== 'pending' && !deleting && (
         <LiveProgress
           stage={progress?.stage ?? null}

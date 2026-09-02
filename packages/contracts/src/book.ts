@@ -95,15 +95,20 @@ export const CreateBookRequest = z.object({
 });
 export type CreateBookRequest = z.infer<typeof CreateBookRequest>;
 
-// `PATCH /api/v1/books/:id`. Both fields optional but at least one key must be
-// present. `title` is non-empty and not nullable; an explicit `author: null`
-// clears a wrong LLM guess.
-export const UpdateBookRequest = z
-  .object({
-    title: z.string().min(1).max(TITLE_MAX).optional(),
-    author: z.string().max(AUTHOR_MAX).nullable().optional(),
-  })
-  .refine((body) => Object.keys(body).length > 0, {
-    message: 'At least one field must be provided',
-  });
+// `PATCH /api/v1/books/:id` body fields. Both optional; `title` is non-empty
+// and not nullable, an explicit `author: null` clears a wrong LLM guess. The
+// "at least one key" rule is enforced by the endpoint (as the domain-specific
+// `no_fields` problem) rather than baked in here, so the API can answer an
+// empty body with a stable `code` instead of a generic schema `422`.
+export const UpdateBookFields = z.object({
+  title: z.string().min(1).max(TITLE_MAX).optional(),
+  author: z.string().max(AUTHOR_MAX).nullable().optional(),
+});
+export type UpdateBookFields = z.infer<typeof UpdateBookFields>;
+
+// The full `PATCH` contract, including the "at least one field" refinement.
+export const UpdateBookRequest = UpdateBookFields.refine(
+  (body) => Object.keys(body).length > 0,
+  { message: 'At least one field must be provided' },
+);
 export type UpdateBookRequest = z.infer<typeof UpdateBookRequest>;

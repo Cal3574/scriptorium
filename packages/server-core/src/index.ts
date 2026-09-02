@@ -23,8 +23,10 @@ export { UsersRepository, type LocalUser } from './users/users.repository.js';
 export {
   BooksRepository,
   type BookRow,
+  type ChapterRow,
   type CreateBookInput,
   type CreateBookResult,
+  type UpdateBookInput,
 } from './books/books.repository.js';
 export {
   IngestRepository,
