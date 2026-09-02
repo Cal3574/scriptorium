@@ -8,6 +8,7 @@ import {
 import { EVENT_TRANSPORT } from '../ingest/event-transport.js';
 import { InMemoryEventTransport } from '../ingest/event-transport.js';
 import { RedisEventTransport } from '../ingest/redis-event-transport.js';
+import { DeleteProcessor } from '../ingest/delete-processor.js';
 import { IngestProcessor } from '../ingest/ingest-processor.js';
 import { IngestWorker } from '../ingest/ingest-worker.js';
 import { StageEventPublisher } from '../ingest/stage-event-publisher.js';
@@ -35,12 +36,15 @@ export class AppModule {
       ? [
           {
             provide: IngestWorker,
-            useFactory: (processor: IngestProcessor) =>
-              new IngestWorker(processor, {
+            useFactory: (
+              processor: IngestProcessor,
+              deleteProcessor: DeleteProcessor,
+            ) =>
+              new IngestWorker(processor, deleteProcessor, {
                 redisUrl: config.REDIS_URL,
                 attempts: JOB_ATTEMPTS,
               }),
-            inject: [IngestProcessor],
+            inject: [IngestProcessor, DeleteProcessor],
           },
         ]
       : [];
@@ -56,6 +60,7 @@ export class AppModule {
         StageEventPublisher,
         eventTransport,
         IngestProcessor,
+        DeleteProcessor,
         ...queueConsumer,
       ],
     };

@@ -62,6 +62,19 @@ export class BooksRepository {
     return { book: existing, created: false };
   }
 
+  /**
+   * Mark a book `deleting`. The only `books` write the HTTP layer makes after
+   * the initial `pending` row: `DELETE /books/:id` flips the status here and
+   * then hands the actual teardown to the ingest worker's delete job. A book
+   * already `deleting` is left as-is (the endpoint is a no-op).
+   */
+  async markDeleting(id: string): Promise<void> {
+    await this.db
+      .update(books)
+      .set({ status: 'deleting', updatedAt: new Date() })
+      .where(eq(books.id, id));
+  }
+
   /** The owner's books, newest first. */
   async listByUser(userId: string): Promise<BookRow[]> {
     return this.db

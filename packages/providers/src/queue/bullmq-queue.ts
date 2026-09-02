@@ -1,11 +1,12 @@
 import { Queue as BullQueue } from 'bullmq';
 import {
   DELETE_JOB_NAME,
+  type DeleteJobData,
   INGEST_JOB_NAME,
   INGEST_QUEUE_NAME,
   type IngestJobData,
 } from '@scriptorium/contracts';
-import type { DeleteJobData, Queue } from './queue.js';
+import type { IngestJobLifecycle, Queue } from './queue.js';
 
 // Job-level retry and retention policy, verbatim from the ingest-job spec:
 // one initial run plus three retries with exponential backoff from 10s; keep a
@@ -50,6 +51,41 @@ export class BullMqQueue implements Queue {
     await this.queue.add(DELETE_JOB_NAME, data, {
       jobId: deleteJobId(data.bookId),
     });
+  }
+
+  async ingestJobStatus(bookId: string): Promise<IngestJobLifecycle> {
+    const job = await this.queue.getJob(bookId);
+    if (!job) return 'missing';
+    const state = await job.getState();
+    switch (state) {
+      case 'waiting':
+      case 'waiting-children':
+      case 'prioritized':
+        return 'waiting';
+      case 'delayed':
+        return 'delayed';
+      case 'active':
+        return 'active';
+      case 'completed':
+        return 'completed';
+      case 'failed':
+        return 'failed';
+      default:
+        return 'missing';
+    }
+  }
+
+  async removeIngestJob(bookId: string): Promise<boolean> {
+    const job = await this.queue.getJob(bookId);
+    if (!job) return false;
+    try {
+      // BullMQ refuses to remove a locked (active) job; treat that as "not
+      // removable" and let the caller wait it out instead.
+      await job.remove();
+      return true;
+    } catch {
+      return false;
+    }
   }
 
   async close(): Promise<void> {

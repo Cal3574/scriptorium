@@ -1,5 +1,14 @@
 import { randomUUID } from 'node:crypto';
-import { Body, Controller, Get, Inject, Post } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  HttpCode,
+  Inject,
+  Param,
+  Post,
+} from '@nestjs/common';
 import {
   type BookDto,
   type BookListItemDto,
@@ -8,6 +17,7 @@ import {
   type CreateUploadUrlResponse,
 } from '@scriptorium/contracts';
 import {
+  assertOwnership,
   type AuthenticatedUser,
   CurrentUser,
   getRequestId,
@@ -115,5 +125,29 @@ export class BooksController {
   ): Promise<BookListItemDto[]> {
     const rows = await this.books.listByUser(caller.id);
     return rows.map(toBookListItemDto);
+  }
+
+  // Hard delete. Flips the book to `deleting` and enqueues the `delete` job on
+  // the ingest queue, which stops any running ingest, drops both S3 objects,
+  // and removes the row (Postgres cascades chapters/chunks and nulls
+  // `queries.book_id`). Returns `202` with an empty body; an unknown or
+  // unowned id is an identical `404`. Fully idempotent: `markDeleting` is a
+  // no-op transition and the queue de-dupes on `jobId = delete:<bookId>`, so a
+  // repeat call (or a retry after a partial failure) is a safe `202` that
+  // re-drives the delete rather than a dead end.
+  @Delete(':id')
+  @HttpCode(202)
+  async remove(
+    @Param('id') id: string,
+    @CurrentUser() caller: AuthenticatedUser,
+  ): Promise<void> {
+    const found = await this.books.findById(id);
+    assertOwnership(found, caller.id, 'book_not_found');
+
+    await this.books.markDeleting(id);
+    await this.queue.enqueueDelete({
+      bookId: id,
+      requestId: getRequestId(),
+    });
   }
 }

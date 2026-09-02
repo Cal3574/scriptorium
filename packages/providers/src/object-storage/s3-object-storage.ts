@@ -1,4 +1,5 @@
 import {
+  DeleteObjectCommand,
   GetObjectCommand,
   HeadObjectCommand,
   NoSuchKey,
@@ -100,5 +101,13 @@ export class S3ObjectStorage implements ObjectStorage {
       if (error instanceof NoSuchKey || error instanceof NotFound) return null;
       throw error;
     }
+  }
+
+  async deleteObject(key: string): Promise<void> {
+    // S3 `DeleteObject` is already idempotent - deleting an absent key is a
+    // success - so there is nothing to swallow here.
+    await this.client.send(
+      new DeleteObjectCommand({ Bucket: this.options.bucket, Key: key }),
+    );
   }
 }

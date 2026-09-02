@@ -67,12 +67,16 @@ function BookRow({
   book: BookListItemDto;
   onSettled: () => void;
 }) {
+  const api = useApi();
   const live = !TERMINAL.has(book.status);
-  const { progress, connected } = useIngestEvents(book.id, live);
+  const { progress, connected, deleted } = useIngestEvents(book.id, live);
   const settledRef = useRef(false);
 
   const status = progress?.status ?? book.status;
   const title = progress?.title ?? book.title ?? book.originalFilename;
+  const deleting = status === 'deleting';
+
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
   useEffect(() => {
     if (live && TERMINAL.has(status) && !settledRef.current) {
@@ -81,10 +85,29 @@ function BookRow({
     }
   }, [live, status, onSettled]);
 
+  // The worker finished the hard delete: the row is gone, refetch to drop it.
+  useEffect(() => {
+    if (deleted) onSettled();
+  }, [deleted, onSettled]);
+
+  async function remove() {
+    setDeleteError(null);
+    const res = await api(`/api/v1/books/${book.id}`, { method: 'DELETE' });
+    if (res.status !== 202) {
+      setDeleteError(
+        (await problemMessage(res)) ?? `delete failed: ${res.status}`,
+      );
+      return;
+    }
+    // Show `deleting` right away; the SSE stream drops the row once the worker
+    // is done.
+    onSettled();
+  }
+
   return (
     <li>
       {title} <span data-status={status}>({status})</span>
-      {live && status !== 'pending' && (
+      {live && status !== 'pending' && !deleting && (
         <LiveProgress
           stage={progress?.stage ?? null}
           progress={progress?.progress ?? null}
@@ -92,6 +115,15 @@ function BookRow({
           failureReason={progress?.failureReason ?? null}
         />
       )}
+      <button
+        type="button"
+        onClick={() => void remove()}
+        disabled={deleting}
+        aria-label={`Delete ${title}`}
+      >
+        {deleting ? 'Deleting...' : 'Delete'}
+      </button>
+      {deleteError && <span role="alert">{deleteError}</span>}
     </li>
   );
 }

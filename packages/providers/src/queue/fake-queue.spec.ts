@@ -19,4 +19,35 @@ describe('FakeQueue', () => {
     await q.enqueueIngest({ bookId, requestId: bookId });
     expect(q.recorded).toHaveLength(1);
   });
+
+  describe('ingest-job control', () => {
+    it('reports missing for a book with no ingest job', async () => {
+      const q = new FakeQueue();
+      expect(await q.ingestJobStatus(bookId)).toBe('missing');
+    });
+
+    it('reports a fresh ingest job as waiting', async () => {
+      const q = new FakeQueue();
+      await q.enqueueIngest({ bookId });
+      expect(await q.ingestJobStatus(bookId)).toBe('waiting');
+    });
+
+    it('removes a waiting ingest job and forgets it', async () => {
+      const q = new FakeQueue();
+      await q.enqueueIngest({ bookId });
+
+      expect(await q.removeIngestJob(bookId)).toBe(true);
+      expect(await q.ingestJobStatus(bookId)).toBe('missing');
+      expect(q.recorded).toHaveLength(0);
+    });
+
+    it('will not remove an active ingest job', async () => {
+      const q = new FakeQueue();
+      await q.enqueueIngest({ bookId });
+      q.setIngestJobState(bookId, 'active');
+
+      expect(await q.removeIngestJob(bookId)).toBe(false);
+      expect(await q.ingestJobStatus(bookId)).toBe('active');
+    });
+  });
 });

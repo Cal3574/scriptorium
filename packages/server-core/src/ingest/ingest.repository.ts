@@ -170,6 +170,16 @@ export class IngestRepository {
   }
 
   /**
+   * Hard-delete the book row. Postgres does the rest: `chapters` and `chunks`
+   * cascade, and any `queries.book_id` that pointed here is set null (the
+   * history entry keeps its frozen `citations` snapshot). Idempotent - a
+   * second call for an already-gone id deletes zero rows.
+   */
+  async deleteBook(bookId: string): Promise<void> {
+    await this.db.delete(books).where(eq(books.id, bookId));
+  }
+
+  /**
    * `embed` stage progress counters: how many chunks the book has, and how
    * many still have `embedding is null`. Complete once `total > 0` and
    * `unembedded === 0`.
