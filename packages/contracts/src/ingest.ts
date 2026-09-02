@@ -49,6 +49,12 @@ export const IngestJobData = z.object({
 });
 export type IngestJobData = z.infer<typeof IngestJobData>;
 
+// The keep-alive cadence for `GET /books/:id/events`, in milliseconds. The
+// spec fixes this at 15 seconds; the API config exposes it as an override so
+// tests need not wait that long. Defined here so the one value is shared by
+// the config loader and the stream implementation.
+export const DEFAULT_SSE_HEARTBEAT_MS = 15_000;
+
 // --- SSE progress events (published by the worker over Redis pub/sub, bridged
 // to the browser by the API). The `type` field is the SSE `event:` name; every
 // payload carries `bookId` and `seq`. ---
@@ -92,12 +98,15 @@ export const SnapshotEvent = z.object({
   failureReason: z.string().nullable(),
 });
 
+export type SnapshotEvent = z.infer<typeof SnapshotEvent>;
+
 export const StageEnteredEvent = z.object({
   type: z.literal('stage_entered'),
   ...eventBase,
   stage: ProcessingStage,
   status: BookStatus,
 });
+export type StageEnteredEvent = z.infer<typeof StageEnteredEvent>;
 
 // Emitted only for the two long stages (`embed` per batch, `chapterSummary`
 // per completed chapter).
@@ -109,6 +118,7 @@ export const StageProgressEvent = z.object({
   total: z.number().int().nonnegative(),
   unit: ProgressUnit,
 });
+export type StageProgressEvent = z.infer<typeof StageProgressEvent>;
 
 // Title/author backfilled; lets the Library swap the card mid-pipeline.
 export const BookIdentifiedEvent = z.object({
@@ -117,12 +127,14 @@ export const BookIdentifiedEvent = z.object({
   title: z.string().nullable(),
   author: z.string().nullable(),
 });
+export type BookIdentifiedEvent = z.infer<typeof BookIdentifiedEvent>;
 
 export const BookCompletedEvent = z.object({
   type: z.literal('book_completed'),
   ...eventBase,
   status: z.literal('ready'),
 });
+export type BookCompletedEvent = z.infer<typeof BookCompletedEvent>;
 
 export const BookFailedEvent = z.object({
   type: z.literal('book_failed'),
@@ -130,11 +142,15 @@ export const BookFailedEvent = z.object({
   failedStage: z.string(),
   failureReason: z.string(),
 });
+export type BookFailedEvent = z.infer<typeof BookFailedEvent>;
 
+// Synthesised by the API (never the worker) when a keep-alive poll finds the
+// row gone; it closes the stream.
 export const BookDeletedEvent = z.object({
   type: z.literal('book_deleted'),
   ...eventBase,
 });
+export type BookDeletedEvent = z.infer<typeof BookDeletedEvent>;
 
 // The discriminated union over all seven SSE event schemas.
 export const IngestEvent = z.discriminatedUnion('type', [
