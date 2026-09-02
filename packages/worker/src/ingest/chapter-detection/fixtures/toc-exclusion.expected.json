@@ -1,0 +1,20 @@
+[
+  {
+    "title": "Chapter 1. Beginnings",
+    "chapterIndex": 0,
+    "startPage": 9,
+    "endPage": 20
+  },
+  {
+    "title": "Chapter 2. The Middle Path",
+    "chapterIndex": 1,
+    "startPage": 21,
+    "endPage": 39
+  },
+  {
+    "title": "Chapter 3. Endings",
+    "chapterIndex": 2,
+    "startPage": 40,
+    "endPage": 50
+  }
+]

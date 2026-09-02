@@ -1,0 +1,177 @@
+{
+  "pages": [
+    {
+      "page": 1,
+      "markdown": "This is paragraph 1. It carries a few sentences of ordinary prose so the page has real text for the detector to read and for the chunker to slice. The wording does not matter; the shape does."
+    },
+    {
+      "page": 2,
+      "markdown": "## About the Authors\n\nThis is paragraph 2. It carries a few sentences of ordinary prose so the page has real text for the detector to read and for the chunker to slice. The wording does not matter; the shape does."
+    },
+    {
+      "page": 3,
+      "markdown": "## Introduction\n\nThis is paragraph 3. It carries a few sentences of ordinary prose so the page has real text for the detector to read and for the chunker to slice. The wording does not matter; the shape does."
+    },
+    {
+      "page": 4,
+      "markdown": "This is paragraph 4. It carries a few sentences of ordinary prose so the page has real text for the detector to read and for the chunker to slice. The wording does not matter; the shape does."
+    },
+    {
+      "page": 5,
+      "markdown": "This is paragraph 5. It carries a few sentences of ordinary prose so the page has real text for the detector to read and for the chunker to slice. The wording does not matter; the shape does."
+    },
+    {
+      "page": 6,
+      "markdown": "## Chapter 1. Core Ideas\n\nThis is paragraph 6. It carries a few sentences of ordinary prose so the page has real text for the detector to read and for the chunker to slice. The wording does not matter; the shape does."
+    },
+    {
+      "page": 7,
+      "markdown": "This is paragraph 7. It carries a few sentences of ordinary prose so the page has real text for the detector to read and for the chunker to slice. The wording does not matter; the shape does."
+    },
+    {
+      "page": 8,
+      "markdown": "This is paragraph 8. It carries a few sentences of ordinary prose so the page has real text for the detector to read and for the chunker to slice. The wording does not matter; the shape does."
+    },
+    {
+      "page": 9,
+      "markdown": "This is paragraph 9. It carries a few sentences of ordinary prose so the page has real text for the detector to read and for the chunker to slice. The wording does not matter; the shape does."
+    },
+    {
+      "page": 10,
+      "markdown": "This is paragraph 10. It carries a few sentences of ordinary prose so the page has real text for the detector to read and for the chunker to slice. The wording does not matter; the shape does."
+    },
+    {
+      "page": 11,
+      "markdown": "This is paragraph 11. It carries a few sentences of ordinary prose so the page has real text for the detector to read and for the chunker to slice. The wording does not matter; the shape does."
+    },
+    {
+      "page": 12,
+      "markdown": "This is paragraph 12. It carries a few sentences of ordinary prose so the page has real text for the detector to read and for the chunker to slice. The wording does not matter; the shape does."
+    },
+    {
+      "page": 13,
+      "markdown": "This is paragraph 13. It carries a few sentences of ordinary prose so the page has real text for the detector to read and for the chunker to slice. The wording does not matter; the shape does."
+    },
+    {
+      "page": 14,
+      "markdown": "This is paragraph 14. It carries a few sentences of ordinary prose so the page has real text for the detector to read and for the chunker to slice. The wording does not matter; the shape does."
+    },
+    {
+      "page": 15,
+      "markdown": "## Chapter 2. In Practice\n\nThis is paragraph 15. It carries a few sentences of ordinary prose so the page has real text for the detector to read and for the chunker to slice. The wording does not matter; the shape does."
+    },
+    {
+      "page": 16,
+      "markdown": "This is paragraph 16. It carries a few sentences of ordinary prose so the page has real text for the detector to read and for the chunker to slice. The wording does not matter; the shape does."
+    },
+    {
+      "page": 17,
+      "markdown": "This is paragraph 17. It carries a few sentences of ordinary prose so the page has real text for the detector to read and for the chunker to slice. The wording does not matter; the shape does."
+    },
+    {
+      "page": 18,
+      "markdown": "This is paragraph 18. It carries a few sentences of ordinary prose so the page has real text for the detector to read and for the chunker to slice. The wording does not matter; the shape does."
+    },
+    {
+      "page": 19,
+      "markdown": "This is paragraph 19. It carries a few sentences of ordinary prose so the page has real text for the detector to read and for the chunker to slice. The wording does not matter; the shape does."
+    },
+    {
+      "page": 20,
+      "markdown": "This is paragraph 20. It carries a few sentences of ordinary prose so the page has real text for the detector to read and for the chunker to slice. The wording does not matter; the shape does."
+    },
+    {
+      "page": 21,
+      "markdown": "This is paragraph 21. It carries a few sentences of ordinary prose so the page has real text for the detector to read and for the chunker to slice. The wording does not matter; the shape does."
+    },
+    {
+      "page": 22,
+      "markdown": "This is paragraph 22. It carries a few sentences of ordinary prose so the page has real text for the detector to read and for the chunker to slice. The wording does not matter; the shape does."
+    },
+    {
+      "page": 23,
+      "markdown": "This is paragraph 23. It carries a few sentences of ordinary prose so the page has real text for the detector to read and for the chunker to slice. The wording does not matter; the shape does."
+    },
+    {
+      "page": 24,
+      "markdown": "This is paragraph 24. It carries a few sentences of ordinary prose so the page has real text for the detector to read and for the chunker to slice. The wording does not matter; the shape does."
+    },
+    {
+      "page": 25,
+      "markdown": "This is paragraph 25. It carries a few sentences of ordinary prose so the page has real text for the detector to read and for the chunker to slice. The wording does not matter; the shape does."
+    },
+    {
+      "page": 26,
+      "markdown": "This is paragraph 26. It carries a few sentences of ordinary prose so the page has real text for the detector to read and for the chunker to slice. The wording does not matter; the shape does."
+    },
+    {
+      "page": 27,
+      "markdown": "This is paragraph 27. It carries a few sentences of ordinary prose so the page has real text for the detector to read and for the chunker to slice. The wording does not matter; the shape does."
+    },
+    {
+      "page": 28,
+      "markdown": "This is paragraph 28. It carries a few sentences of ordinary prose so the page has real text for the detector to read and for the chunker to slice. The wording does not matter; the shape does."
+    },
+    {
+      "page": 29,
+      "markdown": "This is paragraph 29. It carries a few sentences of ordinary prose so the page has real text for the detector to read and for the chunker to slice. The wording does not matter; the shape does."
+    },
+    {
+      "page": 30,
+      "markdown": "This is paragraph 30. It carries a few sentences of ordinary prose so the page has real text for the detector to read and for the chunker to slice. The wording does not matter; the shape does."
+    }
+  ],
+  "items": [
+    {
+      "type": "heading",
+      "level": 2,
+      "text": "About the Authors",
+      "page": 2
+    },
+    {
+      "type": "heading",
+      "level": 2,
+      "text": "Introduction",
+      "page": 3
+    },
+    {
+      "type": "heading",
+      "level": 2,
+      "text": "Chapter 1. Core Ideas",
+      "page": 6
+    },
+    {
+      "type": "heading",
+      "level": 2,
+      "text": "Chapter 2. In Practice",
+      "page": 15
+    }
+  ],
+  "outline": [
+    {
+      "title": "About the Authors",
+      "page": 2,
+      "children": []
+    },
+    {
+      "title": "Introduction",
+      "page": 3,
+      "children": []
+    },
+    {
+      "title": "Chapter 1. Core Ideas",
+      "page": 6,
+      "children": []
+    },
+    {
+      "title": "Chapter 2. In Practice",
+      "page": 15,
+      "children": []
+    }
+  ],
+  "metadata": {
+    "title": "Ideas and Practice",
+    "author": "Two People"
+  },
+  "pageCount": 30
+}

@@ -26,6 +26,7 @@
     "@aws-sdk/s3-request-presigner": "^3.700.0",
     "@scriptorium/contracts": "workspace:*",
     "bullmq": "^6.3.3",
-    "openai": "^7.8.0"
+    "openai": "^7.8.0",
+    "pdfjs-dist": "^6.3.289"
   }
 }

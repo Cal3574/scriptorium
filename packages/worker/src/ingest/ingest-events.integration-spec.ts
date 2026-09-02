@@ -135,6 +135,18 @@ describe('live ingest progress: pipeline -> SSE bridge (Seam 2)', () => {
             .join(', ')}`,
         );
       },
+      async waitForCount(n: number, ms = 4000): Promise<void> {
+        const deadline = Date.now() + ms;
+        while (Date.now() < deadline) {
+          if (this.events().length >= n) return;
+          await new Promise((r) => setTimeout(r, 25));
+        }
+        throw new Error(
+          `timed out waiting for ${n} events; saw ${this.events()
+            .map((e) => e.type)
+            .join(', ')}`,
+        );
+      },
     };
   }
 
@@ -154,18 +166,24 @@ describe('live ingest progress: pipeline -> SSE bridge (Seam 2)', () => {
     await new Promise((r) => setTimeout(r, 50));
 
     const outcome = await makeProcessor().process(bookId);
-    expect(outcome).toEqual({ status: 'completed', lastStage: 'identifyBook' });
+    expect(outcome).toEqual({ status: 'completed', lastStage: 'chunk' });
 
-    await sink.waitFor('book_identified');
+    // snapshot + extracting + book_identified + chunking.
+    await sink.waitForCount(4);
 
     const types = sink.events().map((e) => e.type);
-    expect(types).toEqual(['snapshot', 'stage_entered', 'book_identified']);
+    expect(types).toEqual([
+      'snapshot',
+      'stage_entered',
+      'book_identified',
+      'stage_entered',
+    ]);
 
-    const stageEntered = sink.events().find((e) => e.type === 'stage_entered');
-    expect(stageEntered).toMatchObject({ stage: 'extracting', seq: 1 });
+    expect(sink.events()[1]).toMatchObject({ stage: 'extracting', seq: 1 });
+    expect(sink.events()[3]).toMatchObject({ stage: 'chunking', seq: 3 });
 
     const seqs = sink.events().map((e) => e.seq);
-    expect(seqs).toEqual([0, 1, 2]);
+    expect(seqs).toEqual([0, 1, 2, 3]);
 
     sink.disconnect();
     await running;

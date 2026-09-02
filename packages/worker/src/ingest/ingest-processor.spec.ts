@@ -66,6 +66,12 @@ class FakeRepo {
       return Promise.resolve();
     },
   );
+  chapterRows = 0;
+  hasChapters = jest.fn(() => Promise.resolve(this.chapterRows > 0));
+  writeChaptersAndChunks = jest.fn((input: { chapters: unknown[] }) => {
+    this.chapterRows += input.chapters.length;
+    return Promise.resolve();
+  });
   get current() {
     return this.book;
   }
@@ -89,17 +95,18 @@ function build(
 }
 
 describe('IngestProcessor', () => {
-  it('walks extract then identifyBook and completes', async () => {
+  it('walks extract, identifyBook and chunk, then completes', async () => {
     const book = bookRow({ status: 'pending' });
     const { processor, repo, storage } = build(book);
     await storage.putObject(book.s3Key, Buffer.from('pdf'), 'application/pdf');
 
     const outcome = await processor.process(book.id);
 
-    expect(outcome).toEqual({ status: 'completed', lastStage: 'identifyBook' });
-    expect(repo.current.status).toBe('extracting');
+    expect(outcome).toEqual({ status: 'completed', lastStage: 'chunk' });
+    expect(repo.current.status).toBe('chunking');
     expect(repo.current.extractedMarkdownKey).toBe('books/user-1/x.md');
     expect(repo.current.title).toBe('The Quiet Craft of Habit');
+    expect(repo.writeChaptersAndChunks).toHaveBeenCalledTimes(1);
   });
 
   it('aborts at the first boundary when the book is deleting', async () => {
@@ -173,7 +180,7 @@ describe('IngestProcessor', () => {
 
   it('skips a stage whose artifact already exists', async () => {
     const book = bookRow({
-      status: 'extracting',
+      status: 'chunking',
       extractedMarkdownKey: 'books/user-1/x.md',
       title: 'Already Known',
     });
@@ -182,9 +189,13 @@ describe('IngestProcessor', () => {
         throw new Error('should not run');
       },
     });
+    // Chapters already written: chunk is complete too, so the whole pipeline
+    // is a no-op walk.
+    repo.chapterRows = 3;
 
     const outcome = await processor.process(book.id);
-    expect(outcome).toEqual({ status: 'completed', lastStage: 'identifyBook' });
+    expect(outcome).toEqual({ status: 'completed', lastStage: 'chunk' });
     expect(repo.recordExtraction).not.toHaveBeenCalled();
+    expect(repo.writeChaptersAndChunks).not.toHaveBeenCalled();
   });
 });

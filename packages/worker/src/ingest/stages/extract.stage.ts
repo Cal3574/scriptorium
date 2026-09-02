@@ -2,6 +2,11 @@ import { withRetry } from '../retry.js';
 import { TerminalIngestError } from '../errors.js';
 import type { Stage } from '../stage.js';
 import type { BookRow } from '@scriptorium/server-core';
+import {
+  extractionArtifactKey,
+  saveExtractionArtifact,
+  toExtractionArtifact,
+} from './extraction-artifact.js';
 
 // The permanent markdown blob lives next to the original PDF, same key with a
 // `.md` extension: `books/{userId}/{uuid}.md`. Deleting a book removes both.
@@ -14,9 +19,10 @@ export function extractedMarkdownKey(book: BookRow): string {
 }
 
 /**
- * Stage 1. Run the PDF through the extractor, store the full markdown as a
- * permanent S3 object, and record the page count. Complete once
- * `extracted_markdown_key` is set, so a re-run never re-parses.
+ * Stage 1. Run the PDF through the extractor, store the full markdown plus a
+ * structured extraction sidecar as permanent S3 objects, and record the page
+ * count. Complete once `extracted_markdown_key` is set, so a re-run never
+ * re-parses.
  */
 export const extractStage: Stage = {
   name: 'extract',
@@ -41,6 +47,11 @@ export const extractStage: Stage = {
       markdownKey,
       Buffer.from(extraction.markdown, 'utf-8'),
       'text/markdown',
+    );
+    await saveExtractionArtifact(
+      storage,
+      extractionArtifactKey(book),
+      toExtractionArtifact(extraction),
     );
     await repo.recordExtraction(book.id, {
       extractedMarkdownKey: markdownKey,

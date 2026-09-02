@@ -1,0 +1,26 @@
+[
+  {
+    "title": "Chapter 1",
+    "chapterIndex": 0,
+    "startPage": 1,
+    "endPage": 4
+  },
+  {
+    "title": "Chapter 2. The Journey",
+    "chapterIndex": 1,
+    "startPage": 5,
+    "endPage": 11
+  },
+  {
+    "title": "Chapter 3. The Return",
+    "chapterIndex": 2,
+    "startPage": 12,
+    "endPage": 19
+  },
+  {
+    "title": "Chapter 4. Coming Home",
+    "chapterIndex": 3,
+    "startPage": 20,
+    "endPage": 40
+  }
+]
