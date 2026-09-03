@@ -47,6 +47,19 @@ export class BullMqQueue implements Queue {
     await this.queue.add(INGEST_JOB_NAME, data, { jobId: data.bookId });
   }
 
+  async reenqueueIngest(data: IngestJobData): Promise<void> {
+    const existing = await this.queue.getJob(data.bookId);
+    if (existing) {
+      try {
+        await existing.remove();
+      } catch {
+        // A locked (active) job cannot be removed; the `add` below is then the
+        // no-op duplicate, which is fine - the job already running IS the retry.
+      }
+    }
+    await this.queue.add(INGEST_JOB_NAME, data, { jobId: data.bookId });
+  }
+
   async enqueueDelete(data: DeleteJobData): Promise<void> {
     await this.queue.add(DELETE_JOB_NAME, data, {
       jobId: deleteJobId(data.bookId),

@@ -20,6 +20,23 @@ describe('FakeQueue', () => {
     expect(q.recorded).toHaveLength(1);
   });
 
+  it('re-enqueues an ingest job whose previous run has finished', async () => {
+    const q = new FakeQueue();
+    await q.enqueueIngest({ bookId });
+    q.setIngestJobState(bookId, 'completed');
+
+    // A plain enqueue would be swallowed as a duplicate...
+    await q.enqueueIngest({ bookId });
+    expect(q.recorded).toHaveLength(1);
+
+    // ...but a re-enqueue drops the finished job and adds a fresh one.
+    await q.reenqueueIngest({ bookId, requestId: bookId });
+    expect(q.recorded).toEqual([
+      { name: 'ingest', jobId: bookId, data: { bookId, requestId: bookId } },
+    ]);
+    expect(await q.ingestJobStatus(bookId)).toBe('waiting');
+  });
+
   describe('ingest-job control', () => {
     it('reports missing for a book with no ingest job', async () => {
       const q = new FakeQueue();

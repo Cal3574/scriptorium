@@ -35,6 +35,7 @@ import { createZodDto } from 'nestjs-zod';
 import { MAX_UPLOAD_BYTES } from './books.tokens';
 import { toBookDetailDto, toBookDto, toBookListItemDto } from './book.mapper';
 import {
+  BookNotFailedException,
   FileSizeMismatchException,
   FileTooLargeException,
   NoFieldsException,
@@ -173,6 +174,32 @@ export class BooksController {
     // through; `author: null` is the one explicit clear.
     const updated = await this.books.update(id, body);
     if (!updated) throw new ResourceNotFoundException('book_not_found');
+    return toBookDto(updated);
+  }
+
+  // Recover a failed book. Valid only from `failed` (`409 book_not_failed`
+  // otherwise, including a second concurrent retry that lost the race); clears
+  // `failed_stage` / `failure_reason`, sets `pending`, and re-enqueues the
+  // ingest job. The pipeline derives resumption from data, so the re-run skips
+  // every stage whose artifact already exists. An unknown or unowned id is an
+  // identical `404`.
+  @Post(':id/retry')
+  async retry(
+    @Param('id') id: string,
+    @CurrentUser() caller: AuthenticatedUser,
+  ): Promise<BookDto> {
+    const found = await this.books.findById(id);
+    const book = assertOwnership(found, caller.id, 'book_not_found');
+    if (book.status !== 'failed') throw new BookNotFailedException();
+
+    const updated = await this.books.markForRetry(id);
+    if (!updated) throw new BookNotFailedException();
+
+    await this.queue.reenqueueIngest({
+      bookId: id,
+      requestId: getRequestId(),
+    });
+
     return toBookDto(updated);
   }
 

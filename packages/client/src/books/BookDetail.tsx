@@ -7,6 +7,10 @@ import type {
 } from '@scriptorium/contracts';
 import { useApi } from '../auth/use-api';
 import { MUTED, problemMessage } from './problem';
+import { failureHeadline, friendlyFailureLabel } from './failure';
+import { useIngestEvents } from './use-ingest-events';
+
+const TERMINAL: ReadonlySet<string> = new Set(['ready', 'failed']);
 
 // The Book-detail screen: the whole-book summary rendered as markdown, every
 // chapter in `chapterIndex` order with its deep-dive behind an expand/collapse,
@@ -38,6 +42,30 @@ export function BookDetail({
     setError(null);
     load().catch((err: Error) => setError(err.message));
   }, [load]);
+
+  // While the book is mid-pipeline (including straight after a retry) follow
+  // the live progress stream; when it settles, refetch the detail so the
+  // summaries and any new failure state land.
+  const live = book != null && !TERMINAL.has(book.status);
+  const { progress, connected } = useIngestEvents(bookId, live);
+
+  useEffect(() => {
+    if (live && progress && TERMINAL.has(progress.status)) {
+      load().catch((err: Error) => setError(err.message));
+    }
+  }, [live, progress, load]);
+
+  const retry = useCallback(async () => {
+    const res = await api(`/api/v1/books/${bookId}/retry`, { method: 'POST' });
+    if (!res.ok) {
+      throw new Error(
+        (await problemMessage(res)) ?? `retry failed: ${res.status}`,
+      );
+    }
+    // Book is `pending` again; reload drops the banner and the effect above
+    // re-subscribes to the live stream. Never auto-retried.
+    await load();
+  }, [api, bookId, load]);
 
   // One PATCH key at a time - the screen only ever edits a single field. The
   // body carries exactly that key, so `author: null` (a clear) is sent as
@@ -85,6 +113,20 @@ export function BookDetail({
     <section>
       <BackButton onBack={onBack} />
       <h2>{displayTitle}</h2>
+
+      {book.status === 'failed' && <FailedBanner book={book} onRetry={retry} />}
+      {live && (
+        <p role="status" data-connected={connected}>
+          Processing:{' '}
+          {progress?.stage
+            ? `${progress.stage}${
+                progress.progress
+                  ? ` ${progress.progress.done}/${progress.progress.total} ${progress.progress.unit}`
+                  : ''
+              }`
+            : 'starting...'}
+        </p>
+      )}
 
       <dl>
         <dt>Title</dt>
@@ -139,6 +181,53 @@ function ChapterItem({ chapter }: { chapter: ChapterDto }) {
         )}
       </details>
     </li>
+  );
+}
+
+// The top-of-screen banner for a failed book. The book stays fully readable
+// below it; this only explains the stall in plain language, exposes the raw
+// `failureReason` behind a toggle, and offers a one-click Retry.
+function FailedBanner({
+  book,
+  onRetry,
+}: {
+  book: BookDetailDto;
+  onRetry: () => Promise<void>;
+}) {
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function run() {
+    setBusy(true);
+    setError(null);
+    try {
+      await onRetry();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div role="alert" data-failed-banner>
+      <p>
+        <strong>{failureHeadline(book.failedStage)}</strong> Everything we
+        finished before it stopped is shown below.
+      </p>
+      {book.failureReason && (
+        <details>
+          <summary>Show details</summary>
+          <p style={{ color: MUTED }}>{book.failureReason}</p>
+        </details>
+      )}
+      <button type="button" onClick={() => void run()} disabled={busy}>
+        {busy
+          ? 'Retrying...'
+          : `Retry ${friendlyFailureLabel(book.failedStage)}`}
+      </button>
+      {error && <p role="alert">{error}</p>}
+    </div>
   );
 }
 

@@ -1,7 +1,7 @@
 import { Inject, Injectable } from '@nestjs/common';
 import type { DbClient } from '@scriptorium/database/client';
 import { books, chapters } from '@scriptorium/database/schema';
-import { asc, count, desc, eq } from 'drizzle-orm';
+import { and, asc, count, desc, eq } from 'drizzle-orm';
 import { DB } from '../database/database.module.js';
 
 // A `books` row exactly as Drizzle selects it. The API mappers strip the
@@ -86,6 +86,29 @@ export class BooksRepository {
       .update(books)
       .set({ status: 'deleting', updatedAt: new Date() })
       .where(eq(books.id, id));
+  }
+
+  /**
+   * Move a `failed` book back to `pending` for a retry: clears `failed_stage`
+   * and `failure_reason` and returns the updated row. The `status = 'failed'`
+   * guard lives in the WHERE clause, so a book in any other status - or a
+   * second concurrent retry that lost the race - matches nothing and returns
+   * null, which the endpoint turns into `409 book_not_failed`. The worker
+   * derives pipeline resumption from data, so re-enqueuing redoes only the
+   * stages that never finished.
+   */
+  async markForRetry(id: string): Promise<BookRow | null> {
+    const [row] = await this.db
+      .update(books)
+      .set({
+        status: 'pending',
+        failedStage: null,
+        failureReason: null,
+        updatedAt: new Date(),
+      })
+      .where(and(eq(books.id, id), eq(books.status, 'failed')))
+      .returning();
+    return row ?? null;
   }
 
   /** The owner's books, newest first. */

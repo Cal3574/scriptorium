@@ -15,6 +15,12 @@ export type IngestJobLifecycle =
 export interface Queue {
   // Enqueue the ingest pipeline for a book. Idempotent per `bookId`.
   enqueueIngest(data: IngestJobData): Promise<void>;
+  // Re-run the ingest pipeline for a book after a failure. Unlike
+  // `enqueueIngest`, this first drops any finished (`completed` / `failed`) job
+  // still parked under the book's `jobId`, so BullMQ does not treat the fresh
+  // enqueue as a duplicate and silently drop it. The pipeline itself derives
+  // resumption from data, so the re-run skips every stage already complete.
+  reenqueueIngest(data: IngestJobData): Promise<void>;
   // Enqueue a hard delete of a book and everything derived from it.
   enqueueDelete(data: DeleteJobData): Promise<void>;
   // The current lifecycle state of a book's ingest job.

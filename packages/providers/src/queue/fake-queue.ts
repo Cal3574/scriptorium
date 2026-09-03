@@ -38,6 +38,14 @@ export class FakeQueue implements Queue {
     return Promise.resolve();
   }
 
+  reenqueueIngest(data: IngestJobData): Promise<void> {
+    // Drop any finished job parked under this jobId so the re-enqueue is not
+    // swallowed as a duplicate, then enqueue afresh.
+    this.jobs.delete(ingestJobId(data.bookId));
+    this.ingestState.delete(data.bookId);
+    return this.enqueueIngest(data);
+  }
+
   enqueueDelete(data: DeleteJobData): Promise<void> {
     this.record({ name: 'delete', jobId: deleteJobId(data.bookId), data });
     return Promise.resolve();

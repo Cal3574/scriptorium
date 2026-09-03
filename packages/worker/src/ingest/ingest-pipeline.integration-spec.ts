@@ -260,6 +260,62 @@ describe('ingest pipeline (Seam 2)', () => {
     expect(eventTypes(id)).toContain('book_failed');
   });
 
+  it('redoes only the unfinished stage after a retry of a book failed at bookSummary', async () => {
+    const { id } = await insertBook();
+
+    // First run: the whole-book reduce blows up terminally; every chapter
+    // deep-dive has already landed by then.
+    const fallback = new FakeLlmClient({ delayMs: 0 });
+    const failingReduce: LlmClient = {
+      complete: (request: LlmRequest) => {
+        const content = String(request.messages[0]?.content ?? '');
+        if (content.startsWith('Here are per-chapter summaries')) {
+          return Promise.reject(new TerminalIngestError('reduce blew up'));
+        }
+        return fallback.complete(request);
+      },
+      stream: () => {
+        throw new Error('unused');
+      },
+    };
+    await expect(
+      makeProcessor({ llm: failingReduce }).process(id),
+    ).rejects.toThrow(/reduce blew up/);
+
+    let book = await readBook(id);
+    expect(book?.status).toBe('failed');
+    expect(book?.failedStage).toBe('bookSummary');
+    const missingBefore = await db.pool.query(
+      `SELECT count(*)::int AS n FROM chapters WHERE book_id = $1 AND summary IS NULL`,
+      [id],
+    );
+    expect(missingBefore.rows[0].n).toBe(0);
+
+    // The API's retry reset: back to pending, failure fields cleared.
+    await db.pool.query(
+      `UPDATE books SET status = 'pending', failed_stage = NULL, failure_reason = NULL WHERE id = $1`,
+      [id],
+    );
+    transport.clear();
+
+    // Re-run: a healthy LLM. Only the reduce should call it - every earlier
+    // stage is derived-from-data complete.
+    const spyLlm = new FakeLlmClient({ delayMs: 0 });
+    const complete = jest.spyOn(spyLlm, 'complete');
+    await makeProcessor({ llm: spyLlm }).process(id);
+
+    expect(complete).toHaveBeenCalledTimes(1);
+    expect(
+      String(complete.mock.calls[0][0].messages[0]?.content ?? ''),
+    ).toMatch(/^Here are per-chapter summaries/);
+
+    book = await readBook(id);
+    expect(book?.status).toBe('ready');
+    expect(book?.summary).toBeTruthy();
+    expect(book?.failedStage).toBeNull();
+    expect(eventTypes(id)).toContain('book_completed');
+  });
+
   it('lands the book failed at extract on a terminal extractor error', async () => {
     const { id } = await insertBook();
     const brokenExtractor: PdfExtractor = {
