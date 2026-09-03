@@ -7,6 +7,7 @@ import {
   IngestEventStream,
   INGEST_EVENT_SUBSCRIBER,
   ProvidersModule,
+  QueriesRepository,
   RedisIngestEventSubscriber,
 } from '@scriptorium/server-core';
 import { BooksController } from '../books/books.controller';
@@ -14,6 +15,9 @@ import { BookEventsController } from '../books/books-events.controller';
 import { MAX_UPLOAD_BYTES, SSE_HEARTBEAT_MS } from '../books/books.tokens';
 import { DevUploadsController } from '../books/dev-uploads.controller';
 import { MeController } from '../me/me.controller';
+import { QueriesController } from '../queries/queries.controller';
+import { QueryService } from '../queries/query.service';
+import { RAG_CONFIG } from '../queries/queries.tokens';
 import { HealthController } from './health.controller';
 
 @Module({})
@@ -34,10 +38,25 @@ export class AppModule {
         MeController,
         BooksController,
         BookEventsController,
+        QueriesController,
         ...devControllers,
       ],
       providers: [
         BooksRepository,
+        QueriesRepository,
+        QueryService,
+        {
+          provide: RAG_CONFIG,
+          useValue: {
+            efSearch: config.RAG_HNSW_EF_SEARCH,
+            poolLimit: config.RAG_CANDIDATE_POOL,
+            topK: config.RAG_TOP_K,
+            maxPerBook: config.RAG_MAX_PER_BOOK,
+            minSimilarity: config.RAG_MIN_SIMILARITY,
+            minResults: config.RAG_MIN_RESULTS,
+            lowConfidenceK: config.RAG_LOWCONF_K,
+          },
+        },
         { provide: MAX_UPLOAD_BYTES, useValue: config.MAX_UPLOAD_BYTES },
         {
           provide: SSE_HEARTBEAT_MS,

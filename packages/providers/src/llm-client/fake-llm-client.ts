@@ -79,13 +79,17 @@ export class FakeLlmClient implements LlmClient {
     return this.render(request);
   }
 
-  async *stream(request: LlmRequest): AsyncIterable<string> {
+  async *stream(
+    request: LlmRequest,
+    signal?: AbortSignal,
+  ): AsyncIterable<string> {
     const full = this.render(request);
     // Split into a handful of deltas on paragraph boundaries so consumers see
     // several `text_delta` events, matching a real token stream's shape.
     const parts = full.split(/(?<=\n\n)/);
     const perChunkDelay = this.delayMs / Math.max(parts.length, 1);
     for (const part of parts) {
+      if (signal?.aborted) return;
       await sleep(perChunkDelay);
       yield part;
     }

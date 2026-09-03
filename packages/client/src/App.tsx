@@ -12,6 +12,7 @@ import { env } from './env';
 import { useApi } from './auth/use-api';
 import { Library } from './books/Library';
 import { BookDetail } from './books/BookDetail';
+import { QueryScreen } from './queries/QueryScreen';
 
 // ProviderBoundary catches the lazy() rejection that fires when a provider's
 // remoteEntry.js can't be fetched (provider not running, network error,
@@ -75,9 +76,11 @@ function Identity() {
 }
 
 function SignedInApp() {
-  // The client is a two-screen app: the library list, or one open book. A
-  // selected id swaps in the Book-detail screen; `null` is the library.
+  // Screens: the library list, one open book, or the "ask your library" query
+  // screen. A selected id swaps in Book-detail; `asking` swaps in the query
+  // screen; otherwise it is the library.
   const [openBookId, setOpenBookId] = useState<string | null>(null);
+  const [asking, setAsking] = useState(false);
 
   return (
     <>
@@ -89,8 +92,15 @@ function SignedInApp() {
       <Identity />
       {openBookId ? (
         <BookDetail bookId={openBookId} onBack={() => setOpenBookId(null)} />
+      ) : asking ? (
+        <QueryScreen onBack={() => setAsking(false)} />
       ) : (
-        <Library onOpen={setOpenBookId} />
+        <>
+          <button type="button" onClick={() => setAsking(true)}>
+            Ask your library
+          </button>
+          <Library onOpen={setOpenBookId} />
+        </>
       )}
       <ProviderBoundary name="my-provider">
         <ProviderMyProvider />

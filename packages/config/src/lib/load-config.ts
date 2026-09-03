@@ -110,6 +110,23 @@ const apiConfigSchema = z
       .int()
       .positive()
       .default(50 * 1024 * 1024),
+    // --- Cross-book RAG query tuning (see docs/wayfinder/rag-query-spec.md).
+    // Every knob is a config change, not a code deploy. Defaults are the
+    // spec's validated starting values.
+    // `SET LOCAL` per query; must exceed RAG_CANDIDATE_POOL.
+    RAG_HNSW_EF_SEARCH: z.coerce.number().int().positive().default(100),
+    // The candidate pool the selection step re-ranks (~4x RAG_TOP_K).
+    RAG_CANDIDATE_POOL: z.coerce.number().int().positive().default(50),
+    // Max chunks that reach the LLM.
+    RAG_TOP_K: z.coerce.number().int().positive().default(12),
+    // Per-book cap applied before backfill.
+    RAG_MAX_PER_BOOK: z.coerce.number().int().positive().default(6),
+    // Absolute cosine-similarity floor (not distance).
+    RAG_MIN_SIMILARITY: z.coerce.number().default(0.25),
+    // Below this many chunks above the floor, flag low-confidence.
+    RAG_MIN_RESULTS: z.coerce.number().int().positive().default(3),
+    // How many top chunks to take on the low-confidence fallback.
+    RAG_LOWCONF_K: z.coerce.number().int().positive().default(4),
   })
   .superRefine(requireProviderKeysWhenLive)
   .superRefine(requireS3KeysWhenLive);
