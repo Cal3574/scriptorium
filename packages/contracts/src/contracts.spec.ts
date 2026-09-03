@@ -6,6 +6,7 @@ import {
   IngestEvent,
   PipelineStage,
   QueryEvent,
+  UpdateBookFields,
   UpdateBookRequest,
 } from './index.js';
 
@@ -36,6 +37,13 @@ describe('@scriptorium/contracts', () => {
   it('BookListItemDto drops updatedAt', () => {
     expect('updatedAt' in BookListItemDto.shape).toBe(false);
     expect('updatedAt' in BookListItemDto.parse(baseBook)).toBe(false);
+  });
+
+  it('UpdateBookFields accepts an empty object but not a null title', () => {
+    expect(UpdateBookFields.parse({})).toEqual({});
+    expect(() => UpdateBookFields.parse({ title: null })).toThrow();
+    expect(() => UpdateBookFields.parse({ title: 'x'.repeat(501) })).toThrow();
+    expect(UpdateBookFields.parse({ author: null })).toEqual({ author: null });
   });
 
   it('UpdateBookRequest requires at least one field', () => {

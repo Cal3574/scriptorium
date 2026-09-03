@@ -1,13 +1,24 @@
 import { Inject, Injectable } from '@nestjs/common';
 import type { DbClient } from '@scriptorium/database/client';
 import { books, chapters } from '@scriptorium/database/schema';
-import { count, desc, eq } from 'drizzle-orm';
+import { asc, count, desc, eq } from 'drizzle-orm';
 import { DB } from '../database/database.module.js';
 
 // A `books` row exactly as Drizzle selects it. The API mappers strip the
 // storage-only columns (`s3Key`, `extractedMarkdownKey`, ...) before the shape
 // crosses the wire.
 export type BookRow = typeof books.$inferSelect;
+
+// One `chapters` row as Drizzle selects it. The API mapper drops `bookId`,
+// `updatedAt` and never exposes the chunk rows underneath.
+export type ChapterRow = typeof chapters.$inferSelect;
+
+// `PATCH /api/v1/books/:id` payload. A key that is absent is left untouched;
+// `author: null` is an explicit clear.
+export interface UpdateBookInput {
+  title?: string;
+  author?: string | null;
+}
 
 export interface CreateBookInput {
   userId: string;
@@ -25,9 +36,11 @@ export interface CreateBookResult {
 }
 
 /**
- * The only writer of the `books` table from the HTTP layer. The ingest worker
- * owns every later status transition; this repository only lands the initial
- * `pending` row and reads the owner's library list.
+ * The HTTP layer's reader and writer for the `books` table and its `chapters`
+ * children. The ingest worker owns every pipeline status transition and
+ * artifact write; this repository lands the initial `pending` row, flips a
+ * book to `deleting`, applies a user's title/author correction, and serves the
+ * library list and Book-detail reads.
  */
 @Injectable()
 export class BooksRepository {
@@ -95,6 +108,38 @@ export class BooksRepository {
       .from(books)
       .where(eq(books.id, id))
       .limit(1);
+    return row ?? null;
+  }
+
+  /**
+   * A book's chapters in reading order, for the `GET /books/:id` detail
+   * payload. Never joins or exposes the chunk rows beneath each chapter.
+   */
+  async findChapters(bookId: string): Promise<ChapterRow[]> {
+    return this.db
+      .select()
+      .from(chapters)
+      .where(eq(chapters.bookId, bookId))
+      .orderBy(asc(chapters.chapterIndex));
+  }
+
+  /**
+   * Apply a `PATCH /books/:id` to the `books` row and return the updated row.
+   * Only the keys present in `input` are written; `author: null` is an
+   * explicit clear. A user-set `title` is authoritative from here on - the
+   * `identifyBook` stage's completeness check already treats a non-null title
+   * as done, and `recordIdentification` never overwrites a set column.
+   */
+  async update(id: string, input: UpdateBookInput): Promise<BookRow | null> {
+    const patch: Partial<typeof books.$inferInsert> = { updatedAt: new Date() };
+    if (input.title !== undefined) patch.title = input.title;
+    if (input.author !== undefined) patch.author = input.author;
+
+    const [row] = await this.db
+      .update(books)
+      .set(patch)
+      .where(eq(books.id, id))
+      .returning();
     return row ?? null;
   }
 

@@ -47,6 +47,17 @@ export class UploadNotFoundException extends ProblemException {
   }
 }
 
+export class NoFieldsException extends ProblemException {
+  constructor() {
+    super(
+      'no_fields',
+      422,
+      'No fields to update',
+      'A PATCH must set at least one of title or author.',
+    );
+  }
+}
+
 export class FileSizeMismatchException extends ProblemException {
   constructor() {
     super(
