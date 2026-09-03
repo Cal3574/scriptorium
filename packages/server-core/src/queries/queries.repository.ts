@@ -50,9 +50,7 @@ export class QueriesRepository {
       // `SET LOCAL` takes no bind parameters; the value is a schema-coerced
       // integer so interpolation is safe.
       await tx.execute(
-        sql.raw(
-          `SET LOCAL hnsw.ef_search = ${Math.trunc(input.efSearch)}`,
-        ),
+        sql.raw(`SET LOCAL hnsw.ef_search = ${Math.trunc(input.efSearch)}`),
       );
 
       const result = await tx.execute<{

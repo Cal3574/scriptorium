@@ -1,4 +1,8 @@
-import { type Candidate, selectChunks, type SelectionConfig } from './select-chunks.js';
+import {
+  type Candidate,
+  selectChunks,
+  type SelectionConfig,
+} from './select-chunks.js';
 
 const config: SelectionConfig = {
   topK: 12,
@@ -10,7 +14,11 @@ const config: SelectionConfig = {
 
 // Build a candidate at a given similarity. `book` defaults so single-book
 // cases stay terse.
-const cand = (similarity: number, book = 'book-a', id = `c${similarity}`): Candidate => ({
+const cand = (
+  similarity: number,
+  book = 'book-a',
+  id = `c${similarity}`,
+): Candidate => ({
   chunkId: id,
   bookId: book,
   bookTitle: book,
@@ -23,14 +31,27 @@ describe('selectChunks', () => {
   describe('per-book cap with backfill', () => {
     it('pushes a monopolising book past maxPerBook to the back so other books rank first', () => {
       const candidates: Candidate[] = [
-        ...Array.from({ length: 10 }, (_, i) => cand(0.9 - i * 0.01, 'book-a', `a${i}`)),
-        ...Array.from({ length: 4 }, (_, i) => cand(0.5 - i * 0.01, 'book-b', `b${i}`)),
+        ...Array.from({ length: 10 }, (_, i) =>
+          cand(0.9 - i * 0.01, 'book-a', `a${i}`),
+        ),
+        ...Array.from({ length: 4 }, (_, i) =>
+          cand(0.5 - i * 0.01, 'book-b', `b${i}`),
+        ),
       ];
       const { selected } = selectChunks(candidates, config);
       // Cap 6 on book-a: a0..a5, then all of book-b, then the a6+ leftovers
       // backfill to topK. book-b is never starved.
       expect(selected.slice(0, 10).map((c) => c.chunkId)).toEqual([
-        'a0', 'a1', 'a2', 'a3', 'a4', 'a5', 'b0', 'b1', 'b2', 'b3',
+        'a0',
+        'a1',
+        'a2',
+        'a3',
+        'a4',
+        'a5',
+        'b0',
+        'b1',
+        'b2',
+        'b3',
       ]);
       expect(selected).toHaveLength(12);
     });
@@ -47,13 +68,23 @@ describe('selectChunks', () => {
 
     it('keeps the capped primary chunks ahead of the backfilled leftovers', () => {
       const candidates: Candidate[] = [
-        ...Array.from({ length: 8 }, (_, i) => cand(0.9 - i * 0.01, 'book-a', `a${i}`)),
+        ...Array.from({ length: 8 }, (_, i) =>
+          cand(0.9 - i * 0.01, 'book-a', `a${i}`),
+        ),
         cand(0.4, 'book-b', 'b0'),
       ];
       const { selected } = selectChunks(candidates, config);
       // a0..a5 (cap 6), then b0, then a6, a7 (leftovers).
       expect(selected.map((c) => c.chunkId)).toEqual([
-        'a0', 'a1', 'a2', 'a3', 'a4', 'a5', 'b0', 'a6', 'a7',
+        'a0',
+        'a1',
+        'a2',
+        'a3',
+        'a4',
+        'a5',
+        'b0',
+        'a6',
+        'a7',
       ]);
     });
   });

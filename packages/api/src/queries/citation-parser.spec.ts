@@ -3,11 +3,16 @@ import { auditCitations } from './citation-parser.js';
 describe('auditCitations', () => {
   it('extracts distinct in-range markers, ascending', () => {
     const answer = 'A claim [3], another [1][3], and a third [2].';
-    expect(auditCitations(answer, 5)).toEqual({ cited: [1, 2, 3], dropped: [] });
+    expect(auditCitations(answer, 5)).toEqual({
+      cited: [1, 2, 3],
+      dropped: [],
+    });
   });
 
   it('returns nothing for an answer with no markers', () => {
-    expect(auditCitations('The library does not seem to cover this.', 4)).toEqual({
+    expect(
+      auditCitations('The library does not seem to cover this.', 4),
+    ).toEqual({
       cited: [],
       dropped: [],
     });

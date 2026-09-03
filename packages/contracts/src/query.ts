@@ -101,9 +101,7 @@ export function queryEventFrame(event: QueryEvent): string {
 // Parse one SSE frame back to a `QueryEvent`, or null if the frame has no
 // `data:` line or the payload is not a valid event.
 export function parseQueryEventFrame(frame: string): QueryEvent | null {
-  const dataLine = frame
-    .split('\n')
-    .find((line) => line.startsWith('data:'));
+  const dataLine = frame.split('\n').find((line) => line.startsWith('data:'));
   if (!dataLine) return null;
   try {
     const parsed = QueryEvent.safeParse(

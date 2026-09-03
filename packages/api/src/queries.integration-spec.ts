@@ -22,7 +22,10 @@ describe('cross-book RAG query (Seam 1)', () => {
   let app: INestApplication;
 
   const alice = () =>
-    auth.authHeaderFor({ clerkUserId: 'user_alice', email: 'alice@example.com' });
+    auth.authHeaderFor({
+      clerkUserId: 'user_alice',
+      email: 'alice@example.com',
+    });
   const bob = () =>
     auth.authHeaderFor({ clerkUserId: 'user_bob', email: 'bob@example.com' });
   const server = () => app.getHttpServer();
@@ -57,7 +60,10 @@ describe('cross-book RAG query (Seam 1)', () => {
     count = 3,
   ): Promise<string> {
     // The auth guard provisions the user row on the first authenticated call.
-    const me = await request(server()).get('/api/v1/me').set(header).expect(200);
+    const me = await request(server())
+      .get('/api/v1/me')
+      .set(header)
+      .expect(200);
     const userId = me.body.id as string;
 
     const book = await db.pool.query(
@@ -142,7 +148,10 @@ describe('cross-book RAG query (Seam 1)', () => {
     const { events } = await ask(alice(), { question: QUESTION });
 
     const streamed = events
-      .filter((e): e is Extract<QueryEvent, { type: 'text_delta' }> => e.type === 'text_delta')
+      .filter(
+        (e): e is Extract<QueryEvent, { type: 'text_delta' }> =>
+          e.type === 'text_delta',
+      )
       .map((e) => e.text)
       .join('');
     const done = events.find(
@@ -161,7 +170,8 @@ describe('cross-book RAG query (Seam 1)', () => {
         e.type === 'query_started',
     );
     const citations = events.find(
-      (e): e is Extract<QueryEvent, { type: 'citations' }> => e.type === 'citations',
+      (e): e is Extract<QueryEvent, { type: 'citations' }> =>
+        e.type === 'citations',
     );
 
     const { rows } = await db.pool.query(
@@ -221,7 +231,9 @@ describe('cross-book RAG query (Seam 1)', () => {
     expect(done?.answer).toBe('The library does not seem to cover this.');
     expect(events.some((e) => e.type === 'text_delta')).toBe(false);
 
-    const { rows } = await db.pool.query(`SELECT answer, citations FROM queries`);
+    const { rows } = await db.pool.query(
+      `SELECT answer, citations FROM queries`,
+    );
     expect(rows).toHaveLength(1);
     expect(rows[0].answer).toBe('The library does not seem to cover this.');
     expect(rows[0].citations).toEqual([]);

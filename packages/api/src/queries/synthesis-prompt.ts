@@ -31,7 +31,9 @@ const LOW_CONFIDENCE_NOTE =
 // `[n] {book_title} - {chapter_title}\n{chunk_text}`, blank line between.
 function formatExcerpts(chunks: Candidate[]): string {
   return chunks
-    .map((c, i) => `[${i + 1}] ${c.bookTitle} - ${c.chapterTitle}\n${c.chunkText}`)
+    .map(
+      (c, i) => `[${i + 1}] ${c.bookTitle} - ${c.chapterTitle}\n${c.chunkText}`,
+    )
     .join('\n\n');
 }
 
