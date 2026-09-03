@@ -58,6 +58,17 @@ export class NoFieldsException extends ProblemException {
   }
 }
 
+export class BookNotFailedException extends ProblemException {
+  constructor() {
+    super(
+      'book_not_failed',
+      409,
+      'Book has not failed',
+      'Only a book in the failed state can be retried.',
+    );
+  }
+}
+
 export class FileSizeMismatchException extends ProblemException {
   constructor() {
     super(

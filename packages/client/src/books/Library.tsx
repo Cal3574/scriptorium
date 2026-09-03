@@ -5,7 +5,8 @@ import type {
 } from '@scriptorium/contracts';
 import { useApi } from '../auth/use-api';
 import { useIngestEvents } from './use-ingest-events';
-import { problemMessage } from './problem';
+import { problemMessage, MUTED } from './problem';
+import { failureHeadline } from './failure';
 
 const TERMINAL: ReadonlySet<string> = new Set(['ready', 'failed']);
 
@@ -81,9 +82,19 @@ function BookRow({
   const deleting = status === 'deleting';
 
   const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [retrying, setRetrying] = useState(false);
+  const [retryError, setRetryError] = useState<string | null>(null);
+
+  const failed = status === 'failed';
+  const failedStage = progress?.failedStage ?? book.failedStage;
 
   useEffect(() => {
-    if (live && TERMINAL.has(status) && !settledRef.current) {
+    if (!TERMINAL.has(status)) {
+      // Back in flight (e.g. after a retry) - re-arm the settle latch.
+      settledRef.current = false;
+      return;
+    }
+    if (live && !settledRef.current) {
       settledRef.current = true;
       onSettled();
     }
@@ -108,19 +119,68 @@ function BookRow({
     onSettled();
   }
 
+  async function retry() {
+    setRetryError(null);
+    setRetrying(true);
+    try {
+      const res = await api(`/api/v1/books/${book.id}/retry`, {
+        method: 'POST',
+      });
+      if (!res.ok) {
+        setRetryError(
+          (await problemMessage(res)) ?? `retry failed: ${res.status}`,
+        );
+        return;
+      }
+      // The book is `pending` again; refetch so the row re-subscribes to the
+      // live progress stream. No auto-retry - this only runs on the click.
+      onSettled();
+    } finally {
+      setRetrying(false);
+    }
+  }
+
   return (
     <li>
       <button type="button" onClick={() => onOpen(book.id)}>
         {title}
       </button>{' '}
       <span data-status={status}>({status})</span>
-      {live && status !== 'pending' && !deleting && (
-        <LiveProgress
-          stage={progress?.stage ?? null}
-          progress={progress?.progress ?? null}
-          connected={connected}
-          failureReason={progress?.failureReason ?? null}
-        />
+      {failed ? (
+        <span data-failed style={{ color: MUTED }}>
+          {' '}
+          - {failureHeadline(failedStage)}
+        </span>
+      ) : (
+        live &&
+        status !== 'pending' &&
+        !deleting && (
+          <LiveProgress
+            stage={progress?.stage ?? null}
+            progress={progress?.progress ?? null}
+            connected={connected}
+          />
+        )
+      )}
+      {failed && (
+        <>
+          <button
+            type="button"
+            onClick={() => void retry()}
+            disabled={retrying}
+            aria-label={`Retry ${title}`}
+          >
+            {retrying ? 'Retrying...' : 'Retry'}
+          </button>
+          {(progress?.failureReason ?? book.failureReason) && (
+            <details>
+              <summary>Show details</summary>
+              <p style={{ color: MUTED }}>
+                {progress?.failureReason ?? book.failureReason}
+              </p>
+            </details>
+          )}
+        </>
       )}
       <button
         type="button"
@@ -131,6 +191,7 @@ function BookRow({
         {deleting ? 'Deleting...' : 'Delete'}
       </button>
       {deleteError && <span role="alert">{deleteError}</span>}
+      {retryError && <span role="alert">{retryError}</span>}
     </li>
   );
 }
@@ -139,21 +200,11 @@ function LiveProgress({
   stage,
   progress,
   connected,
-  failureReason,
 }: {
   stage: string | null;
   progress: { done: number; total: number; unit: string } | null;
   connected: boolean;
-  failureReason: string | null;
 }) {
-  if (failureReason) {
-    return (
-      <span role="status" data-live-progress>
-        {' '}
-        - failed: {failureReason}
-      </span>
-    );
-  }
   return (
     <span role="status" data-live-progress data-connected={connected}>
       {stage ? ` - ${stage}` : ''}
