@@ -52,12 +52,14 @@ describe('ingest pipeline (Seam 2)', () => {
     );
   }
 
-  async function insertBook(overrides: Partial<{ title: string }> = {}) {
+  async function insertBook(
+    overrides: Partial<{ title: string; author: string }> = {},
+  ) {
     const id = randomUUID();
     const s3Key = `books/${userId}/${randomUUID()}.pdf`;
     await db.pool.query(
-      `INSERT INTO books (id, user_id, original_filename, s3_key, file_size_bytes, status, title)
-       VALUES ($1, $2, $3, $4, $5, 'pending', $6)`,
+      `INSERT INTO books (id, user_id, original_filename, s3_key, file_size_bytes, status, title, author)
+       VALUES ($1, $2, $3, $4, $5, 'pending', $6, $7)`,
       [
         id,
         userId,
@@ -65,6 +67,7 @@ describe('ingest pipeline (Seam 2)', () => {
         s3Key,
         PDF_BYTES.length,
         overrides.title ?? null,
+        overrides.author ?? null,
       ],
     );
     await storage.putObject(s3Key, PDF_BYTES, 'application/pdf');
@@ -283,6 +286,33 @@ describe('ingest pipeline (Seam 2)', () => {
     await makeProcessor().process(override.id);
     expect((await readBook(override.id))?.title).toBe('My Own Title');
     expect(eventTypes(override.id)).not.toContain('book_identified');
+  });
+
+  it('never overwrites a user-set author with the LLM guess', async () => {
+    const { id } = await insertBook({ author: 'Reader Supplied Author' });
+    const identifyingLlm: LlmClient = {
+      complete: (request) => {
+        if (
+          /JSON object/i.test(request.system ?? '') &&
+          /title/i.test(request.system ?? '')
+        ) {
+          return Promise.resolve(
+            JSON.stringify({ title: 'LLM Title', author: 'LLM Author' }),
+          );
+        }
+        return new FakeLlmClient({ delayMs: 0 }).complete(request);
+      },
+      stream: () => {
+        throw new Error('unused');
+      },
+    };
+
+    await makeProcessor({ llm: identifyingLlm }).process(id);
+
+    const book = await readBook(id);
+    // The null title was backfilled, the user's author was left untouched.
+    expect(book?.title).toBe('LLM Title');
+    expect(book?.author).toBe('Reader Supplied Author');
   });
 
   it('returns cleanly without running stages when the book is deleting', async () => {

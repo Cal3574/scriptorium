@@ -7,14 +7,17 @@ import {
   HttpCode,
   Inject,
   Param,
+  Patch,
   Post,
 } from '@nestjs/common';
 import {
+  type BookDetailDto,
   type BookDto,
   type BookListItemDto,
   CreateBookRequest,
   CreateUploadUrlRequest,
   type CreateUploadUrlResponse,
+  UpdateBookFields,
 } from '@scriptorium/contracts';
 import {
   assertOwnership,
@@ -26,13 +29,15 @@ import {
   QUEUE,
   type Queue,
   BooksRepository,
+  ResourceNotFoundException,
 } from '@scriptorium/server-core';
 import { createZodDto } from 'nestjs-zod';
 import { MAX_UPLOAD_BYTES } from './books.tokens';
-import { toBookDto, toBookListItemDto } from './book.mapper';
+import { toBookDetailDto, toBookDto, toBookListItemDto } from './book.mapper';
 import {
   FileSizeMismatchException,
   FileTooLargeException,
+  NoFieldsException,
   NotAPdfException,
   S3KeyMismatchException,
   UploadNotFoundException,
@@ -43,6 +48,7 @@ const UPLOAD_URL_TTL_SECONDS = 300;
 
 class CreateUploadUrlDto extends createZodDto(CreateUploadUrlRequest) {}
 class CreateBookDto extends createZodDto(CreateBookRequest) {}
+class UpdateBookDto extends createZodDto(UpdateBookFields) {}
 
 @Controller('books')
 export class BooksController {
@@ -125,6 +131,49 @@ export class BooksController {
   ): Promise<BookListItemDto[]> {
     const rows = await this.books.listByUser(caller.id);
     return rows.map(toBookListItemDto);
+  }
+
+  // The Book-detail payload: the book, its whole-book summary, and its
+  // chapters in `chapterIndex` order, each with its own nullable summary.
+  // Chunks are never exposed. An unknown or unowned id is an identical `404`.
+  @Get(':id')
+  async detail(
+    @Param('id') id: string,
+    @CurrentUser() caller: AuthenticatedUser,
+  ): Promise<BookDetailDto> {
+    const found = await this.books.findById(id);
+    const book = assertOwnership(found, caller.id, 'book_not_found');
+    const chapters = await this.books.findChapters(book.id);
+    return toBookDetailDto(book, chapters);
+  }
+
+  // Correct a wrong title or author. At least one of `title` / `author` must
+  // be present (`no_fields` otherwise); `title` is non-empty and not
+  // nullable, `author` accepts an explicit `null` to clear a wrong LLM guess.
+  // Allowed in any status. A user-set title is authoritative: the
+  // `identifyBook` stage already treats a non-null title as complete and
+  // never overwrites a set column.
+  @Patch(':id')
+  async update(
+    @Param('id') id: string,
+    @Body() body: UpdateBookDto,
+    @CurrentUser() caller: AuthenticatedUser,
+  ): Promise<BookDto> {
+    // Ownership first, so an empty patch to an unknown or unowned book is the
+    // same `404` every other book route returns - never a `no_fields` oracle
+    // that a book exists.
+    const found = await this.books.findById(id);
+    assertOwnership(found, caller.id, 'book_not_found');
+
+    if (body.title === undefined && body.author === undefined) {
+      throw new NoFieldsException();
+    }
+
+    // `update` skips any key left `undefined`, so the DTO passes straight
+    // through; `author: null` is the one explicit clear.
+    const updated = await this.books.update(id, body);
+    if (!updated) throw new ResourceNotFoundException('book_not_found');
+    return toBookDto(updated);
   }
 
   // Hard delete. Flips the book to `deleting` and enqueues the `delete` job on

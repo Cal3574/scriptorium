@@ -11,6 +11,7 @@ import { lazyProvider } from './mf';
 import { env } from './env';
 import { useApi } from './auth/use-api';
 import { Library } from './books/Library';
+import { BookDetail } from './books/BookDetail';
 
 // ProviderBoundary catches the lazy() rejection that fires when a provider's
 // remoteEntry.js can't be fetched (provider not running, network error,
@@ -74,6 +75,10 @@ function Identity() {
 }
 
 function SignedInApp() {
+  // The client is a two-screen app: the library list, or one open book. A
+  // selected id swaps in the Book-detail screen; `null` is the library.
+  const [openBookId, setOpenBookId] = useState<string | null>(null);
+
   return (
     <>
       <header style={{ display: 'flex', justifyContent: 'space-between' }}>
@@ -82,7 +87,11 @@ function SignedInApp() {
       </header>
       <p>API: {env.apiUrl}</p>
       <Identity />
-      <Library />
+      {openBookId ? (
+        <BookDetail bookId={openBookId} onBack={() => setOpenBookId(null)} />
+      ) : (
+        <Library onOpen={setOpenBookId} />
+      )}
       <ProviderBoundary name="my-provider">
         <ProviderMyProvider />
       </ProviderBoundary>

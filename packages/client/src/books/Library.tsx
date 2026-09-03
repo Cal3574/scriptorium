@@ -5,6 +5,7 @@ import type {
 } from '@scriptorium/contracts';
 import { useApi } from '../auth/use-api';
 import { useIngestEvents } from './use-ingest-events';
+import { problemMessage } from './problem';
 
 const TERMINAL: ReadonlySet<string> = new Set(['ready', 'failed']);
 
@@ -12,7 +13,7 @@ const PDF_CONTENT_TYPE = 'application/pdf';
 
 // The library list plus the upload control. One screen: uploading a book and
 // seeing it land as `pending` are the same user moment.
-export function Library() {
+export function Library({ onOpen }: { onOpen: (bookId: string) => void }) {
   const api = useApi();
   const [books, setBooks] = useState<BookListItemDto[] | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -45,6 +46,7 @@ export function Library() {
             <BookRow
               key={book.id}
               book={book}
+              onOpen={onOpen}
               onSettled={() =>
                 refresh().catch((e: Error) => setError(e.message))
               }
@@ -62,9 +64,11 @@ export function Library() {
 // reports a terminal state it asks the list to refetch the canonical row.
 function BookRow({
   book,
+  onOpen,
   onSettled,
 }: {
   book: BookListItemDto;
+  onOpen: (bookId: string) => void;
   onSettled: () => void;
 }) {
   const api = useApi();
@@ -106,7 +110,10 @@ function BookRow({
 
   return (
     <li>
-      {title} <span data-status={status}>({status})</span>
+      <button type="button" onClick={() => onOpen(book.id)}>
+        {title}
+      </button>{' '}
+      <span data-status={status}>({status})</span>
       {live && status !== 'pending' && !deleting && (
         <LiveProgress
           stage={progress?.stage ?? null}
@@ -239,13 +246,4 @@ function UploadForm({
       {error && <p role="alert">{error}</p>}
     </form>
   );
-}
-
-async function problemMessage(res: Response): Promise<string | null> {
-  try {
-    const body = (await res.json()) as { code?: string; detail?: string };
-    return body.detail ?? body.code ?? null;
-  } catch {
-    return null;
-  }
 }
