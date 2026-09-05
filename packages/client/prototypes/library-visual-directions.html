@@ -1,0 +1,673 @@
+<title>Scriptorium Library Directions</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+  /* ================================================================
+     Scriptorium — Library screen, three visual directions
+     Prototype for wayfinder ticket #50. Throwaway: reacted to, not shipped.
+     Switch with the bottom bar or ?variant=A|B|C ; theme toggle top-right.
+     The app shell (wordmark / nav / toggle) is held constant and is NOT
+     this prototype's proposal — it is ticket #51's call.
+     ================================================================ */
+
+  :root {
+    --shell-bg: #ffffff;
+    --shell-fg: #1c1c1e;
+    --shell-muted: #6b6b70;
+    --shell-line: #e7e7e4;
+    --shell-hover: #f2f2ef;
+    color-scheme: light;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --shell-bg: #131315;
+      --shell-fg: #e9e9ea;
+      --shell-muted: #8f8f96;
+      --shell-line: #2a2a2d;
+      --shell-hover: #202023;
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --shell-bg: #131315;
+    --shell-fg: #e9e9ea;
+    --shell-muted: #8f8f96;
+    --shell-line: #2a2a2d;
+    --shell-hover: #202023;
+    color-scheme: dark;
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--shell-bg);
+    color: var(--shell-fg);
+    font-family: ui-sans-serif, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  a { color: inherit; }
+  button { font: inherit; cursor: pointer; }
+
+  /* ---------- constant app shell ---------- */
+  .shell-head {
+    display: flex;
+    align-items: center;
+    gap: 28px;
+    height: 56px;
+    padding: 0 24px;
+    border-bottom: 1px solid var(--shell-line);
+    background: var(--shell-bg);
+  }
+  .wordmark {
+    font-family: "Fraunces", Georgia, serif;
+    font-optical-sizing: auto;
+    font-weight: 600;
+    font-size: 19px;
+    letter-spacing: 0.01em;
+  }
+  .shell-nav { display: flex; gap: 4px; }
+  .shell-nav a {
+    text-decoration: none;
+    font-size: 13.5px;
+    color: var(--shell-muted);
+    padding: 6px 10px;
+    border-radius: 6px;
+  }
+  .shell-nav a[aria-current] { color: var(--shell-fg); background: var(--shell-hover); }
+  .shell-right { margin-left: auto; display: flex; align-items: center; gap: 12px; }
+  .theme-btn {
+    border: 1px solid var(--shell-line);
+    background: transparent;
+    color: var(--shell-muted);
+    border-radius: 7px;
+    padding: 5px 10px;
+    font-size: 12px;
+  }
+  .avatar {
+    width: 26px; height: 26px; border-radius: 50%;
+    background: linear-gradient(135deg, #9a8c98, #4a4e69);
+    display: grid; place-items: center;
+    color: #fff; font-size: 11px; font-weight: 600;
+  }
+  .shell-note {
+    padding: 8px 24px;
+    font-size: 11.5px;
+    color: var(--shell-muted);
+    border-bottom: 1px solid var(--shell-line);
+    background: var(--shell-hover);
+  }
+
+  #stage { padding: 0; }
+
+  /* ================================================================
+     DIRECTION A — "Study"
+     Quiet editorial. Paper ground, Fraunces book titles, hairline rules,
+     near-zero chrome. The library reads like a printed index.
+     ================================================================ */
+  .A {
+    --a-paper: #fcfbf7;
+    --a-ink: #23211b;
+    --a-muted: #8b8577;
+    --a-rule: #e6e2d7;
+    --a-accent: #2f4b7c;
+    --a-bad: #9c4b3f;
+    background: var(--a-paper);
+    color: var(--a-ink);
+    min-height: calc(100vh - 57px);
+    padding: 56px clamp(20px, 8vw, 96px) 140px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) .A {
+      --a-paper: #17150f;
+      --a-ink: #ece8dc;
+      --a-muted: #928b78;
+      --a-rule: #2c281d;
+      --a-accent: #93b1e0;
+      --a-bad: #d98a7d;
+    }
+  }
+  [data-theme="dark"] .A {
+    --a-paper: #17150f;
+    --a-ink: #ece8dc;
+    --a-muted: #928b78;
+    --a-rule: #2c281d;
+    --a-accent: #93b1e0;
+    --a-bad: #d98a7d;
+  }
+  .A .wrap { max-width: 720px; margin: 0 auto; }
+  .A h1 {
+    font-family: "Fraunces", Georgia, serif;
+    font-weight: 400;
+    font-size: 34px;
+    letter-spacing: -0.01em;
+    margin: 0 0 4px;
+  }
+  .A .sub { color: var(--a-muted); font-size: 14px; margin: 0 0 40px; }
+  .A .add {
+    display: flex; align-items: baseline; gap: 10px;
+    padding-bottom: 18px; margin-bottom: 6px;
+    border-bottom: 1px solid var(--a-rule);
+  }
+  .A .add button {
+    border: none; background: none; padding: 0;
+    color: var(--a-accent); font-size: 14px;
+    text-underline-offset: 3px; text-decoration: underline;
+  }
+  .A .add span { color: var(--a-muted); font-size: 12.5px; }
+  .A ul { list-style: none; margin: 0; padding: 0; }
+  .A li { padding: 20px 0; border-bottom: 1px solid var(--a-rule); }
+  .A .title {
+    font-family: "Fraunces", Georgia, serif;
+    font-optical-sizing: auto;
+    font-weight: 500;
+    font-size: 19px;
+    line-height: 1.3;
+  }
+  .A .byline { color: var(--a-muted); font-size: 13.5px; margin-top: 3px; }
+  .A .meta {
+    margin-top: 10px; font-size: 12.5px; color: var(--a-muted);
+    display: flex; gap: 16px; flex-wrap: wrap; align-items: center;
+  }
+  .A .state-ready { color: var(--a-ink); }
+  .A .state-run { color: var(--a-accent); }
+  .A .state-bad { color: var(--a-bad); }
+  .A .barline {
+    margin-top: 12px; height: 2px; background: var(--a-rule);
+    position: relative; overflow: hidden;
+  }
+  .A .barline i {
+    position: absolute; inset: 0 auto 0 0; background: var(--a-accent);
+    display: block;
+  }
+  .A .recover {
+    margin-top: 12px; display: flex; gap: 18px; align-items: center;
+    font-size: 13px;
+  }
+  .A .recover button {
+    border: none; background: none; padding: 0;
+    color: var(--a-accent); text-decoration: underline; text-underline-offset: 3px;
+  }
+  .A .recover .why { color: var(--a-muted); }
+  .A .rowact {
+    border: none; background: none; padding: 0; color: var(--a-muted);
+    font-size: 12.5px; text-decoration: underline; text-underline-offset: 3px;
+  }
+
+  /* ================================================================
+     DIRECTION B — "Console"
+     Dense and operational. A worklist you scan. Monospace for every
+     figure and status, semantic state colour, tight rows, real columns.
+     ================================================================ */
+  .B {
+    --b-bg: #f8f8f9;
+    --b-panel: #ffffff;
+    --b-fg: #1a1c22;
+    --b-muted: #6a6d78;
+    --b-line: #e4e5e9;
+    --b-accent: #3d5a80;
+    --b-ok: #2f7d4f;
+    --b-run: #9a6a1c;
+    --b-bad: #b0413a;
+    background: var(--b-bg);
+    color: var(--b-fg);
+    min-height: calc(100vh - 57px);
+    padding: 24px clamp(16px, 4vw, 40px) 140px;
+    font-size: 13px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) .B {
+      --b-bg: #0e0f13;
+      --b-panel: #16171c;
+      --b-fg: #e5e7ec;
+      --b-muted: #878b98;
+      --b-line: #24262e;
+      --b-accent: #7d9dc4;
+      --b-ok: #5fb07d;
+      --b-run: #cf9a45;
+      --b-bad: #d9736b;
+    }
+  }
+  [data-theme="dark"] .B {
+    --b-bg: #0e0f13;
+    --b-panel: #16171c;
+    --b-fg: #e5e7ec;
+    --b-muted: #878b98;
+    --b-line: #24262e;
+    --b-accent: #7d9dc4;
+    --b-ok: #5fb07d;
+    --b-run: #cf9a45;
+    --b-bad: #d9736b;
+  }
+  .B .bar {
+    display: flex; align-items: center; gap: 14px;
+    padding: 10px 14px; background: var(--b-panel);
+    border: 1px solid var(--b-line); border-radius: 6px;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.04);
+    margin-bottom: 16px;
+  }
+  .B .bar h1 { font-size: 14px; font-weight: 600; margin: 0; }
+  .B .count {
+    font-family: "IBM Plex Mono", ui-monospace, monospace;
+    font-size: 11.5px; color: var(--b-muted);
+  }
+  .B .bar .up {
+    margin-left: auto;
+    border: 1px solid var(--b-accent); color: var(--b-accent);
+    background: transparent; border-radius: 5px;
+    padding: 6px 12px; font-size: 12px; font-weight: 500;
+  }
+  .B .grid {
+    background: var(--b-panel);
+    border: 1px solid var(--b-line); border-radius: 6px;
+    overflow: hidden;
+  }
+  .B .head, .B .row {
+    display: grid;
+    grid-template-columns: minmax(0,1fr) 108px minmax(0,196px) 96px;
+    gap: 12px; align-items: center;
+    padding: 0 14px;
+  }
+  .B .head {
+    height: 34px; border-bottom: 1px solid var(--b-line);
+    font-family: "IBM Plex Mono", ui-monospace, monospace;
+    font-size: 10.5px; letter-spacing: 0.08em; text-transform: uppercase;
+    color: var(--b-muted);
+  }
+  .B .row { min-height: 44px; border-bottom: 1px solid var(--b-line); padding-top: 8px; padding-bottom: 8px; }
+  .B .row:last-child { border-bottom: none; }
+  .B .row:hover { background: color-mix(in srgb, var(--b-accent) 5%, transparent); }
+  .B .bk {
+    font-family: "Fraunces", Georgia, serif;
+    font-optical-sizing: auto;
+    font-weight: 500; font-size: 15px; line-height: 1.25;
+  }
+  .B .bk small {
+    display: block; color: var(--b-muted); font-size: 11.5px; margin-top: 2px;
+    font-family: ui-sans-serif, -apple-system, "Segoe UI", Roboto, sans-serif;
+  }
+  .B .chip {
+    font-family: "IBM Plex Mono", ui-monospace, monospace;
+    font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.04em;
+    padding: 3px 7px; border-radius: 4px; display: inline-flex; align-items: center; gap: 5px;
+    border: 1px solid currentColor;
+  }
+  .B .chip::before { content: ""; width: 5px; height: 5px; border-radius: 50%; background: currentColor; }
+  .B .chip.ok { color: var(--b-ok); }
+  .B .chip.run { color: var(--b-run); }
+  .B .chip.bad { color: var(--b-bad); }
+  .B .chip.wait { color: var(--b-muted); }
+  .B .prog { font-family: "IBM Plex Mono", ui-monospace, monospace; font-size: 11px; color: var(--b-muted); }
+  .B .track { display: block; margin-top: 5px; height: 3px; width: 100%; background: var(--b-line); border-radius: 2px; overflow: hidden; }
+  .B .track i { display: block; height: 100%; background: var(--b-run); }
+  .B .acts { display: flex; gap: 8px; justify-content: flex-end; }
+  .B .acts button {
+    border: 1px solid var(--b-line); background: transparent; color: var(--b-muted);
+    border-radius: 4px; padding: 3px 8px; font-size: 11px;
+  }
+  .B .acts button.pri { color: var(--b-accent); border-color: var(--b-accent); }
+  .B .reason {
+    grid-column: 1 / -1; margin: 0; padding: 6px 0 0;
+    font-family: "IBM Plex Mono", ui-monospace, monospace;
+    font-size: 11px; color: var(--b-bad);
+  }
+
+  /* ================================================================
+     DIRECTION C — "Shelf"
+     Visual-first. Every book is a card with a generated cover, laid on
+     a grid. Most chrome of the three: elevation, radius, a drop target.
+     ================================================================ */
+  .C {
+    --c-bg: #f5f4f2;
+    --c-card: #ffffff;
+    --c-fg: #201f22;
+    --c-muted: #74727a;
+    --c-line: #e6e4e2;
+    --c-accent: #6b4e71;
+    --c-ok: #3f7d55;
+    --c-bad: #a8493f;
+    background: var(--c-bg);
+    color: var(--c-fg);
+    min-height: calc(100vh - 57px);
+    padding: 40px clamp(16px, 5vw, 64px) 140px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) .C {
+      --c-bg: #141416;
+      --c-card: #1d1d21;
+      --c-fg: #eceaec;
+      --c-muted: #948f99;
+      --c-line: #2c2b30;
+      --c-accent: #bd9dc4;
+      --c-ok: #6cb083;
+      --c-bad: #d5877d;
+    }
+  }
+  [data-theme="dark"] .C {
+    --c-bg: #141416;
+    --c-card: #1d1d21;
+    --c-fg: #eceaec;
+    --c-muted: #948f99;
+    --c-line: #2c2b30;
+    --c-accent: #bd9dc4;
+    --c-ok: #6cb083;
+    --c-bad: #d5877d;
+  }
+  .C .top { display: flex; align-items: flex-end; justify-content: space-between; max-width: 1040px; margin: 0 auto 28px; }
+  .C h1 { font-family: "Fraunces", Georgia, serif; font-weight: 400; font-size: 30px; margin: 0; }
+  .C .top p { margin: 4px 0 0; color: var(--c-muted); font-size: 13.5px; }
+  .C .grid {
+    max-width: 1040px; margin: 0 auto;
+    display: grid; gap: 20px;
+    grid-template-columns: repeat(auto-fill, minmax(232px, 1fr));
+  }
+  .C .card {
+    background: var(--c-card);
+    border: 1px solid var(--c-line);
+    border-radius: 14px;
+    overflow: hidden;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.04), 0 8px 24px -12px rgba(0,0,0,0.12);
+    display: flex; flex-direction: column;
+  }
+  .C .cover { height: 116px; position: relative; }
+  .C .cover span {
+    position: absolute; left: 14px; bottom: 10px; right: 14px;
+    font-family: "Fraunces", Georgia, serif; font-weight: 600;
+    color: #fff; font-size: 13px; line-height: 1.25;
+    text-shadow: 0 1px 6px rgba(0,0,0,0.35);
+  }
+  .C .body { padding: 14px; display: flex; flex-direction: column; gap: 6px; flex: 1; }
+  .C .body h3 {
+    font-family: "Fraunces", Georgia, serif; font-optical-sizing: auto;
+    font-weight: 500; font-size: 16px; line-height: 1.25; margin: 0;
+  }
+  .C .body .by { color: var(--c-muted); font-size: 12.5px; }
+  .C .st { margin-top: auto; padding-top: 8px; font-size: 12px; display: flex; align-items: center; gap: 7px; }
+  .C .dot { width: 7px; height: 7px; border-radius: 50%; }
+  .C .st.ok .dot { background: var(--c-ok); }
+  .C .st.run .dot { background: var(--c-accent); }
+  .C .st.bad .dot { background: var(--c-bad); }
+  .C .st.wait .dot { background: var(--c-muted); }
+  .C .st.bad { color: var(--c-bad); }
+  .C .cardbar { height: 3px; background: var(--c-line); }
+  .C .cardbar i { display: block; height: 100%; background: var(--c-accent); }
+  .C .cardacts { display: flex; gap: 8px; padding: 0 14px 14px; }
+  .C .cardacts button {
+    border: 1px solid var(--c-line); background: transparent; color: var(--c-muted);
+    border-radius: 8px; padding: 5px 10px; font-size: 12px; flex: 1;
+  }
+  .C .cardacts button.pri { color: var(--c-accent); border-color: var(--c-accent); }
+  .C .drop {
+    border: 1.5px dashed var(--c-line); border-radius: 14px;
+    display: grid; place-items: center; text-align: center;
+    color: var(--c-muted); font-size: 13px; min-height: 180px; padding: 20px;
+  }
+  .C .drop b { color: var(--c-accent); font-weight: 500; }
+
+  /* ---------- floating variant switcher (prototype only) ---------- */
+  #switch {
+    position: fixed; left: 50%; bottom: 20px; transform: translateX(-50%);
+    display: flex; align-items: stretch; gap: 2px;
+    background: #111214; color: #f4f4f5;
+    border-radius: 12px; padding: 4px;
+    box-shadow: 0 8px 30px -6px rgba(0,0,0,0.45); z-index: 100;
+    font-family: ui-sans-serif, -apple-system, sans-serif;
+  }
+  #switch button {
+    background: transparent; border: none; color: #a1a1aa;
+    padding: 8px 12px; border-radius: 9px; font-size: 14px;
+  }
+  #switch button:hover { color: #fff; background: #26272b; }
+  #switch .label {
+    display: flex; flex-direction: column; justify-content: center;
+    padding: 4px 12px; min-width: 132px; text-align: center;
+  }
+  #switch .label b { font-size: 13px; }
+  #switch .label small { font-size: 10.5px; color: #a1a1aa; letter-spacing: 0.04em; text-transform: uppercase; }
+  #switch .keys { display: flex; gap: 2px; }
+  #switch .keys button { min-width: 30px; font-weight: 600; }
+  #switch .keys button[aria-pressed="true"] { color: #fff; background: #3a3b40; }
+
+  :focus-visible { outline: 2px solid var(--shell-fg); outline-offset: 2px; }
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+
+<header class="shell-head">
+  <span class="wordmark">Scriptorium</span>
+  <nav class="shell-nav">
+    <a href="#" aria-current="page">Library</a>
+    <a href="#">Ask</a>
+    <a href="#">History</a>
+  </nav>
+  <div class="shell-right">
+    <button class="theme-btn" id="theme">Dark</button>
+    <span class="avatar">CH</span>
+  </div>
+</header>
+<div class="shell-note">Prototype for ticket&nbsp;#50. <b>Direction B · Console</b> is the chosen direction; A and C are kept for the record. The header above is held constant and is not part of this decision (ticket&nbsp;#51). Switch with the bar at the bottom.</div>
+
+<main id="stage"></main>
+
+<nav id="switch" aria-label="Prototype direction switcher">
+  <button id="prev" aria-label="Previous direction">&larr;</button>
+  <div class="label"><b id="vname">Study</b><small id="vkey">Direction A</small></div>
+  <div class="keys">
+    <button data-i="0" aria-pressed="false">A</button>
+    <button data-i="1" aria-pressed="true">B</button>
+    <button data-i="2" aria-pressed="false">C</button>
+  </div>
+  <button id="next" aria-label="Next direction">&rarr;</button>
+</nav>
+
+<script>
+  // ---- shared data: one plausible library mid-ingest ----
+  const BOOKS = [
+    { title: "The Origin of Consciousness in the Breakdown of the Bicameral Mind",
+      author: "Julian Jaynes", status: "ready", pages: 502, chapters: 32, added: "Mar 2" },
+    { title: "Seeing Like a State",
+      author: "James C. Scott", status: "ready", pages: 445, chapters: 11, added: "Mar 2" },
+    { title: "Gödel, Escher, Bach: An Eternal Golden Braid",
+      author: "Douglas R. Hofstadter", status: "ready", pages: 777, chapters: 20, added: "Feb 19" },
+    { title: "The Timeless Way of Building",
+      author: "Christopher Alexander", status: "ingesting",
+      stage: "Extracting text", done: 142, total: 318, unit: "pages", added: "just now" },
+    { title: "The Dawn of Everything: A New History of Humanity",
+      author: "David Graeber & David Wengrow", status: "pending",
+      stage: "Queued for extraction", added: "just now" },
+    { title: "Thinking in Systems: A Primer",
+      author: "Donella H. Meadows", status: "failed", failedStage: "extract",
+      reason: "LlamaParse returned no text for 46 pages — the scan looks image-only.",
+      added: "Feb 28" },
+  ];
+
+  const STATE_LABEL = {
+    ready: "Ready", ingesting: "Working", pending: "Queued", failed: "Needs attention",
+  };
+
+  // deterministic cover gradient from the title (direction C)
+  function hue(s) { let h = 0; for (const c of s) h = (h * 31 + c.charCodeAt(0)) % 360; return h; }
+  function cover(title) {
+    const h = hue(title);
+    return `linear-gradient(150deg, hsl(${h} 42% 42%), hsl(${(h + 42) % 360} 38% 30%))`;
+  }
+
+  // ---------------- Direction A — Study ----------------
+  function renderA() {
+    const li = BOOKS.map(b => {
+      let meta = "", extra = "";
+      if (b.status === "ready") {
+        meta = `<span class="state-ready">Ready</span><span>${b.pages} pages</span><span>${b.chapters} chapters</span><span>Added ${b.added}</span>`;
+        extra = `<div class="recover"><button>Open</button><button class="rowact">Remove</button></div>`;
+      } else if (b.status === "ingesting") {
+        const pct = Math.round(b.done / b.total * 100);
+        meta = `<span class="state-run">${b.stage}</span><span>${b.done} of ${b.total} ${b.unit}</span>`;
+        extra = `<div class="barline"><i style="width:${pct}%"></i></div>`;
+      } else if (b.status === "pending") {
+        meta = `<span class="state-run">${b.stage}</span><span>Added ${b.added}</span>`;
+      } else {
+        meta = `<span class="state-bad">Couldn’t read this PDF</span><span>Added ${b.added}</span>`;
+        extra = `<div class="recover"><button>Try again</button><span class="why">${b.reason}</span><button class="rowact">Remove</button></div>`;
+      }
+      return `<li>
+        <div class="title">${b.title}</div>
+        <div class="byline">${b.author}</div>
+        <div class="meta">${meta}</div>
+        ${extra}
+      </li>`;
+    }).join("");
+    return `<section class="A"><div class="wrap">
+      <h1>Library</h1>
+      <p class="sub">Six books. One still coming in.</p>
+      <div class="add"><button>Add a book</button><span>PDF, up to 80&nbsp;MB</span></div>
+      <ul>${li}</ul>
+    </div></section>`;
+  }
+
+  // ---------------- Direction B — Console ----------------
+  function renderB() {
+    const rows = BOOKS.map(b => {
+      let chip, prog = "", acts;
+      if (b.status === "ready") {
+        chip = `<span class="chip ok">ready</span>`;
+        prog = `<span class="prog">${b.pages}p · ${b.chapters}ch</span>`;
+        acts = `<button class="pri">Open</button><button>Delete</button>`;
+      } else if (b.status === "ingesting") {
+        const pct = Math.round(b.done / b.total * 100);
+        chip = `<span class="chip run">working</span>`;
+        prog = `<span class="prog">${b.stage} · ${b.done}/${b.total} ${b.unit}</span><span class="track"><i style="width:${pct}%"></i></span>`;
+        acts = `<button>Delete</button>`;
+      } else if (b.status === "pending") {
+        chip = `<span class="chip wait">queued</span>`;
+        prog = `<span class="prog">${b.stage}</span>`;
+        acts = `<button>Delete</button>`;
+      } else {
+        chip = `<span class="chip bad">failed</span>`;
+        prog = `<span class="prog">failed at: ${b.failedStage}</span>`;
+        acts = `<button class="pri">Retry</button><button>Delete</button>`;
+      }
+      const reason = b.status === "failed" ? `<p class="reason">${b.reason}</p>` : "";
+      return `<div class="row">
+        <span class="bk">${b.title}<small>${b.author}</small></span>
+        ${chip}
+        <span>${prog}</span>
+        <span class="acts">${acts}</span>
+        ${reason}
+      </div>`;
+    }).join("");
+    return `<section class="B">
+      <div class="bar">
+        <h1>Library</h1><span class="count">6 books · 1 working · 1 failed</span>
+        <button class="up">Upload PDF</button>
+      </div>
+      <div class="grid">
+        <div class="head"><span>Book</span><span>Status</span><span>Progress</span><span></span></div>
+        ${rows}
+      </div>
+    </section>`;
+  }
+
+  // ---------------- Direction C — Shelf ----------------
+  function renderC() {
+    const cards = BOOKS.map(b => {
+      let st, bar = "", acts = "";
+      if (b.status === "ready") {
+        st = `<div class="st ok"><span class="dot"></span>Ready · ${b.chapters} chapters</div>`;
+        acts = `<div class="cardacts"><button class="pri">Open</button><button>Remove</button></div>`;
+      } else if (b.status === "ingesting") {
+        const pct = Math.round(b.done / b.total * 100);
+        st = `<div class="st run"><span class="dot"></span>${b.stage} · ${b.done}/${b.total} ${b.unit}</div>`;
+        bar = `<div class="cardbar"><i style="width:${pct}%"></i></div>`;
+      } else if (b.status === "pending") {
+        st = `<div class="st wait"><span class="dot"></span>${b.stage}</div>`;
+      } else {
+        st = `<div class="st bad"><span class="dot"></span>Couldn’t read this PDF</div>`;
+        acts = `<div class="cardacts"><button class="pri">Try again</button><button>Remove</button></div>`;
+      }
+      return `<article class="card">
+        <div class="cover" style="background:${cover(b.title)}"><span>${b.title}</span></div>
+        <div class="body">
+          <h3>${b.title}</h3>
+          <div class="by">${b.author}</div>
+          ${st}
+        </div>
+        ${bar}
+        ${acts}
+      </article>`;
+    }).join("");
+    return `<section class="C">
+      <div class="top">
+        <div><h1>Library</h1><p>Six books · one still coming in</p></div>
+      </div>
+      <div class="grid">
+        <div class="drop">Drop a PDF here<br>or <b>choose a file</b><br><span style="font-size:11px">up to 80 MB</span></div>
+        ${cards}
+      </div>
+    </section>`;
+  }
+
+  const VARIANTS = [
+    { key: "A", name: "Study",   render: renderA },
+    { key: "B", name: "Console", render: renderB },
+    { key: "C", name: "Shelf",   render: renderC },
+  ];
+
+  // Variant lives in memory — the artifact host sandboxes the iframe URL, so a
+  // ?variant= param and history.replaceState don't survive. Seed from the param
+  // once on load for shareable deep links, then drive from this variable.
+  // Defaults to B — the chosen direction (ticket #50). A and C are kept for
+  // the record of what was compared.
+  let vi = (() => {
+    let p = null;
+    try { p = new URLSearchParams(location.search).get("variant"); } catch {}
+    const i = VARIANTS.findIndex(v => v.key === p);
+    return i < 0 ? 1 : i;
+  })();
+  const keyBtns = [...document.querySelectorAll("#switch .keys button")];
+  function draw() {
+    const v = VARIANTS[vi];
+    document.getElementById("stage").innerHTML = v.render();
+    document.getElementById("vname").textContent = v.name;
+    document.getElementById("vkey").textContent = "Direction " + v.key;
+    keyBtns.forEach((b, i) => b.setAttribute("aria-pressed", String(i === vi)));
+    window.scrollTo(0, 0);
+  }
+  function set(i) { vi = (i + VARIANTS.length) % VARIANTS.length; draw(); }
+  function go(delta) { set(vi + delta); }
+  document.getElementById("prev").addEventListener("click", () => go(-1));
+  document.getElementById("next").addEventListener("click", () => go(1));
+  keyBtns.forEach(b => b.addEventListener("click", () => set(Number(b.dataset.i))));
+  addEventListener("keydown", e => {
+    const t = e.target;
+    if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.isContentEditable)) return;
+    if (e.key === "ArrowLeft") go(-1);
+    else if (e.key === "ArrowRight") go(1);
+    else if (e.key === "1") set(0);
+    else if (e.key === "2") set(1);
+    else if (e.key === "3") set(2);
+  });
+
+  // theme toggle — a prototype convenience. The artifact host may already stamp
+  // data-theme; only override it once the viewer clicks.
+  const root = document.documentElement;
+  const themeBtn = document.getElementById("theme");
+  function isDark() {
+    const a = root.getAttribute("data-theme");
+    if (a === "dark") return true;
+    if (a === "light") return false;
+    return matchMedia("(prefers-color-scheme: dark)").matches;
+  }
+  function syncLabel() { themeBtn.textContent = isDark() ? "Light mode" : "Dark mode"; }
+  let stored = null;
+  try { stored = localStorage.getItem("proto-theme"); } catch {}
+  if (stored) root.setAttribute("data-theme", stored);
+  syncLabel();
+  themeBtn.addEventListener("click", () => {
+    const next = isDark() ? "light" : "dark";
+    root.setAttribute("data-theme", next);
+    try { localStorage.setItem("proto-theme", next); } catch {}
+    syncLabel();
+  });
+  matchMedia("(prefers-color-scheme: dark)").addEventListener("change", syncLabel);
+
+  draw();
+</script>
