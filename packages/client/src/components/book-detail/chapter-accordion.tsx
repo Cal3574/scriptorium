@@ -29,9 +29,7 @@ export function ChapterAccordion({ chapters }: { chapters: ChapterDto[] }) {
               className="font-serif text-[15px] font-medium hover:no-underline"
             >
               <span className="flex flex-1 items-baseline justify-between gap-3">
-                <span
-                  className={ready ? undefined : 'text-muted-foreground'}
-                >
+                <span className={ready ? undefined : 'text-muted-foreground'}>
                   {heading}
                 </span>
                 {!ready && (

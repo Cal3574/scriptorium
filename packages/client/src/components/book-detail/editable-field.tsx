@@ -54,9 +54,7 @@ export function EditableField({
   if (!editing) {
     return (
       <span className="inline-flex items-center gap-2">
-        <span
-          className={value ? 'text-foreground' : 'text-muted-foreground'}
-        >
+        <span className={value ? 'text-foreground' : 'text-muted-foreground'}>
           {value || placeholder}
         </span>
         <Button

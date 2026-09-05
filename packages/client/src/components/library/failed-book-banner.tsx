@@ -59,9 +59,7 @@ export function FailedBookBanner({
           onClick={() => void run()}
           disabled={busy}
         >
-          {busy
-            ? 'Retrying...'
-            : `Retry ${friendlyFailureLabel(failedStage)}`}
+          {busy ? 'Retrying...' : `Retry ${friendlyFailureLabel(failedStage)}`}
         </Button>
         {error && (
           <span role="alert" className="text-status-failed text-xs">
