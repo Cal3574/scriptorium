@@ -28,6 +28,7 @@ const clerkProviderMock = ClerkProvider as unknown as jest.Mock;
 const lastAppearance = () =>
   clerkProviderMock.mock.calls.at(-1)?.[0].appearance as {
     variables: Record<string, string>;
+    options: { shimmer: boolean };
   };
 
 function setPrefersDark(dark: boolean) {
@@ -141,19 +142,30 @@ test('a stored "light" choice wins over a dark OS preference', () => {
   expect(isDark()).toBe(false);
 });
 
-test('ClerkGate swaps the appearance on toggle without remounting ClerkProvider', async () => {
+test('ClerkGate binds Clerk to the app CSS tokens: theme switch is a CSS recompute, not a remount', async () => {
   setPrefersDark(false);
   renderTree();
 
   expect(subtreeMounts).toBe(1);
   const first = lastAppearance();
-  expect(first.variables.colorBackground).toBe('#ffffff');
+  // Every colour is a live custom property, redefined under `.dark` in
+  // index.css - never resolved hex.
+  expect(first.variables.colorBackground).toBe('var(--card)');
+  expect(first.variables.colorPrimary).toBe('var(--primary)');
+  expect(first.variables.colorInput).toBe('var(--background)');
+  expect(
+    Object.values(first.variables).every((v) => v.startsWith('var(--')),
+  ).toBe(true);
+  // shimmer stays on to cover the initial mount gap.
+  expect(first.options.shimmer).toBe(true);
 
   await userEvent.click(screen.getByRole('button', { name: /dark theme/i }));
 
   const next = lastAppearance();
-  expect(next.variables.colorBackground).toBe('#16171c');
-  expect(next).not.toBe(first);
+  // The appearance object never changes - the toggle only flips the DOM
+  // class, so the browser recomputes the custom properties Clerk points at.
+  expect(next).toBe(first);
+  expect(isDark()).toBe(true);
   // No teardown of ClerkProvider's subtree - Clerk.js is not re-initialised.
   expect(subtreeMounts).toBe(1);
 });

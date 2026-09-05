@@ -1,68 +1,65 @@
 import { ClerkProvider } from '@clerk/react';
-import { useMemo, type ReactNode } from 'react';
+import type { ReactNode } from 'react';
 import { env } from './env';
-import { useTheme } from './theme';
 
-// Clerk derives its shades from these base colours with color-mix(), so it is
-// handed resolved hex (not var(--token)) per the Clerk research (#49). Values
-// are the design tokens from scriptorium#52 - not re-picked here.
+// Clerk's prebuilt components (`<SignIn>`, `<UserButton>`) are themed straight
+// from the app's design tokens (scriptorium#52), bound as `var(--token)`
+// references rather than resolved hex. Per the Clerk Core 3 theming research
+// (#49):
+//
+// - Default theme + `variables` on `var(--token)` - no prebuilt base theme,
+//   dark is derived from our own tokens, not Clerk's `dark` theme.
+// - Because every value is a live custom property, a light/dark toggle is a
+//   pure CSS recompute on the already-mounted widget: the `appearance` object
+//   never changes identity, Clerk does no re-style work, and `<ClerkProvider>`
+//   is never remounted (which would re-init Clerk.js and flash the auth UI).
+// - `options.shimmer` is left on so the unavoidable gap before Clerk.js
+//   mounts is a skeleton, not a jump. The pre-paint script in `index.html`
+//   sets `color-scheme` before first paint, so there is no flash of the wrong
+//   theme on a cold load of the signed-out screen.
+//
+// Token choices: `--card` is Clerk's panel fill (not `--background`, the page
+// ground); `--background` is Clerk's input fill, matching the pre-restyle
+// values exactly. Core 3 variable names (`colorForeground`, `colorInput`,
+// `colorInputForeground`). All of these tokens are redefined under `.dark` in
+// `index.css`, so both themes stay in lockstep.
 const CLERK_FONTS = {
   fontFamily: 'var(--font-sans)',
   fontFamilyButtons: 'var(--font-sans)',
   fontFamilyMono: 'var(--font-mono)',
-  borderRadius: '0.375rem',
+  borderRadius: 'var(--radius)',
 } as const;
 
-export const CLERK_VARIABLES = {
-  light: {
+export const CLERK_APPEARANCE = {
+  variables: {
     ...CLERK_FONTS,
-    colorBackground: '#ffffff',
-    colorForeground: '#1a1c22',
-    colorPrimary: '#3d5a80',
-    colorPrimaryForeground: '#ffffff',
-    colorMuted: '#eef0f2',
-    colorMutedForeground: '#6a6d78',
-    colorBorder: '#e4e5e9',
-    colorInput: '#f8f8f9',
-    colorInputForeground: '#1a1c22',
-    colorRing: '#3d5a80',
-    colorDanger: '#b0413a',
-    colorSuccess: '#15803d',
-    colorWarning: '#9a6a1c',
+    colorBackground: 'var(--card)',
+    colorForeground: 'var(--foreground)',
+    colorPrimary: 'var(--primary)',
+    colorPrimaryForeground: 'var(--primary-foreground)',
+    colorMuted: 'var(--muted)',
+    colorMutedForeground: 'var(--muted-foreground)',
+    colorBorder: 'var(--border)',
+    colorInput: 'var(--background)',
+    colorInputForeground: 'var(--foreground)',
+    colorRing: 'var(--ring)',
+    colorDanger: 'var(--destructive)',
+    colorSuccess: 'var(--status-ready)',
+    colorWarning: 'var(--status-progress)',
   },
-  dark: {
-    ...CLERK_FONTS,
-    colorBackground: '#16171c',
-    colorForeground: '#e5e7ec',
-    colorPrimary: '#7d9dc4',
-    colorPrimaryForeground: '#0e0f13',
-    colorMuted: '#1e2027',
-    colorMutedForeground: '#878b98',
-    colorBorder: '#24262e',
-    colorInput: '#0e0f13',
-    colorInputForeground: '#e5e7ec',
-    colorRing: '#7d9dc4',
-    colorDanger: '#d9736b',
-    colorSuccess: '#5fb07d',
-    colorWarning: '#cf9a45',
-  },
+  options: { shimmer: true },
 } as const;
 
-// ClerkGate feeds ClerkProvider a memoised `appearance` derived from the theme.
-// The `appearance` prop is reactive - a new object identity re-applies styles
-// to the already-mounted Clerk components. ClerkProvider is never given a
-// `key` and never remounts, so Clerk.js is not re-initialised.
+// ClerkGate feeds ClerkProvider the token-bound `appearance`. The object is a
+// module constant with a stable identity: nothing here reads the theme,
+// because the theme switch happens entirely in CSS. ClerkProvider is never
+// given a `key` and never remounts.
 export function ClerkGate({ children }: { children: ReactNode }) {
-  const { theme } = useTheme();
-  const appearance = useMemo(
-    () => ({ variables: CLERK_VARIABLES[theme] }),
-    [theme],
-  );
   return (
     <ClerkProvider
       publishableKey={env.clerkPublishableKey}
       afterSignOutUrl="/"
-      appearance={appearance}
+      appearance={CLERK_APPEARANCE}
     >
       {children}
     </ClerkProvider>
