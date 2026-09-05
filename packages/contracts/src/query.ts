@@ -1,7 +1,10 @@
 import { z } from 'zod';
 import { isoTimestamp, uuid } from './primitives.js';
 
-const QUESTION_MAX = 2000;
+// The endpoint enforces the upper bound itself so it can return the specific
+// `question_too_long` problem (a schema `.max()` would collapse it into the
+// generic `validation_failed`).
+export const QUESTION_MAX = 2000;
 
 // One retrieved chunk as streamed to the client on the `citations` event. The
 // full set of selected chunks is sent, in `[n]` order - `marker` is the handle
@@ -24,7 +27,7 @@ export type PersistedCitation = z.infer<typeof PersistedCitation>;
 
 // `POST /api/v1/queries`. `bookId` optionally restricts retrieval to one book.
 export const CreateQueryRequest = z.object({
-  question: z.string().min(1).max(QUESTION_MAX),
+  question: z.string().min(1),
   bookId: uuid.optional(),
 });
 export type CreateQueryRequest = z.infer<typeof CreateQueryRequest>;
@@ -87,3 +90,25 @@ export const QueryEvent = z.discriminatedUnion('type', [
   QueryErrorEvent,
 ]);
 export type QueryEvent = z.infer<typeof QueryEvent>;
+
+// One event as an SSE frame: the `type` is the `event:` name, the whole event
+// is the JSON `data:`. Query events carry no `seq`. Shared by the API writer,
+// the browser reader, and the Seam 1 test so the frame format is defined once.
+export function queryEventFrame(event: QueryEvent): string {
+  return `event: ${event.type}\ndata: ${JSON.stringify(event)}\n\n`;
+}
+
+// Parse one SSE frame back to a `QueryEvent`, or null if the frame has no
+// `data:` line or the payload is not a valid event.
+export function parseQueryEventFrame(frame: string): QueryEvent | null {
+  const dataLine = frame.split('\n').find((line) => line.startsWith('data:'));
+  if (!dataLine) return null;
+  try {
+    const parsed = QueryEvent.safeParse(
+      JSON.parse(dataLine.slice('data:'.length).trim()),
+    );
+    return parsed.success ? parsed.data : null;
+  } catch {
+    return null;
+  }
+}

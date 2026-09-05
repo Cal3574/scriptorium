@@ -43,8 +43,13 @@ export class ClaudeLlmClient implements LlmClient {
       .join('');
   }
 
-  async *stream(request: LlmRequest): AsyncIterable<string> {
-    const stream = this.client.messages.stream(this.toParams(request));
+  async *stream(
+    request: LlmRequest,
+    signal?: AbortSignal,
+  ): AsyncIterable<string> {
+    const stream = this.client.messages.stream(this.toParams(request), {
+      signal,
+    });
     for await (const event of stream) {
       if (
         event.type === 'content_block_delta' &&

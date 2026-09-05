@@ -29,6 +29,11 @@ export {
   type UpdateBookInput,
 } from './books/books.repository.js';
 export {
+  QueriesRepository,
+  type CandidateRow,
+  type RetrieveCandidatesInput,
+} from './queries/queries.repository.js';
+export {
   IngestRepository,
   type ExtractionResult,
   type Identification,

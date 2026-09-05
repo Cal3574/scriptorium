@@ -23,8 +23,10 @@ export interface LlmClient {
   // One-shot completion. Resolves with the full markdown answer.
   complete(request: LlmRequest): Promise<string>;
   // Streaming completion. Yields markdown deltas in order; concatenating every
-  // yielded chunk reconstructs the full answer.
-  stream(request: LlmRequest): AsyncIterable<string>;
+  // yielded chunk reconstructs the full answer. An optional `signal` aborts the
+  // upstream call - the RAG query path passes one so a browser disconnect
+  // mid-stream stops the paid synthesis instead of running it to completion.
+  stream(request: LlmRequest, signal?: AbortSignal): AsyncIterable<string>;
 }
 
 // Nest DI token; bound by `server-core`.
