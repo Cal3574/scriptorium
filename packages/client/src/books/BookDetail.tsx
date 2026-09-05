@@ -1,11 +1,11 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router';
-import Markdown from 'react-markdown';
 import type {
   BookDetailDto,
   BookDto,
   ChapterDto,
 } from '@scriptorium/contracts';
+import { SummaryProse } from '../components/prose/summary-prose';
 import { useApi } from '../auth/use-api';
 import { MUTED, problemMessage } from './problem';
 import { failureHeadline, friendlyFailureLabel } from './failure';
@@ -150,7 +150,11 @@ export function BookDetail() {
       </dl>
 
       <h3>Summary</h3>
-      {book.summary ? <Markdown>{book.summary}</Markdown> : <NotGeneratedYet />}
+      {book.summary ? (
+        <SummaryProse markdown={book.summary} />
+      ) : (
+        <NotGeneratedYet />
+      )}
 
       <h3>Chapters</h3>
       {book.chapters.length === 0 ? (
@@ -173,7 +177,7 @@ function ChapterItem({ chapter }: { chapter: ChapterDto }) {
       <details>
         <summary>{heading}</summary>
         {chapter.summary ? (
-          <Markdown>{chapter.summary}</Markdown>
+          <SummaryProse markdown={chapter.summary} />
         ) : (
           <NotGeneratedYet />
         )}

@@ -1,7 +1,6 @@
 import { useAuth } from '@clerk/react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router';
-import Markdown from 'react-markdown';
 import {
   type Citation,
   parseQueryEventFrame,
@@ -9,6 +8,7 @@ import {
 } from '@scriptorium/contracts';
 import { env } from '../env';
 import { MUTED, problemMessage } from '../books/problem';
+import { SummaryProse } from '../components/prose/summary-prose';
 import { askAgainPath } from './ask-again';
 import { QueryDetail } from './QueryDetail';
 
@@ -173,7 +173,7 @@ export function QueryScreen() {
 
       {(answer || phase === 'done') && (
         <article data-answer>
-          <Markdown>{answer}</Markdown>
+          <SummaryProse markdown={answer} />
         </article>
       )}
 
