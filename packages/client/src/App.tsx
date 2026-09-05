@@ -13,6 +13,7 @@ import { useApi } from './auth/use-api';
 import { Library } from './books/Library';
 import { BookDetail } from './books/BookDetail';
 import { QueryScreen } from './queries/QueryScreen';
+import { ThemeToggle } from './theme';
 
 // ProviderBoundary catches the lazy() rejection that fires when a provider's
 // remoteEntry.js can't be fetched (provider not running, network error,
@@ -86,7 +87,10 @@ function SignedInApp() {
     <>
       <header style={{ display: 'flex', justifyContent: 'space-between' }}>
         <h1>Scriptorium</h1>
-        <UserButton />
+        <span style={{ display: 'flex', gap: '0.5rem' }}>
+          <ThemeToggle />
+          <UserButton />
+        </span>
       </header>
       <p>API: {env.apiUrl}</p>
       <Identity />

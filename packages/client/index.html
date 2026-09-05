@@ -10,6 +10,22 @@
       href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=IBM+Plex+Mono:wght@400;500&display=swap"
     />
     <title>client</title>
+    <script>
+      // Pre-paint theme: runs before the module bundle and any remote, so the
+      // first frame is already the right scheme (no flash). Mirror of
+      // resolveInitialTheme() in src/theme.tsx. See scriptorium#53.
+      (function () {
+        try {
+          var s = localStorage.getItem('scriptorium-theme');
+          var dark =
+            s === 'dark' ||
+            (!s && matchMedia('(prefers-color-scheme: dark)').matches);
+          var e = document.documentElement;
+          e.classList.toggle('dark', dark);
+          e.style.colorScheme = dark ? 'dark' : 'light';
+        } catch (_) {}
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>
