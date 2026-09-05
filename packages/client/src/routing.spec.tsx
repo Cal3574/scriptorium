@@ -165,6 +165,44 @@ test('the theme toggle in the shell drives useTheme().toggle', async () => {
   expect(localStorage.getItem('scriptorium-theme')).toBe('dark');
 });
 
+test('the library renders the Console worklist: toolbar count, status chip, row link', async () => {
+  renderAt('/library');
+
+  const row = (await screen.findByRole('link', { name: 'Deep Work' })).closest(
+    '[data-status]',
+  );
+  expect(row).not.toBeNull();
+  expect(screen.getByRole('link', { name: 'Deep Work' })).toHaveAttribute(
+    'href',
+    '/books/b1',
+  );
+  // 8 book_status values collapse to the 4 chip roles.
+  expect(screen.getByText('ready')).toBeVisible();
+  // mono summary count in the toolbar
+  expect(screen.getByText('1 book')).toBeVisible();
+});
+
+test('an empty library shows the empty state, not a flash of nothing', async () => {
+  mockApi.mockImplementation(async (path: string) => {
+    if (path === '/api/v1/books') return jsonRes([]);
+    return jsonRes({ code: 'not_found' }, 404);
+  });
+  renderAt('/library');
+
+  expect(await screen.findByText('No books yet')).toBeVisible();
+});
+
+test('a library load failure surfaces in an alert', async () => {
+  mockApi.mockImplementation(async (path: string) => {
+    if (path === '/api/v1/books') return jsonRes({ code: 'boom' }, 500);
+    return jsonRes({ code: 'not_found' }, 404);
+  });
+  renderAt('/library');
+
+  const alert = await screen.findByRole('alert');
+  expect(alert).toHaveTextContent(/couldn't load your library/i);
+});
+
 test('the active nav link reflects the route', async () => {
   renderAt('/history');
   await screen.findByRole('heading', { name: 'Your questions' });
