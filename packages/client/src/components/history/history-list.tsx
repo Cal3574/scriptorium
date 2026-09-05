@@ -37,7 +37,12 @@ export function HistoryList({ items }: { items: QueryListItemDto[] }) {
 // skeleton rows, so the list does not flash empty then full (#67).
 export function HistoryListSkeleton() {
   return (
-    <div className="border-border bg-card overflow-x-auto rounded-lg border">
+    <div
+      className="border-border bg-card overflow-x-auto rounded-lg border"
+      role="status"
+      aria-busy="true"
+    >
+      <span className="sr-only">Loading your questions</span>
       <div className="min-w-[32rem]">
         <HeaderRow />
         {Array.from({ length: 4 }).map((_, i) => (

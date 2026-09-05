@@ -43,7 +43,11 @@ export function HistoryRow({ item }: { item: QueryListItemDto }) {
 
       <span className="flex justify-end">
         {item.failed && (
-          <Badge variant="failed" className="uppercase tracking-wide">
+          <Badge
+            variant="failed"
+            role="status"
+            className="uppercase tracking-wide"
+          >
             failed
           </Badge>
         )}
