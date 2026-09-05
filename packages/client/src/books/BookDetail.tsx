@@ -1,24 +1,31 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Link, useParams } from 'react-router';
-import type {
-  BookDetailDto,
-  BookDto,
-  ChapterDto,
-} from '@scriptorium/contracts';
-import { SummaryProse } from '../components/prose/summary-prose';
+import { useParams } from 'react-router';
+import type { BookDetailDto, BookDto } from '@scriptorium/contracts';
+
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Skeleton } from '@/components/ui/skeleton';
+import { Separator } from '@/components/ui/separator';
+import { BackLink } from '@/components/back-link';
+import { ScreenHeader } from '@/components/screen-header';
+import { SummaryProse } from '@/components/prose/summary-prose';
+import { FailedBookBanner } from '@/components/library/failed-book-banner';
+import { ChapterAccordion } from '@/components/book-detail/chapter-accordion';
+import { EditableField } from '@/components/book-detail/editable-field';
+import { NotGeneratedYet } from '@/components/book-detail/not-generated-yet';
+import { ProcessingStatus } from '@/components/book-detail/processing-status';
 import { useApi } from '../auth/use-api';
-import { MUTED, problemMessage } from './problem';
-import { failureHeadline, friendlyFailureLabel } from './failure';
+import { problemMessage } from './problem';
 import { useIngestEvents } from './use-ingest-events';
 
 const TERMINAL: ReadonlySet<string> = new Set(['ready', 'failed']);
 
-// The Book-detail screen: the whole-book summary rendered as markdown, every
-// chapter in `chapterIndex` order with its deep-dive behind an expand/collapse,
-// and inline correction of a wrong title or author wired to `PATCH /books/:id`.
-// A null summary (book or chapter) shows a muted "Not generated yet" state.
-// `bookId` comes from the `/books/:bookId` route; "back" is a link to the
-// library, not a callback.
+// The Book-detail screen (#64): the whole-book summary as readable prose, every
+// chapter's deep-dive behind an accordion, inline correction of a wrong title
+// or author wired to `PATCH /books/:id`, and the same plain-language failure +
+// retry and live status the library row shows. Only the markup is restyled -
+// every call that touches the network is unchanged from the pre-restyle
+// screen. `bookId` comes from the `/books/:bookId` route; "back" is a link to
+// the library, not a callback.
 export function BookDetail() {
   const { bookId = '' } = useParams();
   const api = useApi();
@@ -91,16 +98,20 @@ export function BookDetail() {
   if (error) {
     return (
       <section>
-        <BackButton />
-        <p role="alert">{error}</p>
+        <BackLink to="/library">Back to library</BackLink>
+        <Alert variant="destructive">
+          <AlertTitle>Couldn&apos;t load this book</AlertTitle>
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
       </section>
     );
   }
+
   if (!book) {
     return (
       <section>
-        <BackButton />
-        <p>Loading book...</p>
+        <BackLink to="/library">Back to library</BackLink>
+        <BookDetailSkeleton />
       </section>
     );
   }
@@ -109,26 +120,23 @@ export function BookDetail() {
 
   return (
     <section>
-      <BackButton />
-      <h2>{displayTitle}</h2>
+      <BackLink to="/library">Back to library</BackLink>
+      <ScreenHeader title={displayTitle} />
 
-      {book.status === 'failed' && <FailedBanner book={book} onRetry={retry} />}
-      {live && (
-        <p role="status" data-connected={connected}>
-          Processing:{' '}
-          {progress?.stage
-            ? `${progress.stage}${
-                progress.progress
-                  ? ` ${progress.progress.done}/${progress.progress.total} ${progress.progress.unit}`
-                  : ''
-              }`
-            : 'starting...'}
-        </p>
+      {book.status === 'failed' && (
+        <FailedBookBanner
+          failedStage={book.failedStage}
+          failureReason={book.failureReason}
+          onRetry={retry}
+        />
       )}
+      {live && <ProcessingStatus progress={progress} connected={connected} />}
 
-      <dl>
-        <dt>Title</dt>
-        <dd>
+      <dl className="mb-8 grid grid-cols-[max-content_1fr] gap-x-6 gap-y-2 text-sm">
+        <dt className="text-muted-foreground font-mono text-xs tracking-wide uppercase">
+          Title
+        </dt>
+        <dd className="m-0">
           <EditableField
             label="title"
             value={book.title}
@@ -137,8 +145,10 @@ export function BookDetail() {
             onSave={(next) => patch({ title: next as string })}
           />
         </dd>
-        <dt>Author</dt>
-        <dd>
+        <dt className="text-muted-foreground font-mono text-xs tracking-wide uppercase">
+          Author
+        </dt>
+        <dd className="m-0">
           <EditableField
             label="author"
             value={book.author}
@@ -149,175 +159,46 @@ export function BookDetail() {
         </dd>
       </dl>
 
-      <h3>Summary</h3>
+      <h2 className="text-foreground mb-3 font-serif text-lg font-semibold">
+        Summary
+      </h2>
       {book.summary ? (
         <SummaryProse markdown={book.summary} />
       ) : (
         <NotGeneratedYet />
       )}
 
-      <h3>Chapters</h3>
+      <Separator className="my-8" />
+
+      <h2 className="text-foreground mb-3 font-serif text-lg font-semibold">
+        Chapters
+      </h2>
       {book.chapters.length === 0 ? (
-        <NotGeneratedYet />
+        <NotGeneratedYet what="chapters" />
       ) : (
-        <ol>
-          {book.chapters.map((chapter) => (
-            <ChapterItem key={chapter.id} chapter={chapter} />
-          ))}
-        </ol>
+        <ChapterAccordion chapters={book.chapters} />
       )}
     </section>
   );
 }
 
-function ChapterItem({ chapter }: { chapter: ChapterDto }) {
-  const heading = chapter.title ?? `Chapter ${chapter.chapterIndex + 1}`;
+// The load placeholder: the header, the metadata rows and a block of summary
+// lines as `Skeleton` bars, so the screen does not flash empty then full
+// (user story 56).
+function BookDetailSkeleton() {
   return (
-    <li>
-      <details>
-        <summary>{heading}</summary>
-        {chapter.summary ? (
-          <SummaryProse markdown={chapter.summary} />
-        ) : (
-          <NotGeneratedYet />
-        )}
-      </details>
-    </li>
-  );
-}
-
-// The top-of-screen banner for a failed book. The book stays fully readable
-// below it; this only explains the stall in plain language, exposes the raw
-// `failureReason` behind a toggle, and offers a one-click Retry.
-function FailedBanner({
-  book,
-  onRetry,
-}: {
-  book: BookDetailDto;
-  onRetry: () => Promise<void>;
-}) {
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  async function run() {
-    setBusy(true);
-    setError(null);
-    try {
-      await onRetry();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : String(err));
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  return (
-    <div role="alert" data-failed-banner>
-      <p>
-        <strong>{failureHeadline(book.failedStage)}</strong> Everything we
-        finished before it stopped is shown below.
-      </p>
-      {book.failureReason && (
-        <details>
-          <summary>Show details</summary>
-          <p style={{ color: MUTED }}>{book.failureReason}</p>
-        </details>
-      )}
-      <button type="button" onClick={() => void run()} disabled={busy}>
-        {busy
-          ? 'Retrying...'
-          : `Retry ${friendlyFailureLabel(book.failedStage)}`}
-      </button>
-      {error && <p role="alert">{error}</p>}
+    <div data-testid="book-detail-skeleton">
+      <Skeleton className="mb-6 h-8 w-2/3" />
+      <div className="mb-8 space-y-2">
+        <Skeleton className="h-4 w-48" />
+        <Skeleton className="h-4 w-40" />
+      </div>
+      <Skeleton className="mb-3 h-6 w-32" />
+      <div className="space-y-2">
+        <Skeleton className="h-4 w-full" />
+        <Skeleton className="h-4 w-full" />
+        <Skeleton className="h-4 w-4/5" />
+      </div>
     </div>
-  );
-}
-
-function NotGeneratedYet() {
-  return <p style={{ color: MUTED }}>Not generated yet</p>;
-}
-
-function BackButton() {
-  return <Link to="/library">&larr; Back to library</Link>;
-}
-
-// Inline edit for one field. Shows the current value (or a muted placeholder
-// when empty) with an Edit control; editing swaps in a text input with
-// Save/Cancel. A `nullable` field saved empty sends an explicit `null`; a
-// non-nullable field (title) refuses an empty save.
-function EditableField({
-  label,
-  value,
-  placeholder,
-  nullable,
-  onSave,
-}: {
-  label: string;
-  value: string | null;
-  placeholder: string;
-  nullable: boolean;
-  onSave: (next: string | null) => Promise<void>;
-}) {
-  const [editing, setEditing] = useState(false);
-  const [draft, setDraft] = useState('');
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  function start() {
-    setDraft(value ?? '');
-    setError(null);
-    setEditing(true);
-  }
-
-  async function save() {
-    const trimmed = draft.trim();
-    if (!trimmed && !nullable) {
-      setError('A title is required.');
-      return;
-    }
-    setBusy(true);
-    setError(null);
-    try {
-      await onSave(trimmed ? trimmed : null);
-      setEditing(false);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : String(err));
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  if (!editing) {
-    return (
-      <span>
-        {value ? (
-          <span>{value}</span>
-        ) : (
-          <span style={{ color: MUTED }}>{placeholder}</span>
-        )}{' '}
-        <button type="button" onClick={start} aria-label={`Edit ${label}`}>
-          Edit
-        </button>
-      </span>
-    );
-  }
-
-  return (
-    <span>
-      <input
-        type="text"
-        value={draft}
-        disabled={busy}
-        aria-label={`${label} input`}
-        onChange={(e) => setDraft(e.target.value)}
-      />{' '}
-      <button type="button" onClick={() => void save()} disabled={busy}>
-        {busy ? 'Saving...' : 'Save'}
-      </button>{' '}
-      <button type="button" onClick={() => setEditing(false)} disabled={busy}>
-        Cancel
-      </button>
-      {error && <span role="alert">{error}</span>}
-    </span>
   );
 }
