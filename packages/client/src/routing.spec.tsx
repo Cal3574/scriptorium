@@ -81,6 +81,9 @@ beforeEach(() => {
 afterEach(() => {
   cleanup();
   mockApi.mockReset();
+  localStorage.clear();
+  document.documentElement.className = '';
+  document.documentElement.style.colorScheme = '';
 });
 
 function renderAt(path: string) {
@@ -132,6 +135,34 @@ test('/ask/:queryId renders that past query', async () => {
     await screen.findByRole('heading', { name: 'What is focus?' }),
   ).toBeVisible();
   expect(screen.getByText('Focus is a skill.')).toBeVisible();
+});
+
+test('the shell top bar frames every screen: wordmark, nav, theme toggle, account menu', async () => {
+  renderAt('/library');
+  await screen.findByRole('heading', { name: 'Library' });
+
+  expect(
+    screen.getByRole('link', { name: 'Scriptorium home' }),
+  ).toHaveAttribute('href', '/');
+  for (const label of ['Library', 'Ask', 'History']) {
+    expect(screen.getByRole('link', { name: label })).toBeVisible();
+  }
+  expect(
+    screen.getByRole('button', { name: /switch to (dark|light) theme/i }),
+  ).toBeVisible();
+  expect(screen.getByTestId('user-button')).toBeVisible();
+});
+
+test('the theme toggle in the shell drives useTheme().toggle', async () => {
+  renderAt('/library');
+  await screen.findByRole('heading', { name: 'Library' });
+
+  expect(document.documentElement.classList.contains('dark')).toBe(false);
+  await userEvent.click(
+    screen.getByRole('button', { name: /switch to dark theme/i }),
+  );
+  expect(document.documentElement.classList.contains('dark')).toBe(true);
+  expect(localStorage.getItem('scriptorium-theme')).toBe('dark');
 });
 
 test('the active nav link reflects the route', async () => {

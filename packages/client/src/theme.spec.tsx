@@ -3,7 +3,8 @@ import { render, screen, cleanup } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { ClerkProvider } from '@clerk/react';
 import { ClerkGate } from './clerk-gate';
-import { ThemeProvider, ThemeToggle, resolveInitialTheme } from './theme';
+import { ThemeProvider, resolveInitialTheme } from './theme';
+import { ThemeToggle } from './components/shell/theme-toggle';
 
 jest.mock('@clerk/react', () => ({
   ClerkProvider: jest.fn(

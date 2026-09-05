@@ -80,20 +80,3 @@ export function useTheme(): ThemeContextValue {
   if (!ctx) throw new Error('useTheme must be used within a ThemeProvider');
   return ctx;
 }
-
-// Minimal, unstyled toggle. The styled top-bar button lands in scriptorium#61;
-// this just gives the mechanism a working control in the meantime.
-export function ThemeToggle() {
-  const { theme, toggle } = useTheme();
-  return (
-    <button
-      type="button"
-      onClick={toggle}
-      aria-label={
-        theme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'
-      }
-    >
-      {theme === 'dark' ? 'Light' : 'Dark'}
-    </button>
-  );
-}
