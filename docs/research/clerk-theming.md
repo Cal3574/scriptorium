@@ -17,36 +17,36 @@ So this is a greenfield theming job: add `appearance` at the provider, and add a
 ## 1. The `appearance` prop: where it lives and what it accepts
 
 The `appearance` prop "can be used to share styles across every component, or applied individually to any of the Clerk components" - set it on `<ClerkProvider>` for every component, or on a single `<SignIn>` / `<UserButton>` instance to override just that one ([https://clerk.com/docs/react/guides/customizing-clerk/appearance-prop/overview](https://clerk.com/docs/react/guides/customizing-clerk/appearance-prop/overview)).
-It can also be scoped to *all* instances of one component by nesting it under a component key on the provider's `appearance` (e.g. `appearance={{ signIn: { ... } }}`) ([https://clerk.com/docs/react/guides/customizing-clerk/appearance-prop/themes](https://clerk.com/docs/react/guides/customizing-clerk/appearance-prop/themes)).
+It can also be scoped to _all_ instances of one component by nesting it under a component key on the provider's `appearance` (e.g. `appearance={{ signIn: { ... } }}`) ([https://clerk.com/docs/react/guides/customizing-clerk/appearance-prop/themes](https://clerk.com/docs/react/guides/customizing-clerk/appearance-prop/themes)).
 
 Core 3 keys of the `appearance` object ([https://clerk.com/docs/react/guides/customizing-clerk/appearance-prop/overview](https://clerk.com/docs/react/guides/customizing-clerk/appearance-prop/overview)):
 
-| Key | Type | Purpose |
-| --- | --- | --- |
-| `theme` | `BaseTheme \| BaseTheme[]` | Foundational prebuilt theme(s). **Renamed from `baseTheme` in Core 3.** |
-| `variables` | object | "General theme overrides... merged with our base theme. Can override global styles like colors, fonts, etc." |
-| `elements` | object | "Fine-grained theme overrides. Useful when you want to style specific elements or elements that are under a specific state." |
-| `options` | object | "Configuration options that affect the layout of the components, allowing customizations that are hard to implement with just CSS." **Renamed from `layout` in Core 3.** |
-| `captcha` | object | Appearance of the CAPTCHA widget. |
-| `cssLayerName` | string | "The name of the CSS layer for Clerk component styles... allowing you to control the cascade and prevent style conflicts by isolating Clerk's styles within a specific layer." |
+| Key            | Type                       | Purpose                                                                                                                                                                        |
+| -------------- | -------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `theme`        | `BaseTheme \| BaseTheme[]` | Foundational prebuilt theme(s). **Renamed from `baseTheme` in Core 3.**                                                                                                        |
+| `variables`    | object                     | "General theme overrides... merged with our base theme. Can override global styles like colors, fonts, etc."                                                                   |
+| `elements`     | object                     | "Fine-grained theme overrides. Useful when you want to style specific elements or elements that are under a specific state."                                                   |
+| `options`      | object                     | "Configuration options that affect the layout of the components, allowing customizations that are hard to implement with just CSS." **Renamed from `layout` in Core 3.**       |
+| `captcha`      | object                     | Appearance of the CAPTCHA widget.                                                                                                                                              |
+| `cssLayerName` | string                     | "The name of the CSS layer for Clerk component styles... allowing you to control the cascade and prevent style conflicts by isolating Clerk's styles within a specific layer." |
 
 Cascade: `theme` is the base, `variables` merge over it as global design tokens, `elements` override specific DOM nodes/states last, and component-level `appearance` merges over provider-level `appearance` ([https://clerk.com/docs/react/guides/customizing-clerk/appearance-prop/overview](https://clerk.com/docs/react/guides/customizing-clerk/appearance-prop/overview), [https://clerk.com/docs/react/guides/customizing-clerk/appearance-prop/themes](https://clerk.com/docs/react/guides/customizing-clerk/appearance-prop/themes)).
 
 `options` keys (all optional) ([https://clerk.com/docs/react/guides/customizing-clerk/appearance-prop/options](https://clerk.com/docs/react/guides/customizing-clerk/appearance-prop/options)):
 
-| Key | Values | Default |
-| --- | --- | --- |
-| `animations` | boolean | `true` |
-| `autoFocus` | boolean | `true` |
-| `elevation` | `'raised' \| 'flush'` | `'raised'` |
-| `logoPlacement` | `'inside' \| 'outside'` | `'inside'` |
-| `logoImageUrl` / `logoLinkUrl` | string | - |
-| `helpPageUrl` / `privacyPageUrl` / `termsPageUrl` | string | - |
-| `shimmer` | boolean | `true` |
-| `showOptionalFields` | boolean | `false` |
-| `socialButtonsPlacement` | `'bottom' \| 'top'` | `'top'` |
-| `socialButtonsVariant` | `'blockButton' \| 'iconButton' \| 'auto'` | `auto` |
-| `unsafe_disableDevelopmentModeWarnings` | boolean | - |
+| Key                                               | Values                                    | Default    |
+| ------------------------------------------------- | ----------------------------------------- | ---------- |
+| `animations`                                      | boolean                                   | `true`     |
+| `autoFocus`                                       | boolean                                   | `true`     |
+| `elevation`                                       | `'raised' \| 'flush'`                     | `'raised'` |
+| `logoPlacement`                                   | `'inside' \| 'outside'`                   | `'inside'` |
+| `logoImageUrl` / `logoLinkUrl`                    | string                                    | -          |
+| `helpPageUrl` / `privacyPageUrl` / `termsPageUrl` | string                                    | -          |
+| `shimmer`                                         | boolean                                   | `true`     |
+| `showOptionalFields`                              | boolean                                   | `false`    |
+| `socialButtonsPlacement`                          | `'bottom' \| 'top'`                       | `'top'`    |
+| `socialButtonsVariant`                            | `'blockButton' \| 'iconButton' \| 'auto'` | `auto`     |
+| `unsafe_disableDevelopmentModeWarnings`           | boolean                                   | -          |
 
 ## 2. `baseTheme` / prebuilt themes and the themes package
 
@@ -58,15 +58,15 @@ Six prebuilt themes ship: Default, Simple, shadcn, Dark, Shades of Purple, Neobr
 Dark theme usage ([https://clerk.com/docs/react/guides/customizing-clerk/appearance-prop/themes](https://clerk.com/docs/react/guides/customizing-clerk/appearance-prop/themes)):
 
 ```tsx
-import { dark } from '@clerk/ui/themes'
+import { dark } from '@clerk/ui/themes';
 
-<ClerkProvider appearance={{ theme: dark }} />
+<ClerkProvider appearance={{ theme: dark }} />;
 ```
 
 **Multiple base themes can be composed** by passing an array: "The themes will be applied in the order they are listed. If styles overlap, the last defined theme will take precedence." ([https://clerk.com/docs/react/guides/customizing-clerk/appearance-prop/themes](https://clerk.com/docs/react/guides/customizing-clerk/appearance-prop/themes)):
 
 ```tsx
-import { dark, neobrutalism, shadesOfPurple } from '@clerk/ui/themes'
+import { dark, neobrutalism, shadesOfPurple } from '@clerk/ui/themes';
 
 <ClerkProvider
   appearance={{
@@ -77,7 +77,7 @@ import { dark, neobrutalism, shadesOfPurple } from '@clerk/ui/themes'
       variables: { colorPrimary: 'green' },
     },
   }}
-/>
+/>;
 ```
 
 There is also an experimental theme factory: Core 3 moved `__experimental_createTheme` from `@clerk/ui` to `import { createTheme } from '@clerk/ui/themes/experimental'` ([https://clerk.com/docs/guides/development/upgrading/upgrade-guides/core-3](https://clerk.com/docs/guides/development/upgrading/upgrade-guides/core-3)).
@@ -102,9 +102,13 @@ Spacing/shape: `borderRadius` (default `0.375rem`), `spacing` (base unit, defaul
 ```
 
 ```css
-:root { --brand-primary: oklch(49.1% 0.27 292.581); }
+:root {
+  --brand-primary: oklch(49.1% 0.27 292.581);
+}
 @media (prefers-color-scheme: dark) {
-  :root { --brand-primary: oklch(54.1% 0.281 293.009); }
+  :root {
+    --brand-primary: oklch(54.1% 0.281 293.009);
+  }
 }
 ```
 
@@ -145,13 +149,14 @@ There is no `unstable_setAppearance` runtime API. The only experimental appearan
 
 ### 4d. Recommendation
 
-Drive Clerk from CSS custom properties for everything expressible as a `variables` token (4a) so the bulk of the switch is a zero-cost CSS recompute, and *also* pass a memoized `appearance` from your theme state (4b) so the pieces that need a real theme object (or `elements` that differ by mode) move in lockstep. Keep the toggle writing a `data-theme` attribute on `<html>` that both your app CSS and the `var(--token)` definitions key off.
+Drive Clerk from CSS custom properties for everything expressible as a `variables` token (4a) so the bulk of the switch is a zero-cost CSS recompute, and _also_ pass a memoized `appearance` from your theme state (4b) so the pieces that need a real theme object (or `elements` that differ by mode) move in lockstep. Keep the toggle writing a `data-theme` attribute on `<html>` that both your app CSS and the `var(--token)` definitions key off.
 
 ## 5. `elements` overrides - internal class names and their caveats
 
 To find a target: inspect the rendered Clerk DOM. A node's class list looks like `cl-formButtonPrimary cl-button 🔒️ cl-internal-1ta0xpz`. Classes **before** the lock icon are stable public descriptors; classes **after** it ("`cl-internal-*`") "are internal classes used for Clerk's internal styling" and change without notice - never target them ([https://clerk.com/docs/react/guides/customizing-clerk/appearance-prop/bring-your-own-css](https://clerk.com/docs/react/guides/customizing-clerk/appearance-prop/bring-your-own-css)).
 
 Three ways to use the stable descriptors ([https://clerk.com/docs/react/guides/customizing-clerk/appearance-prop/bring-your-own-css](https://clerk.com/docs/react/guides/customizing-clerk/appearance-prop/bring-your-own-css)):
+
 1. Target the `cl-` class directly in a stylesheet: `.cl-formButtonPrimary { background-color: #611bbd }`.
 2. Drop the `cl-` prefix and use it as an `appearance.elements` key, with a value that is a className string (custom class, Tailwind utilities, CSS module) or an inline style object.
 3. State variants: `elements` keys can carry a state suffix (e.g. an error/open/active state) for "elements that are under a specific state" ([https://clerk.com/docs/react/guides/customizing-clerk/appearance-prop/overview](https://clerk.com/docs/react/guides/customizing-clerk/appearance-prop/overview)).
@@ -164,13 +169,15 @@ Scriptorium's client is plain CSS today, not Tailwind, so `cssLayerName` is opti
 ## 6. Flash-of-wrong-theme with Clerk
 
 Relevant facts:
+
 - Clerk's default theme "supports both light and dark modes, with light mode displaying by default unless a `color-scheme` is defined"; set `color-scheme: light dark` in global CSS to respect system preference ([https://clerk.com/docs/nextjs/guides/customizing-clerk/appearance-prop/themes](https://clerk.com/docs/nextjs/guides/customizing-clerk/appearance-prop/themes)).
 - Core 3 makes components "automatically match your app's color scheme if it supports light and dark mode" ([https://clerk.com/changelog/2026-03-03-core-3](https://clerk.com/changelog/2026-03-03-core-3)).
 - The bring-your-own-CSS guide explicitly warns "Flash-of-unstyled-content can occur without proper theme application" ([https://clerk.com/docs/react/guides/customizing-clerk/appearance-prop/bring-your-own-css](https://clerk.com/docs/react/guides/customizing-clerk/appearance-prop/bring-your-own-css)).
 
 Where the flash comes from in this SPA:
+
 1. Clerk components mount asynchronously after Clerk.js loads, so there is always a beat where the surrounding app is themed and the Clerk widget is not yet rendered - unavoidable, but it is blank space, not a wrong-colour widget, and Clerk's `shimmer` placeholder fills it.
-2. If the dark/light choice is read from `localStorage` in React state, the first client render is with the default (light) value, then a re-render flips it - the classic FOWT. Fix it the standard way: an inline `<script>` in `index.html` that reads the stored preference and sets `data-theme` / `color-scheme` on `<html>` *before* first paint, so both your CSS variables and Clerk's `color-scheme` detection are correct on the first frame. This is a Vite/`index.html` concern, not something Clerk provides.
+2. If the dark/light choice is read from `localStorage` in React state, the first client render is with the default (light) value, then a re-render flips it - the classic FOWT. Fix it the standard way: an inline `<script>` in `index.html` that reads the stored preference and sets `data-theme` / `color-scheme` on `<html>` _before_ first paint, so both your CSS variables and Clerk's `color-scheme` detection are correct on the first frame. This is a Vite/`index.html` concern, not something Clerk provides.
 3. If you toggle by swapping the `appearance` object, expect a short restyle on the already-mounted widget. Binding `variables` to `var(--token)`s (section 4a) minimises this because the changing surface is a CSS recompute, not a Clerk re-style.
 
 Clerk offers no SSR/pre-render hook for a Vite SPA, so there is no Clerk-side way to eliminate the initial mount gap; the `shimmer` option and getting `data-theme` right pre-paint are the mitigations.
@@ -221,7 +228,10 @@ Model: one set of design tokens as CSS custom properties, redefined under `[data
   (function () {
     try {
       var t = localStorage.getItem('scriptorium-theme');
-      if (!t) t = matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+      if (!t)
+        t = matchMedia('(prefers-color-scheme: dark)').matches
+          ? 'dark'
+          : 'light';
       document.documentElement.dataset.theme = t;
     } catch (e) {}
   })();
@@ -231,10 +241,20 @@ Model: one set of design tokens as CSS custom properties, redefined under `[data
 `packages/client/src/theme.tsx` - toggle state (writes the attribute the CSS and Clerk both read):
 
 ```tsx
-import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from 'react';
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useMemo,
+  useState,
+  type ReactNode,
+} from 'react';
 
 type Mode = 'light' | 'dark';
-const ThemeCtx = createContext<{ mode: Mode; toggle: () => void }>({ mode: 'light', toggle: () => {} });
+const ThemeCtx = createContext<{ mode: Mode; toggle: () => void }>({
+  mode: 'light',
+  toggle: () => {},
+});
 export const useTheme = () => useContext(ThemeCtx);
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
@@ -245,11 +265,19 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     setMode((m) => {
       const next = m === 'dark' ? 'light' : 'dark';
       document.documentElement.dataset.theme = next;
-      try { localStorage.setItem('scriptorium-theme', next); } catch (e) {}
+      try {
+        localStorage.setItem('scriptorium-theme', next);
+      } catch (e) {}
       return next;
     });
   }, []);
-  return <ThemeCtx.Provider value={useMemo(() => ({ mode, toggle }), [mode, toggle])}>{children}</ThemeCtx.Provider>;
+  return (
+    <ThemeCtx.Provider
+      value={useMemo(() => ({ mode, toggle }), [mode, toggle])}
+    >
+      {children}
+    </ThemeCtx.Provider>
+  );
 }
 ```
 
@@ -289,7 +317,11 @@ function ClerkWithTheme({ children }: { children: React.ReactNode }) {
     [mode],
   );
   return (
-    <ClerkProvider publishableKey={env.clerkPublishableKey} afterSignOutUrl="/" appearance={appearance}>
+    <ClerkProvider
+      publishableKey={env.clerkPublishableKey}
+      afterSignOutUrl="/"
+      appearance={appearance}
+    >
       {children}
     </ClerkProvider>
   );
