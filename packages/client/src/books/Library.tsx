@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { Link } from 'react-router';
 import type {
   BookListItemDto,
   CreateUploadUrlResponse,
@@ -13,8 +14,9 @@ const TERMINAL: ReadonlySet<string> = new Set(['ready', 'failed']);
 const PDF_CONTENT_TYPE = 'application/pdf';
 
 // The library list plus the upload control. One screen: uploading a book and
-// seeing it land as `pending` are the same user moment.
-export function Library({ onOpen }: { onOpen: (bookId: string) => void }) {
+// seeing it land as `pending` are the same user moment. Opening a book is a
+// router link to `/books/:bookId`, not a callback.
+export function Library() {
   const api = useApi();
   const [books, setBooks] = useState<BookListItemDto[] | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -47,7 +49,6 @@ export function Library({ onOpen }: { onOpen: (bookId: string) => void }) {
             <BookRow
               key={book.id}
               book={book}
-              onOpen={onOpen}
               onSettled={() =>
                 refresh().catch((e: Error) => setError(e.message))
               }
@@ -65,11 +66,9 @@ export function Library({ onOpen }: { onOpen: (bookId: string) => void }) {
 // reports a terminal state it asks the list to refetch the canonical row.
 function BookRow({
   book,
-  onOpen,
   onSettled,
 }: {
   book: BookListItemDto;
-  onOpen: (bookId: string) => void;
   onSettled: () => void;
 }) {
   const api = useApi();
@@ -142,9 +141,7 @@ function BookRow({
 
   return (
     <li>
-      <button type="button" onClick={() => onOpen(book.id)}>
-        {title}
-      </button>{' '}
+      <Link to={`/books/${book.id}`}>{title}</Link>{' '}
       <span data-status={status}>({status})</span>
       {failed ? (
         <span data-failed style={{ color: MUTED }}>

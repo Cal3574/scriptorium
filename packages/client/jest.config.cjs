@@ -10,7 +10,7 @@ swcJestConfig.swcrc = false;
 module.exports = {
   displayName: 'client',
   preset: '../../jest.preset.js',
-  testEnvironment: 'jsdom',
+  testEnvironment: '<rootDir>/src/jsdom-env.js',
   setupFilesAfterEnv: ['<rootDir>/src/test-setup.ts'],
   transform: {
     '^.+\\.[tj]sx?$': ['@swc/jest', swcJestConfig],

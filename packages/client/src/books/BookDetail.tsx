@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
+import { Link, useParams } from 'react-router';
 import Markdown from 'react-markdown';
 import type {
   BookDetailDto,
@@ -16,13 +17,10 @@ const TERMINAL: ReadonlySet<string> = new Set(['ready', 'failed']);
 // chapter in `chapterIndex` order with its deep-dive behind an expand/collapse,
 // and inline correction of a wrong title or author wired to `PATCH /books/:id`.
 // A null summary (book or chapter) shows a muted "Not generated yet" state.
-export function BookDetail({
-  bookId,
-  onBack,
-}: {
-  bookId: string;
-  onBack: () => void;
-}) {
+// `bookId` comes from the `/books/:bookId` route; "back" is a link to the
+// library, not a callback.
+export function BookDetail() {
+  const { bookId = '' } = useParams();
   const api = useApi();
   const [book, setBook] = useState<BookDetailDto | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -93,7 +91,7 @@ export function BookDetail({
   if (error) {
     return (
       <section>
-        <BackButton onBack={onBack} />
+        <BackButton />
         <p role="alert">{error}</p>
       </section>
     );
@@ -101,7 +99,7 @@ export function BookDetail({
   if (!book) {
     return (
       <section>
-        <BackButton onBack={onBack} />
+        <BackButton />
         <p>Loading book...</p>
       </section>
     );
@@ -111,7 +109,7 @@ export function BookDetail({
 
   return (
     <section>
-      <BackButton onBack={onBack} />
+      <BackButton />
       <h2>{displayTitle}</h2>
 
       {book.status === 'failed' && <FailedBanner book={book} onRetry={retry} />}
@@ -235,12 +233,8 @@ function NotGeneratedYet() {
   return <p style={{ color: MUTED }}>Not generated yet</p>;
 }
 
-function BackButton({ onBack }: { onBack: () => void }) {
-  return (
-    <button type="button" onClick={onBack}>
-      &larr; Back to library
-    </button>
-  );
+function BackButton() {
+  return <Link to="/library">&larr; Back to library</Link>;
 }
 
 // Inline edit for one field. Shows the current value (or a muted placeholder

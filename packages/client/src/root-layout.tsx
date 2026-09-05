@@ -6,13 +6,11 @@ import {
   useState,
   type ReactNode,
 } from 'react';
+import { Link, NavLink, Outlet } from 'react-router';
 import type { UserDto } from '@scriptorium/contracts';
 import { lazyProvider } from './mf';
 import { env } from './env';
 import { useApi } from './auth/use-api';
-import { Library } from './books/Library';
-import { BookDetail } from './books/BookDetail';
-import { QueryScreen } from './queries/QueryScreen';
 import { ThemeToggle } from './theme';
 
 // ProviderBoundary catches the lazy() rejection that fires when a provider's
@@ -76,17 +74,40 @@ function Identity() {
   );
 }
 
-function SignedInApp() {
-  // Screens: the library list, one open book, or the "ask your library" query
-  // screen. A selected id swaps in Book-detail; `asking` swaps in the query
-  // screen; otherwise it is the library.
-  const [openBookId, setOpenBookId] = useState<string | null>(null);
-  const [asking, setAsking] = useState(false);
+// The three sections, in fixed order. #61 turns this into the real top bar;
+// for now it is a plain row of router links whose active state tracks the URL.
+const NAV = [
+  { to: '/library', label: 'Library' },
+  { to: '/ask', label: 'Ask' },
+  { to: '/history', label: 'History' },
+] as const;
 
+// The layout route: the shell that wraps every screen. `<Outlet />` is the
+// active screen; screen-swap state that used to live here is now the URL.
+function Shell() {
   return (
     <>
       <header style={{ display: 'flex', justifyContent: 'space-between' }}>
-        <h1>Scriptorium</h1>
+        <span
+          style={{ display: 'flex', gap: '0.75rem', alignItems: 'baseline' }}
+        >
+          <Link to="/">
+            <h1 style={{ display: 'inline' }}>Scriptorium</h1>
+          </Link>
+          <nav style={{ display: 'flex', gap: '0.5rem' }}>
+            {NAV.map((item) => (
+              <NavLink
+                key={item.to}
+                to={item.to}
+                style={({ isActive }) => ({
+                  fontWeight: isActive ? 700 : 400,
+                })}
+              >
+                {item.label}
+              </NavLink>
+            ))}
+          </nav>
+        </span>
         <span style={{ display: 'flex', gap: '0.5rem' }}>
           <ThemeToggle />
           <UserButton />
@@ -94,18 +115,7 @@ function SignedInApp() {
       </header>
       <p>API: {env.apiUrl}</p>
       <Identity />
-      {openBookId ? (
-        <BookDetail bookId={openBookId} onBack={() => setOpenBookId(null)} />
-      ) : asking ? (
-        <QueryScreen onBack={() => setAsking(false)} />
-      ) : (
-        <>
-          <button type="button" onClick={() => setAsking(true)}>
-            Ask your library
-          </button>
-          <Library onOpen={setOpenBookId} />
-        </>
-      )}
+      <Outlet />
       <ProviderBoundary name="my-provider">
         <ProviderMyProvider />
       </ProviderBoundary>
@@ -113,22 +123,16 @@ function SignedInApp() {
   );
 }
 
-export function App() {
+export function RootLayout() {
   // Core 3 dropped <SignedIn>/<SignedOut>; gate on the hook instead. An
   // unauthenticated visitor only ever sees <SignIn />.
   const { isLoaded, isSignedIn } = useAuth();
 
   return (
     <main>
-      {!isLoaded ? (
-        <p>Loading...</p>
-      ) : isSignedIn ? (
-        <SignedInApp />
-      ) : (
-        <SignIn />
-      )}
+      {!isLoaded ? <p>Loading...</p> : isSignedIn ? <Shell /> : <SignIn />}
     </main>
   );
 }
 
-export default App;
+export default RootLayout;

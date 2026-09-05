@@ -1,5 +1,6 @@
 import { useAuth } from '@clerk/react';
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router';
 import Markdown from 'react-markdown';
 import {
   type Citation,
@@ -8,8 +9,8 @@ import {
 } from '@scriptorium/contracts';
 import { env } from '../env';
 import { MUTED, problemMessage } from '../books/problem';
+import { askAgainPath } from './ask-again';
 import { QueryDetail } from './QueryDetail';
-import { QueryHistory } from './QueryHistory';
 
 type Phase = 'idle' | 'streaming' | 'done' | 'error';
 
@@ -17,28 +18,43 @@ type Phase = 'idle' | 'streaming' | 'done' | 'error';
 // from passages in your own books, or revisit a past question from history.
 // The stream is the POST response body, read with fetch() + a ReadableStream
 // reader (not EventSource, which cannot POST or send an Authorization
-// header). `openQueryId` swaps the ask form for a read-only past answer;
-// "Ask again" (from a failed row, or the detail view) drops back to the form
-// with the question pre-filled and re-runs it as a fresh `POST /queries`.
-export function QueryScreen({ onBack }: { onBack: () => void }) {
+// header). The `/ask/:queryId` route swaps the ask form for a read-only past
+// answer; "Ask again" (from a failed row, or the detail view) navigates to
+// `/ask?q=` so the form opens with the question pre-filled.
+export function QueryScreen() {
   const { getToken } = useAuth();
-  const [question, setQuestion] = useState('');
+  const { queryId } = useParams();
+  const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
+  // Seed from `?q=` so the first paint already shows the prefilled question
+  // (no empty-textarea flash); the effect below then keeps it in sync when a
+  // later "Ask again" navigation changes `?q=` without remounting.
+  const [question, setQuestion] = useState(() => searchParams.get('q') ?? '');
   const [phase, setPhase] = useState<Phase>('idle');
   const [answer, setAnswer] = useState('');
   const [citations, setCitations] = useState<Citation[]>([]);
   const [error, setError] = useState<string | null>(null);
-  const [openQueryId, setOpenQueryId] = useState<string | null>(null);
-  const [historyVersion, setHistoryVersion] = useState(0);
   const abortRef = useRef<AbortController | null>(null);
 
-  const askAgain = useCallback((prefill: string) => {
-    setOpenQueryId(null);
+  // "Ask again" lands here with `?q=`; the same component instance is reused
+  // across `/ask` and `/ask/:queryId`, so pick the prefill up from the URL
+  // and reset the answer view.
+  useEffect(() => {
+    const prefill = searchParams.get('q');
+    if (prefill === null) return;
     setQuestion(prefill);
     setPhase('idle');
     setAnswer('');
     setCitations([]);
     setError(null);
-  }, []);
+  }, [searchParams]);
+
+  const askAgain = useCallback(
+    (prefill: string) => {
+      navigate(askAgainPath(prefill));
+    },
+    [navigate],
+  );
 
   const ask = useCallback(async () => {
     const trimmed = question.trim();
@@ -106,9 +122,6 @@ export function QueryScreen({ onBack }: { onBack: () => void }) {
         case 'done':
           setAnswer(event.answer);
           setPhase('done');
-          // The row just landed (or was re-completed) - the history list is
-          // now stale.
-          setHistoryVersion((v) => v + 1);
           break;
         case 'error':
           setError(event.message);
@@ -122,22 +135,18 @@ export function QueryScreen({ onBack }: { onBack: () => void }) {
 
   const busy = phase === 'streaming';
 
-  if (openQueryId) {
+  if (queryId) {
     return (
       <section>
-        <button type="button" onClick={() => setOpenQueryId(null)}>
-          &larr; Back to your library of questions
-        </button>
-        <QueryDetail queryId={openQueryId} onAskAgain={askAgain} />
+        <Link to="/history">&larr; Back to your library of questions</Link>
+        <QueryDetail queryId={queryId} onAskAgain={askAgain} />
       </section>
     );
   }
 
   return (
     <section>
-      <button type="button" onClick={onBack}>
-        &larr; Back to library
-      </button>
+      <Link to="/library">&larr; Back to library</Link>
       <h2>Ask your library</h2>
 
       <form
@@ -194,13 +203,6 @@ export function QueryScreen({ onBack }: { onBack: () => void }) {
           </ul>
         </>
       )}
-
-      <h3>Your questions</h3>
-      <QueryHistory
-        key={historyVersion}
-        onOpen={setOpenQueryId}
-        onAskAgain={askAgain}
-      />
     </section>
   );
 }

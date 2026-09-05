@@ -1,19 +1,15 @@
 import { useCallback, useEffect, useState } from 'react';
+import { Link, useNavigate } from 'react-router';
 import type { QueryListItemDto } from '@scriptorium/contracts';
 import { useApi } from '../auth/use-api';
 import { MUTED, problemMessage } from '../books/problem';
+import { askAgainPath } from './ask-again';
 
-// The reader's past questions, newest first. A `failed` row (the query never
-// reached `complete()`) is flagged inline; `onAskAgain` re-runs the same
-// question as a fresh `POST /queries` rather than trying to resume the old
-// one.
-export function QueryHistory({
-  onOpen,
-  onAskAgain,
-}: {
-  onOpen: (id: string) => void;
-  onAskAgain: (question: string) => void;
-}) {
+// The reader's past questions, newest first, as the full `/history` page. A
+// row links to `/ask/:queryId`; a `failed` row (the query never reached
+// `complete()`) is flagged inline and offers "Ask again", which navigates to
+// `/ask?q=` to re-run the same question as a fresh `POST /queries`.
+export function QueryHistory() {
   const api = useApi();
   const [items, setItems] = useState<QueryListItemDto[] | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -32,38 +28,31 @@ export function QueryHistory({
     load().catch((err: Error) => setError(err.message));
   }, [load]);
 
-  if (error) return <p role="alert">{error}</p>;
-  if (!items) return <p>Loading your questions...</p>;
-  if (items.length === 0) return <p>You haven&apos;t asked anything yet.</p>;
-
   return (
-    <ul data-history>
-      {items.map((item) => (
-        <HistoryRow
-          key={item.id}
-          item={item}
-          onOpen={onOpen}
-          onAskAgain={onAskAgain}
-        />
-      ))}
-    </ul>
+    <section>
+      <h2>Your questions</h2>
+      {error ? (
+        <p role="alert">{error}</p>
+      ) : !items ? (
+        <p>Loading your questions...</p>
+      ) : items.length === 0 ? (
+        <p>You haven&apos;t asked anything yet.</p>
+      ) : (
+        <ul data-history>
+          {items.map((item) => (
+            <HistoryRow key={item.id} item={item} />
+          ))}
+        </ul>
+      )}
+    </section>
   );
 }
 
-function HistoryRow({
-  item,
-  onOpen,
-  onAskAgain,
-}: {
-  item: QueryListItemDto;
-  onOpen: (id: string) => void;
-  onAskAgain: (question: string) => void;
-}) {
+function HistoryRow({ item }: { item: QueryListItemDto }) {
+  const navigate = useNavigate();
   return (
     <li data-failed={item.failed}>
-      <button type="button" onClick={() => onOpen(item.id)}>
-        {item.question}
-      </button>{' '}
+      <Link to={`/ask/${item.id}`}>{item.question}</Link>{' '}
       <span style={{ color: MUTED }}>
         {new Date(item.createdAt).toLocaleString()}
       </span>{' '}
@@ -71,7 +60,7 @@ function HistoryRow({
       {item.failed && (
         <button
           type="button"
-          onClick={() => onAskAgain(item.question)}
+          onClick={() => navigate(askAgainPath(item.question))}
           aria-label={`Ask again: ${item.question}`}
         >
           Ask again
