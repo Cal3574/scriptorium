@@ -1,6 +1,17 @@
-import { Body, Controller, HttpCode, Post, Req, Res } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  HttpCode,
+  Param,
+  Post,
+  Req,
+  Res,
+} from '@nestjs/common';
 import {
   CreateQueryRequest,
+  type QueryDetailDto,
+  type QueryListItemDto,
   queryEventFrame,
   QUESTION_MAX,
 } from '@scriptorium/contracts';
@@ -9,9 +20,11 @@ import {
   type AuthenticatedUser,
   BooksRepository,
   CurrentUser,
+  QueriesRepository,
 } from '@scriptorium/server-core';
 import { createZodDto } from 'nestjs-zod';
 import { QuestionTooLongException } from './queries.problems.js';
+import { toQueryDetailDto, toQueryListItemDto } from './query.mapper.js';
 import { QueryService } from './query.service.js';
 
 // The minimal slices of the Express response / request the SSE handler needs,
@@ -33,7 +46,8 @@ class CreateQueryDto extends createZodDto(CreateQueryRequest) {}
  * `POST /api/v1/queries` - a reader's natural-language question answered from
  * their own books, streamed over the POST response body as Server-Sent Events
  * (the client reads it with `fetch()` + a `ReadableStream` reader, not
- * `EventSource`).
+ * `EventSource`). `GET /queries` and `GET /queries/:id` read back the history
+ * that stream writes.
  *
  * Guards run before the stream opens: an over-length question is `422
  * question_too_long`; a foreign or missing `bookId` is an identical `404`; a
@@ -46,7 +60,32 @@ export class QueriesController {
   constructor(
     private readonly service: QueryService,
     private readonly books: BooksRepository,
+    private readonly queries: QueriesRepository,
   ) {}
+
+  // The reader's query history, newest first, `answer` body omitted. A row
+  // whose `answer` is null (the query never reached `complete()`) is left for
+  // the client to render as "failed" - the list carries no separate flag.
+  @Get()
+  async list(
+    @CurrentUser() caller: AuthenticatedUser,
+  ): Promise<QueryListItemDto[]> {
+    const rows = await this.queries.listByUser(caller.id);
+    return rows.map(toQueryListItemDto);
+  }
+
+  // One past query's full answer + citations snapshot. `citations` is the
+  // frozen jsonb array, so it still renders after a cited book is deleted. An
+  // unknown or unowned id is an identical `404`.
+  @Get(':id')
+  async detail(
+    @Param('id') id: string,
+    @CurrentUser() caller: AuthenticatedUser,
+  ): Promise<QueryDetailDto> {
+    const found = await this.queries.findById(id);
+    const row = assertOwnership(found, caller.id, 'query_not_found');
+    return toQueryDetailDto(row);
+  }
 
   @Post()
   @HttpCode(200)

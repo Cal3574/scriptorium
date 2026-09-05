@@ -2,8 +2,33 @@ import { Inject, Injectable } from '@nestjs/common';
 import type { PersistedCitation } from '@scriptorium/contracts';
 import type { DbClient } from '@scriptorium/database/client';
 import { queries } from '@scriptorium/database/schema';
-import { eq, sql } from 'drizzle-orm';
+import { desc, eq, sql } from 'drizzle-orm';
 import { DB } from '../database/database.module.js';
+
+// One `queries` row, as read back for the `GET /queries/:id` detail shape.
+// `answer` and `citations` are null until the query completes (or forever, if
+// it failed) - a null `answer` is what detail renders as "failed".
+export interface QueryRow {
+  id: string;
+  userId: string;
+  question: string;
+  answer: string | null;
+  bookId: string | null;
+  citations: PersistedCitation[] | null;
+  createdAt: Date;
+}
+
+// One `queries` row for the `GET /queries` list - `citations` (the largest
+// column, one snapshot per retrieved chunk) is never selected for a list of
+// many rows; `answer` is kept only to derive `failed`, never returned.
+export interface QueryHistoryRow {
+  id: string;
+  userId: string;
+  question: string;
+  answer: string | null;
+  bookId: string | null;
+  createdAt: Date;
+}
 
 // One row from the pgvector candidate query. `similarity` is `1 - (embedding
 // <=> $q)` - cosine similarity, not distance.
@@ -116,5 +141,39 @@ export class QueriesRepository {
       .update(queries)
       .set({ answer: result.answer, citations: result.citations })
       .where(eq(queries.id, id));
+  }
+
+  /**
+   * The owner's query history, newest first. Never selects `citations` - the
+   * largest column, and unused by the list DTO - so a long history stays a
+   * cheap read; `answer` is fetched only to derive `failed` and is dropped by
+   * the mapper before the response goes out.
+   */
+  async listByUser(userId: string): Promise<QueryHistoryRow[]> {
+    return this.db
+      .select({
+        id: queries.id,
+        userId: queries.userId,
+        question: queries.question,
+        answer: queries.answer,
+        bookId: queries.bookId,
+        createdAt: queries.createdAt,
+      })
+      .from(queries)
+      .where(eq(queries.userId, userId))
+      .orderBy(desc(queries.createdAt));
+  }
+
+  /**
+   * One query by id, or null. Used by `GET /queries/:id` to ownership-check
+   * the caller before returning the full detail shape.
+   */
+  async findById(id: string): Promise<QueryRow | null> {
+    const [row] = await this.db
+      .select()
+      .from(queries)
+      .where(eq(queries.id, id))
+      .limit(1);
+    return row ?? null;
   }
 }

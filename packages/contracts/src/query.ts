@@ -33,11 +33,14 @@ export const CreateQueryRequest = z.object({
 export type CreateQueryRequest = z.infer<typeof CreateQueryRequest>;
 
 // `GET /api/v1/queries` - the history list. `answer` body omitted; `bookId` may
-// be null (cross-book query, or the filtered book was later deleted).
+// be null (cross-book query, or the filtered book was later deleted). `failed`
+// is derived from `answer IS NULL` server-side, so a failed row is visible
+// without a second round trip to `GET /queries/:id`.
 export const QueryListItemDto = z.object({
   id: uuid,
   question: z.string(),
   bookId: uuid.nullable(),
+  failed: z.boolean(),
   createdAt: isoTimestamp,
 });
 export type QueryListItemDto = z.infer<typeof QueryListItemDto>;

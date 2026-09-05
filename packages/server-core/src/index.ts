@@ -31,6 +31,8 @@ export {
 export {
   QueriesRepository,
   type CandidateRow,
+  type QueryHistoryRow,
+  type QueryRow,
   type RetrieveCandidatesInput,
 } from './queries/queries.repository.js';
 export {
