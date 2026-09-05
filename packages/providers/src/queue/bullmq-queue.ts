@@ -21,8 +21,9 @@ const JOB_OPTIONS = {
 
 // The delete job shares the one `ingest` queue with the ingest job, so it needs
 // a distinct `jobId` namespace - otherwise BullMQ would treat a delete for a
-// book that still has an ingest job queued as a duplicate and drop it.
-const deleteJobId = (bookId: string): string => `delete:${bookId}`;
+// book that still has an ingest job queued as a duplicate and drop it. The
+// separator is `-`, not `:` - BullMQ rejects a custom job id containing `:`.
+const deleteJobId = (bookId: string): string => `delete-${bookId}`;
 
 export interface BullMqQueueOptions {
   redisUrl: string;

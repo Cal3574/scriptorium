@@ -99,7 +99,7 @@ describe('delete a book (Seam 1)', () => {
     expect(queue.recorded).toEqual([
       expect.objectContaining({
         name: 'delete',
-        jobId: `delete:${id}`,
+        jobId: `delete-${id}`,
       }),
     ]);
     expect((queue.recorded[0].data as { bookId: string }).bookId).toBe(id);
