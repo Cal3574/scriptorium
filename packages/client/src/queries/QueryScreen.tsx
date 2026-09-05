@@ -8,13 +8,18 @@ import {
 } from '@scriptorium/contracts';
 import { env } from '../env';
 import { MUTED, problemMessage } from '../books/problem';
+import { QueryDetail } from './QueryDetail';
+import { QueryHistory } from './QueryHistory';
 
 type Phase = 'idle' | 'streaming' | 'done' | 'error';
 
 // Ask a natural-language question and get a streamed answer synthesised only
-// from passages in your own books. The stream is the POST response body, read
-// with fetch() + a ReadableStream reader (not EventSource, which cannot POST
-// or send an Authorization header).
+// from passages in your own books, or revisit a past question from history.
+// The stream is the POST response body, read with fetch() + a ReadableStream
+// reader (not EventSource, which cannot POST or send an Authorization
+// header). `openQueryId` swaps the ask form for a read-only past answer;
+// "Ask again" (from a failed row, or the detail view) drops back to the form
+// with the question pre-filled and re-runs it as a fresh `POST /queries`.
 export function QueryScreen({ onBack }: { onBack: () => void }) {
   const { getToken } = useAuth();
   const [question, setQuestion] = useState('');
@@ -22,7 +27,18 @@ export function QueryScreen({ onBack }: { onBack: () => void }) {
   const [answer, setAnswer] = useState('');
   const [citations, setCitations] = useState<Citation[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [openQueryId, setOpenQueryId] = useState<string | null>(null);
+  const [historyVersion, setHistoryVersion] = useState(0);
   const abortRef = useRef<AbortController | null>(null);
+
+  const askAgain = useCallback((prefill: string) => {
+    setOpenQueryId(null);
+    setQuestion(prefill);
+    setPhase('idle');
+    setAnswer('');
+    setCitations([]);
+    setError(null);
+  }, []);
 
   const ask = useCallback(async () => {
     const trimmed = question.trim();
@@ -90,6 +106,9 @@ export function QueryScreen({ onBack }: { onBack: () => void }) {
         case 'done':
           setAnswer(event.answer);
           setPhase('done');
+          // The row just landed (or was re-completed) - the history list is
+          // now stale.
+          setHistoryVersion((v) => v + 1);
           break;
         case 'error':
           setError(event.message);
@@ -102,6 +121,17 @@ export function QueryScreen({ onBack }: { onBack: () => void }) {
   }, [question, getToken]);
 
   const busy = phase === 'streaming';
+
+  if (openQueryId) {
+    return (
+      <section>
+        <button type="button" onClick={() => setOpenQueryId(null)}>
+          &larr; Back to your library of questions
+        </button>
+        <QueryDetail queryId={openQueryId} onAskAgain={askAgain} />
+      </section>
+    );
+  }
 
   return (
     <section>
@@ -164,6 +194,13 @@ export function QueryScreen({ onBack }: { onBack: () => void }) {
           </ul>
         </>
       )}
+
+      <h3>Your questions</h3>
+      <QueryHistory
+        key={historyVersion}
+        onOpen={setOpenQueryId}
+        onAskAgain={askAgain}
+      />
     </section>
   );
 }
