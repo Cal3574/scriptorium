@@ -1,7 +1,6 @@
 import type { BookListItemDto } from '@scriptorium/contracts';
 
 import { statusRole } from '@/books/status';
-import { ScreenHeader } from '@/components/screen-header';
 import { UploadControl } from './upload-control';
 import type { useApi } from '@/auth/use-api';
 
@@ -35,10 +34,14 @@ export function Toolbar({
   onUploaded: () => void;
 }) {
   return (
-    <ScreenHeader
-      title="Library"
-      summary={summarise(books)}
-      action={<UploadControl api={api} onUploaded={onUploaded} />}
-    />
+    <div className="border-border bg-card mb-4 flex items-center gap-4 rounded-lg border px-4 py-3 shadow-xs">
+      <h1 className="text-foreground m-0 text-sm font-semibold">Library</h1>
+      <span className="text-muted-foreground font-mono text-xs">
+        {summarise(books)}
+      </span>
+      <div className="ml-auto">
+        <UploadControl api={api} onUploaded={onUploaded} />
+      </div>
+    </div>
   );
 }

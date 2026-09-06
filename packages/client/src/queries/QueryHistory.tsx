@@ -49,10 +49,13 @@ export function QueryHistory() {
 
   return (
     <section>
-      <ScreenHeader
-        title="History"
-        summary={items ? summarise(items) : undefined}
-      />
+      <ScreenHeader title="History">
+        {items ? (
+          <span className="text-muted-foreground font-mono text-xs">
+            {summarise(items)}
+          </span>
+        ) : null}
+      </ScreenHeader>
 
       {error && (
         <Alert variant="destructive" className="mb-4">

@@ -20,11 +20,13 @@ jest.mock('./env', () => ({
   env: { clerkPublishableKey: 'pk_test_x', apiUrl: 'http://api.test' },
 }));
 
-// react-markdown is pure ESM; render its text straight through in jsdom.
+// react-markdown and remark-gfm are pure ESM; render the text straight
+// through in jsdom and drop the plugin.
 jest.mock('react-markdown', () => ({
   __esModule: true,
   default: ({ children }: { children: string }) => <>{children}</>,
 }));
+jest.mock('remark-gfm', () => ({ __esModule: true, default: () => undefined }));
 
 // The book row / detail live-progress stream: never connect an EventSource.
 jest.mock('./books/use-ingest-events', () => ({

@@ -1,14 +1,21 @@
 import { useAuth } from '@clerk/react';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Link, useNavigate, useParams, useSearchParams } from 'react-router';
-import Markdown from 'react-markdown';
+import { useNavigate, useParams, useSearchParams } from 'react-router';
 import {
   type Citation,
   parseQueryEventFrame,
   type QueryEvent,
 } from '@scriptorium/contracts';
+
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { BackLink } from '@/components/back-link';
+import { ScreenHeader } from '@/components/screen-header';
+import { AnswerBlock } from '@/components/query/answer-block';
+import { CitationList } from '@/components/query/citation-list';
+import { QuestionForm } from '@/components/query/question-form';
+import { RetrievedPassages } from '@/components/query/retrieved-passages';
 import { env } from '../env';
-import { MUTED, problemMessage } from '../books/problem';
+import { problemMessage } from '../books/problem';
 import { askAgainPath } from './ask-again';
 import { QueryDetail } from './QueryDetail';
 
@@ -20,7 +27,9 @@ type Phase = 'idle' | 'streaming' | 'done' | 'error';
 // reader (not EventSource, which cannot POST or send an Authorization
 // header). The `/ask/:queryId` route swaps the ask form for a read-only past
 // answer; "Ask again" (from a failed row, or the detail view) navigates to
-// `/ask?q=` so the form opens with the question pre-filled.
+// `/ask?q=` so the form opens with the question pre-filled. The restyle (#65)
+// rebuilt the body from the #54 inventory - QuestionForm, AnswerBlock,
+// CitationList, RetrievedPassages - and left the SSE reader untouched.
 export function QueryScreen() {
   const { getToken } = useAuth();
   const { queryId } = useParams();
@@ -138,7 +147,7 @@ export function QueryScreen() {
   if (queryId) {
     return (
       <section>
-        <Link to="/history">&larr; Back to your library of questions</Link>
+        <BackLink to="/history">Back to your questions</BackLink>
         <QueryDetail queryId={queryId} onAskAgain={askAgain} />
       </section>
     );
@@ -146,62 +155,53 @@ export function QueryScreen() {
 
   return (
     <section>
-      <Link to="/library">&larr; Back to library</Link>
-      <h2>Ask your library</h2>
+      <BackLink to="/library">Back to library</BackLink>
+      <ScreenHeader title="Ask your library" />
 
-      <form
-        onSubmit={(e) => {
-          e.preventDefault();
-          void ask();
-        }}
-      >
-        <textarea
-          rows={3}
-          value={question}
-          disabled={busy}
-          aria-label="question"
-          placeholder="What do these authors say about..."
-          onChange={(e) => setQuestion(e.target.value)}
-          style={{ width: '100%', boxSizing: 'border-box' }}
-        />
-        <button type="submit" disabled={busy || !question.trim()}>
-          {busy ? 'Thinking...' : 'Ask'}
-        </button>
-      </form>
+      <QuestionForm
+        question={question}
+        onQuestionChange={setQuestion}
+        onSubmit={() => void ask()}
+        busy={busy}
+      />
 
-      {error && <p role="alert">{error}</p>}
+      {error && (
+        <Alert variant="destructive" className="mb-6">
+          <AlertTitle>That question didn&apos;t go through</AlertTitle>
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
+      )}
 
       {(answer || phase === 'done') && (
-        <article data-answer>
-          <Markdown>{answer}</Markdown>
-        </article>
+        <AnswerBlock markdown={answer} streaming={phase === 'streaming'} />
       )}
 
       {citations.length > 0 && (
-        <>
-          <h3>Citations</h3>
-          <ol data-citations>
-            {citations.map((c) => (
-              <li key={c.chunkId} value={c.marker}>
-                {c.bookTitle} - {c.chapterTitle}
-              </li>
-            ))}
-          </ol>
+        <div className="mt-8 space-y-6">
+          <div>
+            <h2 className="text-foreground mb-2 font-serif text-lg font-semibold">
+              Citations
+            </h2>
+            <CitationList
+              citations={citations.map((c) => ({
+                key: c.chunkId,
+                marker: c.marker,
+                bookTitle: c.bookTitle,
+                chapterTitle: c.chapterTitle,
+              }))}
+            />
+          </div>
 
-          <h3>Retrieved passages</h3>
-          <ul data-passages style={{ listStyle: 'none', paddingLeft: 0 }}>
-            {citations.map((c) => (
-              <li key={c.chunkId} style={{ marginBottom: '1rem' }}>
-                <strong>
-                  [{c.marker}] {c.bookTitle} - {c.chapterTitle}
-                </strong>
-                <blockquote style={{ color: MUTED, marginLeft: 0 }}>
-                  {c.chunkText}
-                </blockquote>
-              </li>
-            ))}
-          </ul>
-        </>
+          <RetrievedPassages
+            passages={citations.map((c) => ({
+              key: c.chunkId,
+              marker: c.marker,
+              bookTitle: c.bookTitle,
+              chapterTitle: c.chapterTitle,
+              chunkText: c.chunkText,
+            }))}
+          />
+        </div>
       )}
     </section>
   );

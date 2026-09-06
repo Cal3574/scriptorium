@@ -4,7 +4,7 @@ import type { IngestJobLifecycle, Queue } from './queue.js';
 export interface RecordedJob {
   name: 'ingest' | 'delete';
   // The BullMQ `jobId` this enqueue would use: the book id for an ingest job,
-  // `delete:<bookId>` for a delete job.
+  // `delete-<bookId>` for a delete job.
   jobId: string;
   data: IngestJobData | DeleteJobData;
 }
@@ -12,7 +12,7 @@ export interface RecordedJob {
 // Mirror `BullMqQueue`'s jobId scheme exactly so the fake's de-dupe behaviour
 // matches the real one.
 const ingestJobId = (bookId: string): string => bookId;
-const deleteJobId = (bookId: string): string => `delete:${bookId}`;
+const deleteJobId = (bookId: string): string => `delete-${bookId}`;
 
 /**
  * In-memory {@link Queue}. Records every enqueue keyed by the same `jobId`

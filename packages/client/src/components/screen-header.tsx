@@ -1,27 +1,22 @@
 import type { ReactNode } from 'react';
 
-// The bar above a full-page worklist (#54): the screen name, an optional mono
-// summary count, and an optional primary action pinned to the right. Panel
-// background with the one ambient shadow. Shared by History and the Library
-// toolbar so the two never drift.
+// The heading block at the top of a screen's content column (#54 inventory):
+// the display title set in Fraunces, with an optional slot on the right for
+// status chrome (a live status line, a chip). Screen headings live in the
+// column, never in the top bar.
 export function ScreenHeader({
   title,
-  summary,
-  action,
+  children,
 }: {
   title: string;
-  summary?: string;
-  action?: ReactNode;
+  children?: ReactNode;
 }) {
   return (
-    <div className="border-border bg-card mb-4 flex items-center gap-4 rounded-lg border px-4 py-3 shadow-xs">
-      <h1 className="text-foreground m-0 text-sm font-semibold">{title}</h1>
-      {summary ? (
-        <span className="text-muted-foreground font-mono text-xs">
-          {summary}
-        </span>
-      ) : null}
-      {action ? <div className="ml-auto">{action}</div> : null}
-    </div>
+    <header className="mb-6 flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
+      <h1 className="text-foreground m-0 font-serif text-2xl leading-tight font-semibold">
+        {title}
+      </h1>
+      {children}
+    </header>
   );
 }
