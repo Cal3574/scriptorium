@@ -64,6 +64,7 @@ function mountScene(
     canvas,
     antialias: true,
     alpha: true,
+    preserveDrawingBuffer: true,
     powerPreference: 'high-performance',
   });
   renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
@@ -76,76 +77,44 @@ function mountScene(
   const glowOpacity = C.isDark ? 1 : 0.45;
 
   const scene = new THREE.Scene();
-  scene.fog = new THREE.Fog(C.background, 9, 22);
+  // Fog to the page colour so anything far just dissolves into the page - no
+  // horizon, no visible extent to the "scene".
+  scene.fog = new THREE.Fog(C.background, 5.5, 12);
 
   const camera = new THREE.PerspectiveCamera(38, 1, 0.1, 100);
   camera.position.set(0, 0.3, 6.9);
 
-  scene.add(new THREE.AmbientLight(0xffffff, 0.5));
-  scene.add(new THREE.HemisphereLight(C.primary, C.bookB, 0.6));
-  const key = new THREE.PointLight(0xffffff, 70);
-  key.position.set(3, 5, 6);
-  const rim = new THREE.PointLight(C.primary, 40);
-  rim.position.set(-5, 1, -2);
-  const warm = new THREE.PointLight(C.bookB, 20);
-  warm.position.set(-3, -2, 3);
-  scene.add(key, rim, warm);
+  // Just enough light to shape the object - no environment, no floor, nothing
+  // for a wash to land on. The object floats in the page background.
+  scene.add(new THREE.AmbientLight(0xffffff, 0.9));
+  const key = new THREE.PointLight(0xffffff, 60);
+  key.position.set(3, 4, 6);
+  const warm = new THREE.PointLight(C.bookB, 16);
+  warm.position.set(-3, -1, 3);
+  const cool = new THREE.PointLight(C.primary, 28);
+  cool.position.set(-4, 2, 2);
+  scene.add(key, warm, cool);
 
-  // ---- decor ----
+  // A single tight aura hugging the object - a hint of glow, not a lit box.
   const rgb = hexToRgbStr(C.primary);
   const glowTex = radialTexture([
-    [0, `rgba(${rgb},0.85)`],
-    [0.45, `rgba(${rgb},0.22)`],
+    [0, `rgba(${rgb},0.6)`],
+    [0.5, `rgba(${rgb},0.14)`],
     [1, `rgba(${rgb},0)`],
   ]);
   const glow = new THREE.Sprite(
     new THREE.SpriteMaterial({
       map: glowTex,
       transparent: true,
-      opacity: 0.7 * glowOpacity,
+      opacity: 0.4 * glowOpacity,
       depthWrite: false,
       blending: blend,
       fog: false,
     }),
   );
-  glow.scale.set(12, 13, 1);
-  glow.position.set(0, 0.2, -1.5);
+  glow.scale.set(4, 5, 1);
+  glow.position.set(0, 0, -0.6);
   scene.add(glow);
-
-  // a tighter, brighter core so the object always sits in its own light
-  const core = new THREE.Sprite(
-    new THREE.SpriteMaterial({
-      map: glowTex,
-      transparent: true,
-      opacity: 0.5 * glowOpacity,
-      depthWrite: false,
-      blending: blend,
-      fog: false,
-    }),
-  );
-  core.scale.set(4.5, 5.5, 1);
-  core.position.set(0, 0, -0.6);
-  scene.add(core);
-
-  const grid = new THREE.GridHelper(40, 40, C.primary, C.primary);
-  grid.position.y = -2.3;
-  const gridMat = grid.material as THREE.LineBasicMaterial;
-  gridMat.transparent = true;
-  gridMat.opacity = 0.14;
-  scene.add(grid);
-
-  const ring = new THREE.Mesh(
-    new THREE.TorusGeometry(4.4, 0.012, 8, 140),
-    new THREE.MeshBasicMaterial({
-      color: C.primary,
-      transparent: true,
-      opacity: 0.35,
-      fog: false,
-    }),
-  );
-  ring.position.z = -2.4;
-  ring.rotation.x = Math.PI / 2.3;
-  scene.add(ring);
 
   // ---- the object ----
   const rotor = new THREE.Group();
@@ -154,11 +123,11 @@ function mountScene(
   // A sleek dark-glass slab with a glowing edge seam - reads as an object,
   // not a texture-mapped prop.
   const coverMat = new THREE.MeshStandardMaterial({
-    color: '#1b2431',
+    color: '#222c3b',
     emissive: C.primary,
-    emissiveIntensity: 0.22,
-    roughness: 0.16,
-    metalness: 0.6,
+    emissiveIntensity: 0.32,
+    roughness: 0.14,
+    metalness: 0.55,
     transparent: true,
     opacity: 1,
   });
@@ -322,10 +291,9 @@ function mountScene(
     lineMat.opacity = damp(lineMat.opacity, asking ? 0.55 : 0, dt);
 
     // The object sways gently, never a full turn - the reader never sees the
-    // spine-side or the back of the book. The ring alone spins freely.
+    // spine-side or the back of the book.
     rotor.rotation.y = Math.sin(elapsed * 0.32) * 0.4;
     rotor.rotation.x = Math.sin(elapsed * 0.21) * 0.06;
-    ring.rotation.z += dt * 0.03;
 
     const zTarget = STOPS[getStep()]?.act === 'asking' ? 6.4 : 7.2;
     const driftX = Math.sin(elapsed * 0.13) * 0.14;
@@ -364,7 +332,6 @@ function mountScene(
       else mat?.dispose?.();
     });
     glow.material.dispose();
-    core.material.dispose();
     glowTex.dispose();
     dotTex.dispose();
     // dispose() only - never forceContextLoss(): that permanently kills the
