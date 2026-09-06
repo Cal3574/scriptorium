@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useState } from 'react';
-import Markdown from 'react-markdown';
 import type { QueryDetailDto } from '@scriptorium/contracts';
 import { useApi } from '../auth/use-api';
 import { MUTED, problemMessage } from '../books/problem';
+import { SummaryProse } from '../components/prose/summary-prose';
 
 // One past query, opened from history: the full question, its answer and
 // citations (or a "failed" state when `answer` is null), and the retrieved
@@ -52,7 +52,7 @@ export function QueryDetail({
       ) : (
         <>
           <div data-answer>
-            <Markdown>{query.answer}</Markdown>
+            <SummaryProse markdown={query.answer} />
           </div>
 
           {query.citations.length > 0 && (

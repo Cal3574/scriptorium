@@ -9,7 +9,7 @@ describe('FakeQueue', () => {
     await q.enqueueDelete({ bookId });
     expect(q.recorded).toEqual([
       { name: 'ingest', jobId: bookId, data: { bookId } },
-      { name: 'delete', jobId: `delete:${bookId}`, data: { bookId } },
+      { name: 'delete', jobId: `delete-${bookId}`, data: { bookId } },
     ]);
   });
 

@@ -56,21 +56,37 @@ buckets.
 
 ## 3. Scoped IAM user
 
-The API only needs to put and head objects under the `books/` prefix. Save as
-`policy.json` (substitute the bucket name):
+The API puts and heads objects under the `books/` prefix; the worker's
+`delete` job removes them when a reader hard-deletes a book, so
+`s3:DeleteObject` is required too. Save as `policy.json` (substitute the
+bucket name):
 
 ```json
 {
   "Version": "2012-10-17",
   "Statement": [
     {
-      "Sid": "PresignAndVerifyUploads",
+      "Sid": "PresignVerifyAndDeleteUploads",
       "Effect": "Allow",
-      "Action": ["s3:PutObject", "s3:GetObject", "s3:HeadObject"],
+      "Action": [
+        "s3:PutObject",
+        "s3:GetObject",
+        "s3:HeadObject",
+        "s3:DeleteObject"
+      ],
       "Resource": "arn:aws:s3:::scriptorium-uploads-dev/books/*"
     }
   ]
 }
+```
+
+An IAM user created before hard-delete landed will be missing
+`s3:DeleteObject` - every `delete` job then fails with `AccessDenied` and the
+book is stuck in `deleting`. Re-apply the policy to fix an existing user:
+
+```sh
+aws iam put-user-policy --user-name scriptorium-api-dev \
+  --policy-name scriptorium-uploads --policy-document file://policy.json
 ```
 
 ```sh

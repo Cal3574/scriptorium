@@ -1,24 +1,33 @@
 import { lazy, type ComponentType } from 'react';
 import { registerRemotes, loadRemote } from '@module-federation/runtime';
 
-// The providers this consumer loads at runtime. Edit `entry` to point at a
-// different URL (`remoteEntry.js` is what every supported bundler emits at dev
-// + build time). `name` is the provider build's federation container name and
-// must match the provider's federation `name`; `alias` is the key you pass to
-// loadRemote()/lazyProvider().
-const PROVIDERS: Array<{ alias: string; name: string; entry: string }> = [
-  {
-    alias: 'my-provider',
-    name: 'my_provider',
-    entry: 'http://localhost:5101/remoteEntry.js',
-  },
-];
+import { env } from './env';
 
-// `type: 'module'` is required because the providers in this workspace are
-// vite-built and emit ESM remoteEntry.js. The federation runtime would load
-// it as a classic `<script>` tag otherwise and the browser would throw
-// `Cannot use import statement outside a module` (#RUNTIME-001).
-registerRemotes(PROVIDERS.map((remote) => ({ ...remote, type: 'module' })));
+// The `my-provider` remote is external and optional (see env.ts). It is
+// registered only when `VITE_PROVIDER_REMOTE_URL` points at a running
+// `remoteEntry.js`; with the var unset - the normal local dev and CI case -
+// nothing is registered and the consumer never tries to mount it, so a
+// missing remote is silent rather than a page-wide error.
+//
+// `name` is the provider build's federation container name and must match the
+// remote's federation `name`; `alias` is the key passed to
+// loadRemote()/lazyProvider().
+export const hasProviderRemote = env.providerRemoteUrl !== null;
+
+if (hasProviderRemote) {
+  // `type: 'module'` is required because the providers in this workspace are
+  // vite-built and emit ESM remoteEntry.js. The federation runtime would load
+  // it as a classic `<script>` tag otherwise and the browser would throw
+  // `Cannot use import statement outside a module` (#RUNTIME-001).
+  registerRemotes([
+    {
+      alias: 'my-provider',
+      name: 'my_provider',
+      entry: env.providerRemoteUrl as string,
+      type: 'module',
+    },
+  ]);
+}
 
 export function lazyProvider<Props = unknown>(
   alias: string,

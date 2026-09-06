@@ -1,0 +1,305 @@
+@import 'tailwindcss';
+@import 'tw-animate-css';
+
+/* Scriptorium design tokens - source of truth is the resolution comment on
+ * Cal3574/scriptorium#52 (amended by its `.dark` correction). Hex/rgb values
+ * are final and must not be re-picked downstream; components style through
+ * these tokens only, never raw colours.
+ *
+ * Dark is the `.dark` class on <html>, toggled pre-paint by the script owned
+ * by #53. Absence of the class = light. */
+
+@custom-variant dark (&:is(.dark *));
+
+:root {
+  /* ---- light: the default, no selector ---- */
+  --background: #f8f8f9;
+  --foreground: #1a1c22;
+  --card: #ffffff;
+  --card-foreground: #1a1c22;
+  --popover: #ffffff;
+  --popover-foreground: #1a1c22;
+  --muted: #eef0f2;
+  --muted-foreground: #6a6d78;
+  --primary: #3d5a80;
+  --primary-foreground: #ffffff;
+  --secondary: #eceef1;
+  --secondary-foreground: #1a1c22;
+  --accent: #eef1f5; /* shadcn "accent" = subtle hover fill, NOT the brand colour */
+  --accent-foreground: #1a1c22;
+  --destructive: #b0413a;
+  --destructive-foreground: #ffffff;
+  --border: #e4e5e9;
+  --input: #d9dbe0; /* input/control border */
+  --ring: #3d5a80;
+
+  /* ---- status extension (ours) ---- */
+  --status-pending: #6a6d78; /* queued */
+  --status-progress: #9a6a1c; /* ingesting */
+  --status-ready: #15803d; /* ready */
+  --status-failed: #b0413a; /* failed (== destructive) */
+  --status-pending-soft: #ececee;
+  --status-progress-soft: #f6ecd9;
+  --status-ready-soft: #e3f0e8;
+  --status-failed-soft: #f6e4e2;
+
+  /* ---- radius ---- */
+  --radius: 0.375rem; /* 6px base */
+
+  /* ---- shadow (near-zero, per #50) ---- */
+  --shadow-xs: 0 1px 2px 0 rgb(0 0 0 / 0.04);
+  --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.06), 0 1px 3px 0 rgb(0 0 0 / 0.05);
+
+  /* ---- layout ---- */
+  --container-app: 70rem; /* 1120px - Library, History, BookDetail, shell inner */
+  --measure: 68ch; /* ~620px - Ask answer + book/chapter summary prose */
+  --header-height: 3.5rem; /* 56px */
+  --shell-gutter: 1.5rem; /* desktop side padding; 1rem below md */
+
+  /* ---- z-index layers ---- */
+  --z-header: 30; /* sticky top bar */
+  --z-dropdown: 40; /* nav menu, user menu, any DropdownMenu */
+  --z-overlay: 50; /* mobile-nav sheet backdrop */
+  --z-sheet: 51; /* mobile-nav sheet panel */
+  --z-toast: 60; /* toasts / transient alerts */
+
+  color-scheme: light;
+}
+
+.dark {
+  --background: #0e0f13;
+  --foreground: #e5e7ec;
+  --card: #16171c;
+  --card-foreground: #e5e7ec;
+  --popover: #16171c;
+  --popover-foreground: #e5e7ec;
+  --muted: #1e2027;
+  --muted-foreground: #878b98;
+  --primary: #7d9dc4;
+  --primary-foreground: #0e0f13;
+  --secondary: #22242c;
+  --secondary-foreground: #e5e7ec;
+  --accent: #20222a;
+  --accent-foreground: #e5e7ec;
+  --destructive: #d9736b;
+  --destructive-foreground: #0e0f13;
+  --border: #24262e;
+  --input: #2f323b;
+  --ring: #7d9dc4;
+
+  --status-pending: #878b98;
+  --status-progress: #cf9a45;
+  --status-ready: #5fb07d;
+  --status-failed: #d9736b;
+  --status-pending-soft: #1e2027;
+  --status-progress-soft: #2a2412;
+  --status-ready-soft: #12241a;
+  --status-failed-soft: #241615;
+
+  --shadow-xs: 0 1px 2px 0 rgb(0 0 0 / 0.3);
+  --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.4), 0 1px 3px 0 rgb(0 0 0 / 0.3);
+
+  color-scheme: dark;
+}
+
+/* Expose tokens to Tailwind's utility scale (bg-card, text-muted-foreground,
+ * rounded-lg, font-serif, shadow-xs, max-w-container-app ...). */
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+
+  --color-status-pending: var(--status-pending);
+  --color-status-progress: var(--status-progress);
+  --color-status-ready: var(--status-ready);
+  --color-status-failed: var(--status-failed);
+  --color-status-pending-soft: var(--status-pending-soft);
+  --color-status-progress-soft: var(--status-progress-soft);
+  --color-status-ready-soft: var(--status-ready-soft);
+  --color-status-failed-soft: var(--status-failed-soft);
+
+  --radius-sm: calc(var(--radius) - 4px); /* 2px */
+  --radius-md: calc(var(--radius) - 2px); /* 4px - chips, buttons, inputs */
+  --radius-lg: var(--radius); /* 6px - panels, cards, menus */
+  --radius-xl: calc(var(--radius) + 4px); /* 10px - future use */
+
+  --shadow-xs: var(--shadow-xs);
+  --shadow-sm: var(--shadow-sm);
+
+  --container-app: var(--container-app);
+
+  --font-sans:
+    ui-sans-serif, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
+    Helvetica, Arial, sans-serif;
+  --font-serif: 'Fraunces', Georgia, 'Times New Roman', serif;
+  --font-mono:
+    'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+}
+
+/* Shared prose styling for every `react-markdown` output - book summaries,
+ * chapter deep-dives, query answers - rendered only through `<SummaryProse>`
+ * (scriptorium#62). Hand-rolled against the #52 tokens rather than
+ * `@tailwindcss/typography` so it stays on our type scale. One rule set:
+ * dark mode is a free recompute because the tokens redefine under `.dark`. */
+.prose {
+  max-width: var(--measure); /* 68ch reading measure */
+  color: var(--foreground);
+  font-family: var(--font-sans);
+  font-size: 0.875rem; /* 14px */
+  line-height: 1.6;
+}
+
+.prose > :first-child {
+  margin-top: 0;
+}
+.prose > :last-child {
+  margin-bottom: 0;
+}
+
+.prose h1,
+.prose h2,
+.prose h3,
+.prose h4 {
+  font-family: var(--font-serif);
+  font-weight: 600;
+  line-height: 1.25;
+  margin: 1.6em 0 0.5em;
+}
+.prose h1 {
+  font-size: 1.5rem;
+}
+.prose h2 {
+  font-size: 1.25rem;
+}
+.prose h3 {
+  font-size: 1.0625rem;
+}
+.prose h4 {
+  font-size: 0.9375rem;
+}
+
+.prose p,
+.prose ul,
+.prose ol,
+.prose blockquote,
+.prose pre,
+.prose table {
+  margin: 0.75em 0;
+}
+
+.prose ul,
+.prose ol {
+  padding-left: 1.5em;
+}
+.prose ul {
+  list-style: disc;
+}
+.prose ol {
+  list-style: decimal;
+}
+.prose li {
+  margin: 0.25em 0;
+}
+.prose li::marker {
+  color: var(--muted-foreground);
+}
+
+.prose a {
+  color: var(--primary);
+  text-decoration: none;
+}
+.prose a:hover {
+  text-decoration: underline;
+}
+.prose a:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+.prose code {
+  font-family: var(--font-mono);
+  font-size: 0.85em;
+  background: var(--muted);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 0.1em 0.35em;
+}
+.prose pre {
+  font-family: var(--font-mono);
+  background: var(--muted);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 0.85em 1em;
+  overflow-x: auto;
+}
+.prose pre code {
+  background: none;
+  border: 0;
+  border-radius: 0;
+  padding: 0;
+  font-size: 0.8125rem;
+}
+
+.prose blockquote {
+  border-left: 2px solid var(--primary);
+  padding-left: 1em;
+  color: var(--muted-foreground);
+}
+
+.prose hr {
+  border: 0;
+  border-top: 1px solid var(--border);
+  margin: 2em 0;
+}
+
+.prose table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.8125rem;
+}
+.prose th,
+.prose td {
+  border: 1px solid var(--border);
+  padding: 0.4em 0.6em;
+  text-align: left;
+}
+.prose th {
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--muted-foreground);
+}
+.prose td:not(:first-child) {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+.prose img {
+  max-width: 100%;
+  height: auto;
+}

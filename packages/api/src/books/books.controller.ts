@@ -208,7 +208,7 @@ export class BooksController {
   // and removes the row (Postgres cascades chapters/chunks and nulls
   // `queries.book_id`). Returns `202` with an empty body; an unknown or
   // unowned id is an identical `404`. Fully idempotent: `markDeleting` is a
-  // no-op transition and the queue de-dupes on `jobId = delete:<bookId>`, so a
+  // no-op transition and the queue de-dupes on `jobId = delete-<bookId>`, so a
   // repeat call (or a retry after a partial failure) is a safe `202` that
   // re-drives the delete rather than a dead end.
   @Delete(':id')

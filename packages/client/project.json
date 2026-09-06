@@ -19,6 +19,11 @@
         "command": "vite build",
         "cwd": "packages/client"
       }
+    },
+    "test": {
+      "options": {
+        "passWithNoTests": true
+      }
     }
   }
 }

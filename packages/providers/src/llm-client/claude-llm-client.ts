@@ -3,7 +3,8 @@ import type { LlmClient, LlmRequest } from './llm-client.js';
 
 // The RAG spec pins synthesis to `claude-sonnet-5` with `max_tokens: 1500` and
 // no temperature override; chapter detection's identify-book call uses the same
-// model. Both are overridable per request / per construction.
+// model. Both are overridable per request (`LlmRequest.model`) / per
+// construction - the chapter deep-dive stage overrides it with a cheaper model.
 const DEFAULT_MODEL = 'claude-sonnet-5';
 const DEFAULT_MAX_TOKENS = 1500;
 
@@ -25,7 +26,7 @@ export class ClaudeLlmClient implements LlmClient {
     request: LlmRequest,
   ): Anthropic.MessageCreateParamsNonStreaming {
     return {
-      model: this.model,
+      model: request.model ?? this.model,
       max_tokens: request.maxTokens ?? DEFAULT_MAX_TOKENS,
       ...(request.system ? { system: request.system } : {}),
       messages: request.messages.map((m) => ({
