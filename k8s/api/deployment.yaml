@@ -23,6 +23,10 @@ spec:
       labels:
         app: api
     spec:
+      # Pull from GHCR; the packages are private. The `ghcr-pull` Secret is
+      # created out of band, once per namespace (see k8s/README.md).
+      imagePullSecrets:
+        - name: ghcr-pull
       # The schema migration is a separate pre-deploy Job (k8s/migrator). This
       # only waits for Postgres to accept TCP so a rescheduled pod does not
       # crash-loop while the DB is still coming up.

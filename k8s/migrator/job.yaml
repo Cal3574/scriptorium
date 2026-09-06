@@ -25,6 +25,10 @@ spec:
         app: migrator
     spec:
       restartPolicy: Never
+      # Private GHCR packages; `ghcr-pull` Secret created out of band (see
+      # k8s/README.md).
+      imagePullSecrets:
+        - name: ghcr-pull
       initContainers:
         - name: wait-for-postgres
           image: busybox:1.36

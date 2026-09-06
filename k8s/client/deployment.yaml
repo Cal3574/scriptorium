@@ -22,6 +22,10 @@ spec:
       labels:
         app: client
     spec:
+      # Private GHCR packages; `ghcr-pull` Secret created out of band (see
+      # k8s/README.md).
+      imagePullSecrets:
+        - name: ghcr-pull
       containers:
         - name: client
           image: ghcr.io/cal3574/scriptorium-client:latest # tag set by k8s/kustomization.yaml; CI bumps it per release

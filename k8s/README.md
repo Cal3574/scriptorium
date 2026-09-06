@@ -18,6 +18,33 @@ ArgoCD (`argocd/application.yaml`) reconciles this directory on the `main` branc
 | `migrator/job.yaml`          | drizzle migration Job. ArgoCD PreSync hook.                                |
 | `ingress.yaml`               | Traefik Ingress. `/api` + `/health` -> api, `/` -> client.                 |
 | `kustomization.yaml`         | The deployable set + the `images:` tag block CI bumps per release.         |
+| `bootstrap/`                 | One-time cluster-scoped setup, applied by hand (not in the kustomization). |
+
+## Cluster prerequisites
+
+One-time setup on the cluster, none of it namespaced to `scriptorium`:
+
+1. **DNS** - an `A` record for `scriptorium-ai.com` pointing at the k3s
+   node's public IP. HTTP-01 cert issuance and all ingress traffic depend on
+   it resolving.
+
+2. **cert-manager + the ClusterIssuer** - see the header of
+   `bootstrap/cluster-issuer.yaml`. Install cert-manager, set a real `email:`
+   in that file, then `kubectl apply -f k8s/bootstrap/cluster-issuer.yaml`.
+   `ingress.yaml` refers to it as `letsencrypt-prod`.
+
+3. **GHCR pull secret** - the `scriptorium-*` packages are private, and every
+   workload pod references an `imagePullSecrets` entry named `ghcr-pull`.
+   Create it once in the namespace with a GitHub PAT (classic, scope
+   `read:packages`) or a fine-grained token with package read:
+
+   ```sh
+   kubectl -n scriptorium create secret docker-registry ghcr-pull \
+     --docker-server=ghcr.io \
+     --docker-username=<github-username> \
+     --docker-password=<PAT> \
+     --docker-email=<any-email>
+   ```
 
 ## First-time bring-up
 
@@ -25,7 +52,8 @@ ArgoCD (`argocd/application.yaml`) reconciles this directory on the `main` branc
 # 1. Namespace
 kubectl apply -f k8s/namespace.yaml
 
-# 2. Secrets - fill in the real values first (never committed)
+# 2. Secrets - fill in the real values first (never committed).
+#    ghcr-pull: see "Cluster prerequisites" above.
 cp k8s/postgres/secret.example.yaml k8s/postgres/secret.yaml
 cp k8s/shared/secret.example.yaml   k8s/shared/secret.yaml
 $EDITOR k8s/postgres/secret.yaml k8s/shared/secret.yaml   # POSTGRES_PASSWORD must match DATABASE_URL
@@ -49,7 +77,8 @@ flow above waits on the Job before moving on. ArgoCD does honour the hook.
 
 ```sh
 kubectl apply -f k8s/namespace.yaml
-kubectl apply -f k8s/postgres/secret.yaml -f k8s/shared/secret.yaml   # still out of band
+# secrets + ghcr-pull still out of band (see "Cluster prerequisites")
+kubectl apply -f k8s/postgres/secret.yaml -f k8s/shared/secret.yaml
 kubectl apply -n argocd -f argocd/application.yaml
 ```
 

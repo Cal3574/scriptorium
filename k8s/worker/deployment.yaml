@@ -25,6 +25,10 @@ spec:
       labels:
         app: worker
     spec:
+      # Private GHCR packages; `ghcr-pull` Secret created out of band (see
+      # k8s/README.md).
+      imagePullSecrets:
+        - name: ghcr-pull
       terminationGracePeriodSeconds: 300
       initContainers:
         - name: wait-for-deps
