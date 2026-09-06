@@ -22,13 +22,18 @@ function mulberry32(seed: number): () => number {
   };
 }
 
-export function makeSeeds(): PointSeed[] {
+function makeSeeds(): PointSeed[] {
   const rand = mulberry32(0x5c1b7);
   return Array.from({ length: POINT_COUNT }, () => ({
     book: (rand() < 0.4 ? 1 : 0) as 0 | 1,
     r: [rand(), rand(), rand()] as [number, number, number],
   }));
 }
+
+// One shared, deterministic set - every part of the scene that reads point
+// data (the cloud, the question's nearest-neighbour lines) must see exactly
+// the same points, and computing it once keeps that guaranteed.
+export const SEEDS: PointSeed[] = makeSeeds();
 
 // ~5 evenly spread indices, mixed across both books, that survive the re-rank.
 export const KEPT = new Set([37, 96, 188, 205, 331, 402]);
@@ -85,32 +90,33 @@ export function computeTarget(
 
     switch (stopId) {
       case 'upload': {
-        // A tight book-shaped shell, with a thin column rising above it.
-        if (i % 7 === 0) {
-          x = gauss(s.r[0]) * 0.12;
-          y = 1.3 + s.r[1] * 1.1;
-          z = gauss(s.r[2]) * 0.12;
+        // A faint shimmer hugging the book's front cover, plus a thin column
+        // of motes settling onto it from above.
+        if (i % 6 === 0) {
+          x = gauss(s.r[0]) * 0.06;
+          y = 1.15 + s.r[1] * 1.4;
+          z = 0.17;
         } else {
-          x = gauss(s.r[0]) * 0.78;
-          y = gauss(s.r[1]) * 1.05;
-          z = gauss(s.r[2]) * 0.18;
+          x = gauss(s.r[0]) * 0.66;
+          y = gauss(s.r[1]) * 0.92;
+          z = 0.17 + gauss(s.r[2]) * 0.02;
         }
         break;
       }
       case 'text': {
-        // Points flow into ~11 horizontal lines across the page.
+        // Points resolve into ~11 lines of text across the front cover.
         const row = i % 11;
-        x = gauss(s.r[0]) * 0.92;
-        y = 0.95 - row * 0.19 + gauss(s.r[1]) * 0.015;
-        z = gauss(s.r[2]) * 0.05;
+        x = -0.6 + (((i * 53) % 100) / 100) * 1.2;
+        y = 0.86 - row * 0.17 + gauss(s.r[1]) * 0.01;
+        z = 0.175;
         break;
       }
       case 'chapters': {
-        // Four stacked slabs with clear gaps between them.
+        // Four stacked bands inside the book's footprint, with gaps.
         const slab = i % 4;
-        x = gauss(s.r[0]) * 0.85;
-        y = 1.05 - slab * 0.7 + gauss(s.r[1]) * 0.11;
-        z = gauss(s.r[2]) * 0.14;
+        x = gauss(s.r[0]) * 0.62;
+        y = 0.78 - slab * 0.52 + gauss(s.r[1]) * 0.08;
+        z = 0.1 + gauss(s.r[2]) * 0.06;
         break;
       }
       case 'passages': {
@@ -178,21 +184,34 @@ export function computeTarget(
   return { pos, col };
 }
 
-// The book mesh opacity per stop - solid while the book is still a book,
-// gone once it has become a cloud.
+// The book mesh opacity per stop - solid while the book is still a book, gone
+// once it has become a cloud. Paired with `pointCloudOpacityFor` so exactly
+// one of the two ever dominates: the object is always reading as one thing.
 export function bookOpacityFor(stopId: string | undefined): number {
   switch (stopId) {
     case 'upload':
-    case 'text':
       return 1;
+    case 'text':
+      return 0.92;
     case 'chapters':
-      return 0.55;
+      return 0.4;
     case 'passages':
-      return 0.18;
-    case 'ask':
-      return 0.12;
+      return 0.08;
     default:
       return 0;
+  }
+}
+
+export function pointCloudOpacityFor(stopId: string | undefined): number {
+  switch (stopId) {
+    case 'upload':
+      return 0.35;
+    case 'text':
+      return 0.7;
+    case 'chapters':
+      return 0.9;
+    default:
+      return 1;
   }
 }
 

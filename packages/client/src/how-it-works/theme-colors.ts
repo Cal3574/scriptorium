@@ -18,9 +18,3 @@ export const SCENE_COLORS: SceneColors = {
   foreground: '#e5e7ec', // .dark --foreground
   background: '#0e0f13', // .dark --background
 };
-
-// Kept as a hook so call sites read naturally and a future theme-reactive
-// implementation is a drop-in; today the stage palette is fixed.
-export function useSceneColors(): SceneColors {
-  return SCENE_COLORS;
-}

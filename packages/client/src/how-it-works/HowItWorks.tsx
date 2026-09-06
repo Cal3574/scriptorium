@@ -1,12 +1,11 @@
 import type { ReactNode } from 'react';
 import { Link } from 'react-router';
-import { motion } from 'motion/react';
 
 import { Button } from '@/components/ui/button';
 import { HERO, RECAP, STOPS } from './stops';
 import { PinnedStage } from './PinnedStage';
 import { useActiveStep } from './use-active-step';
-import { usePrefersReducedMotion } from './use-prefers-reduced-motion';
+import { useIsDesktop } from './use-is-desktop';
 
 // The "How it works" page (#83): the whole pipeline as one continuous,
 // scroll-driven journey. Short text panels move past a single pinned visual -
@@ -23,6 +22,9 @@ const ACT_LABELS = {
   asking: 'Asking a question',
 } as const;
 
+// A stop panel. Deliberately plain and always visible - the movement on this
+// page is the pinned 3-D stage, not the text. Kept tall so each stop holds the
+// centre of the viewport for a while and the stage has room to morph.
 function Panel({
   register,
   children,
@@ -30,35 +32,19 @@ function Panel({
   register: (el: HTMLElement | null) => void;
   children: ReactNode;
 }) {
-  const className =
-    'flex min-h-[70vh] flex-col justify-center py-10 lg:min-h-screen';
-
-  // Reduced motion (or no scripting): a plain section, end state, no gate.
-  if (usePrefersReducedMotion()) {
-    return (
-      <section ref={register} className={className}>
-        {children}
-      </section>
-    );
-  }
-
   return (
-    <motion.section
+    <section
       ref={register}
-      className={className}
-      initial={{ opacity: 0, y: 24 }}
-      whileInView={{ opacity: 1, y: 0 }}
-      viewport={{ once: true, amount: 0.4 }}
-      transition={{ duration: 0.5 }}
+      className="flex min-h-[64vh] flex-col justify-center py-12"
     >
       {children}
-    </motion.section>
+    </section>
   );
 }
 
-// The stage is a deliberate dark "viewport into the machine" in both app
-// themes - the `dark` scope makes its tokens and the 3-D palette resolve dark,
-// so the glow reads and dark mode never flashes a light panel.
+// A dark "viewport into the machine" in both app themes - the `dark` scope
+// makes its tokens and the 3-D palette resolve dark, so the glow reads and
+// dark mode never flashes a light panel.
 function Stage({ step }: { step: number }) {
   return (
     <div className="dark bg-background border-border relative h-full w-full overflow-hidden rounded-2xl border">
@@ -69,9 +55,10 @@ function Stage({ step }: { step: number }) {
 
 export function HowItWorks() {
   const { activeStep, register } = useActiveStep(STOPS.length);
+  const isDesktop = useIsDesktop();
 
   return (
-    <div className="relative isolate -my-8 overflow-x-clip pt-8 pb-8">
+    <div className="relative -my-8 overflow-x-clip py-8">
       {/* Page-wide ambient glow, kept faint so light mode stays calm. */}
       <div
         aria-hidden="true"
@@ -100,19 +87,21 @@ export function HowItWorks() {
       </header>
 
       {/* Mobile: the pinned stage as a sticky band under the top bar. */}
-      <div className="bg-background/80 border-border/60 sticky top-(--header-height) z-10 -mx-4 mb-6 h-56 border-y px-3 py-3 backdrop-blur lg:hidden">
-        <Stage step={activeStep} />
-      </div>
+      {!isDesktop && (
+        <div className="bg-background/80 border-border/60 sticky top-(--header-height) z-10 -mx-4 mb-6 h-64 border-y p-2 backdrop-blur">
+          <Stage step={activeStep} />
+        </div>
+      )}
 
       {/* Desktop: break out of the app's content column for a wide band. */}
       <div className="lg:relative lg:left-1/2 lg:w-screen lg:-translate-x-1/2">
-        <div className="mx-auto max-w-[95rem] px-4 lg:px-8">
-          <div className="lg:grid lg:grid-cols-[minmax(0,26rem)_minmax(0,1fr)] lg:gap-16 xl:gap-24">
+        <div className="mx-auto max-w-[95rem] px-4 lg:px-10">
+          <div className="lg:grid lg:grid-cols-[minmax(0,24rem)_minmax(0,1fr)] lg:gap-16 xl:gap-24">
             <div>
               {STOPS.map((stop, i) => (
                 <div key={stop.id}>
                   {(i === 0 || STOPS[i - 1].act !== stop.act) && (
-                    <p className="text-muted-foreground border-border mt-6 border-t pt-6 font-mono text-xs tracking-[0.2em] uppercase first:mt-0 first:border-0 first:pt-0">
+                    <p className="text-muted-foreground border-border mt-8 border-t pt-8 font-mono text-xs tracking-[0.2em] uppercase first:mt-0 first:border-0 first:pt-0">
                       {ACT_LABELS[stop.act]}
                     </p>
                   )}
@@ -131,11 +120,13 @@ export function HowItWorks() {
               ))}
             </div>
 
-            <div className="hidden lg:block">
-              <div className="sticky top-[calc(var(--header-height)+2.5rem)] h-[min(80vh,680px)]">
-                <Stage step={activeStep} />
+            {isDesktop && (
+              <div>
+                <div className="sticky top-[calc(var(--header-height)+2.5rem)] h-[min(78vh,660px)]">
+                  <Stage step={activeStep} />
+                </div>
               </div>
-            </div>
+            )}
           </div>
         </div>
       </div>
