@@ -42,8 +42,9 @@ function Panel({
   );
 }
 
-// No frame, no fill - the stage is transparent and inherits the page theme so
-// the book and its glow read as part of the page, continuous with the text.
+// No frame, no fill - the scene is transparent and sits straight on the page
+// in dark mode; in light mode `PinnedStage` lays down a soft dark backdrop
+// behind the 3-D scene so its pale points stay visible.
 function Stage({ step }: { step: number }) {
   return (
     <div className="relative h-full w-full">

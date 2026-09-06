@@ -10,9 +10,8 @@ import {
   RenderPass,
 } from 'postprocessing';
 
-import { useTheme } from '../theme';
 import { STOPS } from './stops';
-import { readSceneColors, type SceneColors } from './theme-colors';
+import { SCENE_COLORS } from './theme-colors';
 import {
   QUESTION_POINT,
   SEEDS,
@@ -80,13 +79,15 @@ function radialTexture(stops: [number, string][]): THREE.Texture {
   return tex;
 }
 
+const C = SCENE_COLORS;
+const blend = THREE.AdditiveBlending;
+
 // Builds the whole scene onto `canvas`, drives it, and returns a teardown.
 // `getStep` is read every frame so step changes never remount anything.
 function mountScene(
   canvas: HTMLCanvasElement,
   host: HTMLElement,
   getStep: () => number,
-  C: SceneColors,
 ): () => void {
   const renderer = new THREE.WebGLRenderer({
     canvas,
@@ -96,17 +97,13 @@ function mountScene(
     powerPreference: 'high-performance',
   });
   renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
-  // Transparent canvas - the page background shows through so the scene reads
-  // as part of the page, not a boxed viewport.
+  // Transparent canvas: in dark theme the page shows through; in light theme
+  // the stage's own dark backdrop shows through (see `HowItWorks`).
   renderer.setClearColor(0x000000, 0);
 
-  // Additive glow only works on a dark ground; light theme uses normal blend.
-  const blend = C.isDark ? THREE.AdditiveBlending : THREE.NormalBlending;
-  const glowOpacity = C.isDark ? 1 : 0.45;
-
   const scene = new THREE.Scene();
-  // Fog to the page colour so anything far just dissolves into the page - no
-  // horizon, no visible extent to the "scene".
+  // Fog to the ground colour so anything far just dissolves away - no horizon,
+  // no visible extent to the "scene".
   scene.fog = new THREE.Fog(C.background, 6, 13);
 
   const camera = new THREE.PerspectiveCamera(38, 1, 0.1, 100);
@@ -145,7 +142,7 @@ function mountScene(
     map: moteTex,
     color: new THREE.Color('#e9ddc9'),
     transparent: true,
-    opacity: 0.32 * glowOpacity,
+    opacity: 0.32,
     depthWrite: false,
     sizeAttenuation: true,
     blending: blend,
@@ -282,9 +279,8 @@ function mountScene(
     [0.4, 'rgba(255,255,255,0.7)'],
     [1, 'rgba(255,255,255,0)'],
   ]);
-  const pointOpacity = C.isDark ? 1 : 0.85; // scale of pointCloudOpacityFor()
   const cloudMat = new THREE.PointsMaterial({
-    size: C.isDark ? 0.085 : 0.055,
+    size: 0.085,
     map: dotTex,
     vertexColors: true,
     transparent: true,
@@ -331,7 +327,7 @@ function mountScene(
     new EffectPass(
       camera,
       new BloomEffect({
-        intensity: C.isDark ? 0.7 : 0.2,
+        intensity: 0.7,
         luminanceThreshold: 0.62,
         luminanceSmoothing: 0.3,
         mipmapBlur: true,
@@ -397,11 +393,7 @@ function mountScene(
     bookOpacity = damp(bookOpacity, bookOpacityFor(id), dt);
     for (const m of bookMats) m.opacity = bookOpacity;
     book.visible = bookOpacity > 0.02;
-    cloudMat.opacity = damp(
-      cloudMat.opacity,
-      pointCloudOpacityFor(id) * pointOpacity,
-      dt,
-    );
+    cloudMat.opacity = damp(cloudMat.opacity, pointCloudOpacityFor(id), dt);
 
     const asking = id === 'retrieve';
     probe.scale.setScalar(asking ? 1 + Math.sin(elapsed * 3.5) * 0.1 : 0.0001);
@@ -458,21 +450,19 @@ function mountScene(
 export default function Scene3D({ step }: { step: number }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const stepRef = useRef(step);
-  const { theme } = useTheme();
 
   useEffect(() => {
     stepRef.current = step;
   }, [step]);
 
-  // Rebuild the scene when the theme flips so its palette, glow and blend mode
-  // follow the page (rare event; a full rebuild is cheap and keeps the scene
-  // code stateless about theme).
+  // The scene palette is fixed (always the dark aesthetic), so this mounts
+  // once and never rebuilds on a theme toggle.
   useEffect(() => {
     const canvas = canvasRef.current;
     const host = canvas?.parentElement;
     if (!canvas || !host) return;
-    return mountScene(canvas, host, () => stepRef.current, readSceneColors());
-  }, [theme]);
+    return mountScene(canvas, host, () => stepRef.current);
+  }, []);
 
   return (
     <canvas

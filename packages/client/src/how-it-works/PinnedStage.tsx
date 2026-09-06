@@ -55,6 +55,12 @@ export function PinnedStage({ step }: { step: number }) {
     <div className="relative h-full w-full">
       {webgl ? (
         <div className="h-full w-full">
+          {/* The scene renders on a dark ground; in light theme it needs its
+              own soft dark backdrop, feathered so it is not a hard box. */}
+          <div
+            aria-hidden="true"
+            className="pointer-events-none absolute inset-0 -z-10 bg-[#0d0e12] [mask-image:radial-gradient(52%_58%_at_50%_44%,#000_28%,transparent_100%)] dark:hidden"
+          />
           <SceneBoundary step={step}>
             <Suspense fallback={<FallbackVisual step={step} />}>
               <Scene3D step={step} />
