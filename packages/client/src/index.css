@@ -279,6 +279,10 @@
   width: 100%;
   border-collapse: collapse;
   font-size: 0.8125rem;
+  /* react-markdown emits a bare <table>; make it its own scroll container so a
+   * wide GFM table never widens the page or gets clipped inside an accordion. */
+  display: block;
+  overflow-x: auto;
 }
 .prose th,
 .prose td {

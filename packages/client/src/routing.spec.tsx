@@ -261,3 +261,59 @@ test('a history load failure surfaces in an alert', async () => {
   const alert = await screen.findByRole('alert');
   expect(alert).toHaveTextContent(/couldn't load your questions/i);
 });
+
+test('a past query renders its citations and retrieved passages', async () => {
+  mockApi.mockImplementation(async (path: string) => {
+    if (path === '/api/v1/queries/q1')
+      return jsonRes({
+        ...QUERY,
+        citations: [
+          {
+            chunkId: 'c1',
+            bookTitle: 'Deep Work',
+            chapterTitle: 'Rules',
+            chunkText: 'Focus is like a muscle.',
+          },
+        ],
+      });
+    return jsonRes({ code: 'not_found' }, 404);
+  });
+  renderAt('/ask/q1');
+
+  expect(await screen.findByText('Focus is a skill.')).toBeVisible();
+  expect(screen.getByRole('heading', { name: 'Citations' })).toBeVisible();
+  expect(screen.getByText('[1]')).toBeVisible();
+
+  // Passages are collapsed until the disclosure is opened.
+  await userEvent.click(
+    screen.getByRole('button', { name: /retrieved passages/i }),
+  );
+  expect(await screen.findByText('Focus is like a muscle.')).toBeVisible();
+});
+
+test('a failed past query shows an alert and re-asks via /ask?q=', async () => {
+  mockApi.mockImplementation(async (path: string) => {
+    if (path === '/api/v1/queries/q1')
+      return jsonRes({ ...QUERY, answer: null, citations: [] });
+    return jsonRes({ code: 'not_found' }, 404);
+  });
+  const router = renderAt('/ask/q1');
+
+  const alert = await screen.findByRole('alert');
+  expect(alert).toHaveTextContent(/no answer was generated/i);
+
+  await userEvent.click(screen.getByRole('button', { name: /ask again/i }));
+  expect(router.state.location.pathname).toBe('/ask');
+  expect(router.state.location.search).toBe('?q=What%20is%20focus%3F');
+});
+
+test('a past-query load failure surfaces in an alert', async () => {
+  mockApi.mockImplementation(async (path: string) => {
+    if (path === '/api/v1/queries/q1') return jsonRes({ code: 'boom' }, 500);
+    return jsonRes({ code: 'not_found' }, 404);
+  });
+  renderAt('/ask/q1');
+
+  const alert = await screen.findByRole('alert');
+  expect(alert).toHaveTextContent(/couldn't load this question/i);
+});
