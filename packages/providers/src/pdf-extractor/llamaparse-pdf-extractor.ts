@@ -14,18 +14,19 @@ import { extractPdfOutline } from './pdfjs-outline.js';
 // job lifecycle, so this adapter calls the raw endpoints - submit on `upload`,
 // poll `status`, then fetch `expand=markdown,items,metadata` - rather than the
 // SDK's blocking auto-poll. `cost_effective` is the tier the chapter-detection
-// prototype validated: clean markdown with `#`/`##` headings.
+// prototype validated: clean markdown with `#`/`##` headings. `version` is
+// required by the v2 API (pin to a dated version for reproducible parses;
+// `latest` tracks their current stable release).
 const BASE_URL = 'https://api.cloud.llamaindex.ai/api/v2';
 const TIER = 'cost_effective';
+const VERSION = 'latest';
 const POLL_INTERVAL_MS = 2_000;
 const POLL_TIMEOUT_MS = 30 * 60_000;
 
-const TERMINAL_ERROR_STATUSES = new Set([
-  'ERROR',
-  'CANCELLED',
-  'PDF_IS_BROKEN',
-  'PDF_IS_PROTECTED',
-]);
+// The v2 job-status enum, confirmed against the live API (their REST guide
+// documents only PENDING/RUNNING/COMPLETED/FAILED/CANCELLED - no
+// SUCCESS/PARTIAL_SUCCESS/ERROR as earlier drafts of this adapter assumed).
+const TERMINAL_ERROR_STATUSES = new Set(['FAILED', 'CANCELLED']);
 
 // A 429 is a rate limit (retry); other 4xx are our fault - a bad key, a
 // malformed request - and will not fix themselves (terminal).
@@ -38,31 +39,43 @@ export interface LlamaParseExtractorOptions {
   baseUrl?: string;
 }
 
-interface LlamaParseJob {
+// `POST /parse/upload` returns id/status flat at the top level.
+interface LlamaParseUploadResponse {
   id: string;
   status: string;
 }
 
-interface LlamaParseResult {
-  markdown?: string;
-  pages?: Array<{ markdown?: string; page?: number }>;
-  items?: Array<{
-    type?: string;
-    lvl?: number;
-    level?: number;
-    value?: string;
-    content?: string;
-    text?: string;
-    page?: number;
-    page_number?: number;
-  }>;
-  metadata?: {
-    page_count?: number;
-    num_pages?: number;
-    title?: string;
-    author?: string;
+// `GET /parse/{id}` nests the job fields under `job` - a different shape
+// from the upload response above. Confirmed against the live API.
+interface LlamaParseJobStatusResponse {
+  job: {
+    id: string;
+    status: string;
+    error_message?: string | null;
   };
-  job_metadata?: { page_count?: number };
+}
+
+// `GET /parse/{id}?expand=markdown,items,metadata` - each of the three
+// expansions groups its content under its own `pages` array, keyed by
+// `page_number`. Confirmed against the live API; the REST guide only
+// describes these at a high level.
+interface LlamaParseResult {
+  markdown?: {
+    pages?: Array<{ page_number?: number; markdown?: string }>;
+  };
+  items?: {
+    pages?: Array<{
+      page_number?: number;
+      items?: Array<{
+        type?: string;
+        level?: number;
+        value?: string;
+      }>;
+    }>;
+  };
+  metadata?: {
+    document?: { title?: string; author?: string };
+  };
 }
 
 function cleanString(value: unknown): string | null {
@@ -91,14 +104,19 @@ export class LlamaParseExtractor implements PdfExtractor {
     return this.toExtraction(result, outline);
   }
 
-  private async submit(input: PdfExtractInput): Promise<LlamaParseJob> {
+  private async submit(
+    input: PdfExtractInput,
+  ): Promise<LlamaParseUploadResponse> {
     const form = new FormData();
     form.append(
       'file',
       new Blob([Buffer.from(input.data)], { type: 'application/pdf' }),
       input.filename,
     );
-    form.append('configuration', JSON.stringify({ tier: TIER }));
+    form.append(
+      'configuration',
+      JSON.stringify({ tier: TIER, version: VERSION }),
+    );
     const res = await fetch(`${this.baseUrl}/parse/upload`, {
       method: 'POST',
       headers: { Authorization: `Bearer ${this.apiKey}` },
@@ -110,7 +128,7 @@ export class LlamaParseExtractor implements PdfExtractor {
         isRetryableStatus(res.status),
       );
     }
-    return (await res.json()) as LlamaParseJob;
+    return (await res.json()) as LlamaParseUploadResponse;
   }
 
   private async waitForCompletion(jobId: string): Promise<void> {
@@ -125,18 +143,14 @@ export class LlamaParseExtractor implements PdfExtractor {
           isRetryableStatus(res.status),
         );
       }
-      const { status } = (await res.json()) as LlamaParseJob;
-      if (status === 'SUCCESS' || status === 'PARTIAL_SUCCESS') return;
-      if (TERMINAL_ERROR_STATUSES.has(status)) {
+      const { job } = (await res.json()) as LlamaParseJobStatusResponse;
+      if (job.status === 'COMPLETED') return;
+      if (TERMINAL_ERROR_STATUSES.has(job.status)) {
         throw new PdfExtractionError(
-          `LlamaParse job ${jobId} ended in status ${status}`,
+          `LlamaParse job ${jobId} ended in status ${job.status}${
+            job.error_message ? `: ${job.error_message}` : ''
+          }`,
           false,
-        );
-      }
-      if (status === 'TIMEOUT') {
-        throw new PdfExtractionError(
-          `LlamaParse job ${jobId} ended in status ${status}`,
-          true,
         );
       }
       if (Date.now() > deadline) {
@@ -167,33 +181,30 @@ export class LlamaParseExtractor implements PdfExtractor {
     result: LlamaParseResult,
     outline: PdfOutlineItem[],
   ): PdfExtraction {
-    const rawPages = (result.pages ?? [])
+    const rawPages = (result.markdown?.pages ?? [])
       .map((p, index) => ({
-        page: p.page ?? index + 1,
+        page: p.page_number ?? index + 1,
         markdown: (p.markdown ?? '').trim(),
       }))
       .sort((a, b) => a.page - b.page);
 
-    const rawMarkdown =
-      result.markdown ?? rawPages.map((p) => p.markdown).join('\n\n');
+    const rawMarkdown = rawPages.map((p) => p.markdown).join('\n\n');
     const markdown = rawMarkdown.trim() + '\n';
 
-    const items: PdfHeadingItem[] = (result.items ?? [])
+    const items: PdfHeadingItem[] = (result.items?.pages ?? [])
+      .flatMap((p) =>
+        (p.items ?? []).map((item) => ({ ...item, page: p.page_number ?? 1 })),
+      )
       .filter((item) => item.type === 'heading')
       .map((item) => ({
         type: 'heading' as const,
-        level: item.lvl ?? item.level ?? 1,
-        text: (item.value ?? item.content ?? item.text ?? '').trim(),
-        page: item.page ?? item.page_number ?? 1,
+        level: item.level ?? 1,
+        text: (item.value ?? '').trim(),
+        page: item.page,
       }))
       .filter((item) => item.text.length > 0);
 
-    const pageCount =
-      result.metadata?.page_count ??
-      result.metadata?.num_pages ??
-      result.job_metadata?.page_count ??
-      rawPages.length ??
-      0;
+    const pageCount = rawPages.length;
 
     // When LlamaParse gives no per-page split, fall back to the whole book as
     // one page so downstream page-range slicing still has something to read.
@@ -201,8 +212,8 @@ export class LlamaParseExtractor implements PdfExtractor {
       rawPages.length > 0 ? rawPages : [{ page: 1, markdown }];
 
     const metadata: PdfMetadata = {
-      title: cleanString(result.metadata?.title),
-      author: cleanString(result.metadata?.author),
+      title: cleanString(result.metadata?.document?.title),
+      author: cleanString(result.metadata?.document?.author),
     };
 
     return { markdown, pages, items, outline, metadata, pageCount };
