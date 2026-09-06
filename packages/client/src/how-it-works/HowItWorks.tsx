@@ -42,18 +42,12 @@ function Panel({
   );
 }
 
-// A dark "viewport into the machine" in both app themes - the `dark` scope
-// makes its tokens and the 3-D palette resolve dark, so the glow reads and
-// dark mode never flashes a light panel. The inset ring + vignette give it a
-// framed, cinematic edge rather than a bare rectangle.
+// No frame, no fill - the stage is transparent and inherits the page theme so
+// the book and its glow read as part of the page, continuous with the text.
 function Stage({ step }: { step: number }) {
   return (
-    <div className="dark bg-background border-border/80 relative h-full w-full overflow-hidden rounded-2xl border">
+    <div className="relative h-full w-full">
       <PinnedStage step={step} />
-      <div
-        aria-hidden="true"
-        className="pointer-events-none absolute inset-0 rounded-2xl ring-1 ring-white/5 [box-shadow:inset_0_0_140px_20px_rgba(0,0,0,0.55)]"
-      />
     </div>
   );
 }
@@ -93,7 +87,7 @@ export function HowItWorks() {
 
       {/* Mobile: the pinned stage as a sticky band under the top bar. */}
       {!isDesktop && (
-        <div className="bg-background/80 border-border/60 sticky top-(--header-height) z-10 -mx-(--shell-gutter) mb-6 h-64 border-y p-2 backdrop-blur">
+        <div className="bg-background/70 sticky top-(--header-height) z-10 -mx-(--shell-gutter) mb-4 h-60 backdrop-blur-sm">
           <Stage step={activeStep} />
         </div>
       )}

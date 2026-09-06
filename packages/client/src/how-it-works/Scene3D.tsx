@@ -2,8 +2,9 @@ import { useEffect, useRef } from 'react';
 import * as THREE from 'three';
 import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
 
+import { useTheme } from '../theme';
 import { STOPS } from './stops';
-import { SCENE_COLORS } from './theme-colors';
+import { readSceneColors, type SceneColors } from './theme-colors';
 import {
   QUESTION_POINT,
   SEEDS,
@@ -22,10 +23,18 @@ import {
 // mounted when motion is allowed and WebGL is available (see `PinnedStage`);
 // always a dark viewport in both app themes (see `theme-colors.ts`).
 
-const C = SCENE_COLORS;
 const HALF_LIFE = 0.16;
 const damp = (current: number, target: number, dt: number) =>
   target + (current - target) * Math.pow(2, -dt / HALF_LIFE);
+
+function hexToRgbStr(hex: string): string {
+  const h = hex.replace('#', '');
+  const n = parseInt(
+    h.length === 3 ? h[0] + h[0] + h[1] + h[1] + h[2] + h[2] : h || '7d9dc4',
+    16,
+  );
+  return `${(n >> 16) & 255},${(n >> 8) & 255},${n & 255}`;
+}
 
 function radialTexture(stops: [number, string][]): THREE.Texture {
   const size = 128;
@@ -49,6 +58,7 @@ function mountScene(
   canvas: HTMLCanvasElement,
   host: HTMLElement,
   getStep: () => number,
+  C: SceneColors,
 ): () => void {
   const renderer = new THREE.WebGLRenderer({
     canvas,
@@ -57,25 +67,16 @@ function mountScene(
     powerPreference: 'high-performance',
   });
   renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+  // Transparent canvas - the page background shows through so the scene reads
+  // as part of the page, not a boxed viewport.
+  renderer.setClearColor(0x000000, 0);
+
+  // Additive glow only works on a dark ground; light theme uses normal blend.
+  const blend = C.isDark ? THREE.AdditiveBlending : THREE.NormalBlending;
+  const glowOpacity = C.isDark ? 1 : 0.45;
 
   const scene = new THREE.Scene();
-  scene.fog = new THREE.Fog(C.background, 8, 20);
-  // A subtle vertical wash instead of a flat fill - depth before anything
-  // else is drawn.
-  const bgCanvas = document.createElement('canvas');
-  bgCanvas.width = 4;
-  bgCanvas.height = 256;
-  const bgCtx = bgCanvas.getContext('2d');
-  if (bgCtx) {
-    const bg = bgCtx.createLinearGradient(0, 0, 0, 256);
-    bg.addColorStop(0, '#0b0c10');
-    bg.addColorStop(0.55, C.background);
-    bg.addColorStop(1, '#141824');
-    bgCtx.fillStyle = bg;
-    bgCtx.fillRect(0, 0, 4, 256);
-  }
-  const bgTex = new THREE.CanvasTexture(bgCanvas);
-  scene.background = bgTex;
+  scene.fog = new THREE.Fog(C.background, 9, 22);
 
   const camera = new THREE.PerspectiveCamera(38, 1, 0.1, 100);
   camera.position.set(0, 0.3, 6.9);
@@ -91,18 +92,19 @@ function mountScene(
   scene.add(key, rim, warm);
 
   // ---- decor ----
+  const rgb = hexToRgbStr(C.primary);
   const glowTex = radialTexture([
-    [0, 'rgba(125,157,196,0.85)'],
-    [0.45, 'rgba(125,157,196,0.22)'],
-    [1, 'rgba(125,157,196,0)'],
+    [0, `rgba(${rgb},0.85)`],
+    [0.45, `rgba(${rgb},0.22)`],
+    [1, `rgba(${rgb},0)`],
   ]);
   const glow = new THREE.Sprite(
     new THREE.SpriteMaterial({
       map: glowTex,
       transparent: true,
-      opacity: 0.7,
+      opacity: 0.7 * glowOpacity,
       depthWrite: false,
-      blending: THREE.AdditiveBlending,
+      blending: blend,
       fog: false,
     }),
   );
@@ -115,9 +117,9 @@ function mountScene(
     new THREE.SpriteMaterial({
       map: glowTex,
       transparent: true,
-      opacity: 0.5,
+      opacity: 0.5 * glowOpacity,
       depthWrite: false,
-      blending: THREE.AdditiveBlending,
+      blending: blend,
       fog: false,
     }),
   );
@@ -210,15 +212,16 @@ function mountScene(
     [0.4, 'rgba(255,255,255,0.7)'],
     [1, 'rgba(255,255,255,0)'],
   ]);
+  const pointOpacity = C.isDark ? 1 : 0.85; // scale of pointCloudOpacityFor()
   const cloudMat = new THREE.PointsMaterial({
-    size: 0.085,
+    size: C.isDark ? 0.085 : 0.055,
     map: dotTex,
     vertexColors: true,
     transparent: true,
     opacity: 0.35,
     depthWrite: false,
     sizeAttenuation: true,
-    blending: THREE.AdditiveBlending,
+    blending: blend,
     fog: false,
   });
   const cloud = new THREE.Points(cloudGeo, cloudMat);
@@ -308,7 +311,11 @@ function mountScene(
     spineMat.opacity = damp(spineMat.opacity, bo * 0.9, dt);
     seamMat.opacity = damp(seamMat.opacity, bo * 0.85, dt);
     book.visible = coverMat.opacity > 0.02;
-    cloudMat.opacity = damp(cloudMat.opacity, pointCloudOpacityFor(id), dt);
+    cloudMat.opacity = damp(
+      cloudMat.opacity,
+      pointCloudOpacityFor(id) * pointOpacity,
+      dt,
+    );
 
     const asking = id === 'retrieve';
     probe.scale.setScalar(asking ? 1 + Math.sin(elapsed * 3.5) * 0.1 : 0.0001);
@@ -360,7 +367,6 @@ function mountScene(
     core.material.dispose();
     glowTex.dispose();
     dotTex.dispose();
-    bgTex.dispose();
     // dispose() only - never forceContextLoss(): that permanently kills the
     // canvas element's GL context, so a remount (React StrictMode does one in
     // dev, and the step-driven tree can too) can't get a context back.
@@ -371,17 +377,21 @@ function mountScene(
 export default function Scene3D({ step }: { step: number }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const stepRef = useRef(step);
+  const { theme } = useTheme();
 
   useEffect(() => {
     stepRef.current = step;
   }, [step]);
 
+  // Rebuild the scene when the theme flips so its palette, glow and blend mode
+  // follow the page (rare event; a full rebuild is cheap and keeps the scene
+  // code stateless about theme).
   useEffect(() => {
     const canvas = canvasRef.current;
     const host = canvas?.parentElement;
     if (!canvas || !host) return;
-    return mountScene(canvas, host, () => stepRef.current);
-  }, []);
+    return mountScene(canvas, host, () => stepRef.current, readSceneColors());
+  }, [theme]);
 
   return (
     <canvas
