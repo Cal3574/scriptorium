@@ -61,16 +61,19 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       # The client bundle statically inlines these at build time, so the image
-      # is environment-specific. Values come from repo-level Actions
-      # variables; they are public (they ship in the browser bundle).
+      # is environment-specific. Not sensitive (they ship in the browser
+      # bundle) but stored as repo secrets, so GHA masks them in the logs.
       - name: Assemble client build args
         if: matrix.name == 'client'
         id: client_args
+        env:
+          VITE_API_URL: ${{ secrets.VITE_API_URL }}
+          VITE_CLERK_PUBLISHABLE_KEY: ${{ secrets.VITE_CLERK_PUBLISHABLE_KEY }}
         run: |
           {
             echo 'args<<EOF'
-            echo "VITE_API_URL=${{ vars.VITE_API_URL }}"
-            echo "VITE_CLERK_PUBLISHABLE_KEY=${{ vars.VITE_CLERK_PUBLISHABLE_KEY }}"
+            echo "VITE_API_URL=${VITE_API_URL}"
+            echo "VITE_CLERK_PUBLISHABLE_KEY=${VITE_CLERK_PUBLISHABLE_KEY}"
             echo EOF
           } >> "$GITHUB_OUTPUT"
 

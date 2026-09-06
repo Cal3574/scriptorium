@@ -67,5 +67,6 @@ the tag bump. ArgoCD syncs the new tags. The `images:` block in
 `newTag: latest` is the placeholder until the first release runs.
 
 The client image is environment-specific - `VITE_API_URL` and
-`VITE_CLERK_PUBLISHABLE_KEY` are inlined at build time from repo-level Actions
-variables of the same name.
+`VITE_CLERK_PUBLISHABLE_KEY` are inlined at build time from repo secrets of
+the same name (not sensitive, but kept as secrets so the build log masks
+them).
