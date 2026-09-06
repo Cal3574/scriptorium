@@ -11,7 +11,8 @@ import {
 } from 'postprocessing';
 
 import { STOPS } from './stops';
-import { SCENE_COLORS } from './theme-colors';
+import { useTheme } from '../theme';
+import { readSceneColors, type SceneColors } from './theme-colors';
 import {
   QUESTION_POINT,
   SEEDS,
@@ -79,16 +80,20 @@ function radialTexture(stops: [number, string][]): THREE.Texture {
   return tex;
 }
 
-const C = SCENE_COLORS;
-const blend = THREE.AdditiveBlending;
-
 // Builds the whole scene onto `canvas`, drives it, and returns a teardown.
 // `getStep` is read every frame so step changes never remount anything.
 function mountScene(
   canvas: HTMLCanvasElement,
   host: HTMLElement,
   getStep: () => number,
+  C: SceneColors,
 ): () => void {
+  const isDark = C.isDark;
+  // Dark theme: additive glow reads on the dark page. Light theme: normal
+  // blending so the points sit as ink on the white page instead of washing
+  // out; the colours come from the (darker) light tokens.
+  const blend = isDark ? THREE.AdditiveBlending : THREE.NormalBlending;
+
   const renderer = new THREE.WebGLRenderer({
     canvas,
     antialias: true,
@@ -97,13 +102,11 @@ function mountScene(
     powerPreference: 'high-performance',
   });
   renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
-  // Transparent canvas: in dark theme the page shows through; in light theme
-  // the stage's own dark backdrop shows through (see `HowItWorks`).
-  renderer.setClearColor(0x000000, 0);
+  renderer.setClearColor(0x000000, 0); // transparent - sits straight on the page
 
   const scene = new THREE.Scene();
-  // Fog to the ground colour so anything far just dissolves away - no horizon,
-  // no visible extent to the "scene".
+  // Fog to the page colour so anything far just dissolves into it - no
+  // horizon, no visible extent to the "scene".
   scene.fog = new THREE.Fog(C.background, 6, 13);
 
   const camera = new THREE.PerspectiveCamera(38, 1, 0.1, 100);
@@ -138,11 +141,11 @@ function mountScene(
   const dustGeo = new THREE.BufferGeometry();
   dustGeo.setAttribute('position', new THREE.BufferAttribute(dustPos, 3));
   const dustMat = new THREE.PointsMaterial({
-    size: 0.03,
+    size: isDark ? 0.03 : 0.022,
     map: moteTex,
-    color: new THREE.Color('#e9ddc9'),
+    color: new THREE.Color(isDark ? '#e9ddc9' : '#3c485c'),
     transparent: true,
-    opacity: 0.32,
+    opacity: isDark ? 0.32 : 0.4,
     depthWrite: false,
     sizeAttenuation: true,
     blending: blend,
@@ -280,11 +283,11 @@ function mountScene(
     [1, 'rgba(255,255,255,0)'],
   ]);
   const cloudMat = new THREE.PointsMaterial({
-    size: 0.085,
+    size: isDark ? 0.085 : 0.05,
     map: dotTex,
     vertexColors: true,
     transparent: true,
-    opacity: 0.35,
+    opacity: isDark ? 0.35 : 0.9,
     depthWrite: false,
     sizeAttenuation: true,
     blending: blend,
@@ -318,23 +321,28 @@ function mountScene(
   const lines = new THREE.LineSegments(lineGeo, lineMat);
   rotor.add(probe, lines);
 
-  // ---- bloom (keeps the transparent background) ----
-  const composer = new EffectComposer(renderer, {
-    frameBufferType: THREE.HalfFloatType,
-  });
-  composer.addPass(new RenderPass(scene, camera));
-  composer.addPass(
-    new EffectPass(
-      camera,
-      new BloomEffect({
-        intensity: 0.7,
-        luminanceThreshold: 0.62,
-        luminanceSmoothing: 0.3,
-        mipmapBlur: true,
-        radius: 0.7,
-      }),
-    ),
-  );
+  // Bloom only in dark theme (it would wash out the white page). `render` is
+  // the single draw call the loop, resize and visibility handlers all use.
+  const composer = isDark
+    ? new EffectComposer(renderer, { frameBufferType: THREE.HalfFloatType })
+    : null;
+  if (composer) {
+    composer.addPass(new RenderPass(scene, camera));
+    composer.addPass(
+      new EffectPass(
+        camera,
+        new BloomEffect({
+          intensity: 0.7,
+          luminanceThreshold: 0.62,
+          luminanceSmoothing: 0.3,
+          mipmapBlur: true,
+          radius: 0.7,
+        }),
+      ),
+    );
+  }
+  const render = () =>
+    composer ? composer.render() : renderer.render(scene, camera);
 
   // ---- resize / pointer / loop ----
   const resize = () => {
@@ -342,10 +350,10 @@ function mountScene(
     const h = host.clientHeight || canvas.clientHeight;
     if (!w || !h) return;
     renderer.setSize(w, h, false);
-    composer.setSize(w, h);
+    composer?.setSize(w, h);
     camera.aspect = w / h;
     camera.updateProjectionMatrix();
-    composer.render(); // repaint even if rAF is paused (hidden tab)
+    render(); // repaint even if rAF is paused (hidden tab)
   };
   resize();
   const ro = new ResizeObserver(resize);
@@ -354,7 +362,7 @@ function mountScene(
   // A backgrounded tab pauses requestAnimationFrame; paint one frame the
   // moment it is shown again so the visual is never stale.
   const onVisible = () => {
-    if (!document.hidden) composer.render();
+    if (!document.hidden) render();
   };
   document.addEventListener('visibilitychange', onVisible);
 
@@ -416,7 +424,7 @@ function mountScene(
     camera.position.z = damp(camera.position.z, zTarget, dt);
     camera.lookAt(0, 0.05, 0);
 
-    composer.render(dt);
+    render();
   };
 
   // Render frame zero synchronously so there is never a blank canvas, even
@@ -438,7 +446,7 @@ function mountScene(
     ro.disconnect();
     document.removeEventListener('visibilitychange', onVisible);
     host.removeEventListener('pointermove', onPointer);
-    composer.dispose();
+    composer?.dispose();
     disposeTree(scene);
     // dispose() only - never forceContextLoss(): that permanently kills the
     // canvas element's GL context, so a remount (React StrictMode does one in
@@ -450,19 +458,20 @@ function mountScene(
 export default function Scene3D({ step }: { step: number }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const stepRef = useRef(step);
+  const { theme } = useTheme();
 
   useEffect(() => {
     stepRef.current = step;
   }, [step]);
 
-  // The scene palette is fixed (always the dark aesthetic), so this mounts
-  // once and never rebuilds on a theme toggle.
+  // Rebuild the scene on a theme toggle so its palette, blending and bloom
+  // follow the page (a rare event; a full rebuild is cheap).
   useEffect(() => {
     const canvas = canvasRef.current;
     const host = canvas?.parentElement;
     if (!canvas || !host) return;
-    return mountScene(canvas, host, () => stepRef.current);
-  }, []);
+    return mountScene(canvas, host, () => stepRef.current, readSceneColors());
+  }, [theme]);
 
   return (
     <canvas

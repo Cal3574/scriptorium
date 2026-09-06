@@ -43,8 +43,7 @@ function Panel({
 }
 
 // No frame, no fill - the scene is transparent and sits straight on the page
-// in dark mode; in light mode `PinnedStage` lays down a soft dark backdrop
-// behind the 3-D scene so its pale points stay visible.
+// in both themes; it adapts its own palette and blending to the theme.
 function Stage({ step }: { step: number }) {
   return (
     <div className="relative h-full w-full">
