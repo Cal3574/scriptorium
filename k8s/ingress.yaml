@@ -26,10 +26,10 @@ spec:
   ingressClassName: traefik
   tls:
     - hosts:
-        - scriptorium.example.com
+        - scriptorium-ai.com
       secretName: scriptorium-tls
   rules:
-    - host: scriptorium.example.com
+    - host: scriptorium-ai.com
       http:
         paths:
           - path: /api

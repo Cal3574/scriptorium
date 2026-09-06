@@ -22,5 +22,5 @@ data:
   # The api's own public base URL (used for presigned-callback links and log
   # context) and the single browser origin allowed through CORS / accepted as
   # the Clerk token `azp`. Both must line up with the host in k8s/ingress.yaml.
-  API_URL: https://scriptorium.example.com/api/v1
-  CLIENT_ORIGIN: https://scriptorium.example.com
+  API_URL: https://scriptorium-ai.com/api/v1
+  CLIENT_ORIGIN: https://scriptorium-ai.com
