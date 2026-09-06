@@ -17,6 +17,11 @@ export interface LlmRequest {
   messages: LlmMessage[];
   // Upper bound on generated tokens. Defaults are the adapter's concern.
   maxTokens?: number;
+  // Per-call model override. Defaults to the adapter's configured model
+  // (`claude-sonnet-5`). The chapter deep-dive stage points this at a cheaper
+  // model - the per-chapter fan-out is where the ingest bill is spent, and
+  // whole-chapter summarisation does not need Sonnet.
+  model?: string;
 }
 
 export interface LlmClient {

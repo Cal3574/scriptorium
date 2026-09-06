@@ -4,6 +4,7 @@ import { pageRangeMarkdown } from '../chapter-detection/detect-chapters.js';
 import type { Stage } from '../stage.js';
 import { requireExtractionArtifact } from './extraction-artifact.js';
 import {
+  CHAPTER_SUMMARY_MODEL,
   CHAPTER_SUMMARY_SYSTEM,
   SUMMARY_MAX_TOKENS,
 } from './summary-prompts.js';
@@ -12,8 +13,10 @@ import {
 const CHAPTER_CONCURRENCY = 3;
 
 /**
- * Stage 5. One Claude deep-dive per chapter with `summary is null`,
- * `chapter_index` order, concurrency {@link CHAPTER_CONCURRENCY}, written back
+ * Stage 5. One Claude deep-dive per chapter with `summary is null`, on
+ * {@link CHAPTER_SUMMARY_MODEL} (the cheap model - this per-chapter fan-out is
+ * the bulk of the ingest bill), `chapter_index` order, concurrency
+ * {@link CHAPTER_CONCURRENCY}, written back
  * per chapter so a crash resumes on the chapters still missing a summary. The
  * chapter's raw markdown is sliced from the extraction sidecar by page range
  * (chunks are RAG-only; the deep-dive reads whole-chapter prose). A chapter
@@ -49,6 +52,7 @@ export const chapterSummaryStage: Stage = {
 
       const summary = await withRetry(() =>
         llm.complete({
+          model: CHAPTER_SUMMARY_MODEL,
           system: CHAPTER_SUMMARY_SYSTEM,
           messages: [
             {

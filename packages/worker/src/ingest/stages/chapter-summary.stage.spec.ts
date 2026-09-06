@@ -2,7 +2,10 @@ import { FakeLlmClient, FakeObjectStorage } from '@scriptorium/providers';
 import type { BookRow } from '@scriptorium/server-core';
 import { chapterSummaryStage } from './chapter-summary.stage.js';
 import { TerminalIngestError } from '../errors.js';
-import { CHAPTER_SUMMARY_SYSTEM } from './summary-prompts.js';
+import {
+  CHAPTER_SUMMARY_MODEL,
+  CHAPTER_SUMMARY_SYSTEM,
+} from './summary-prompts.js';
 import {
   extractionArtifactKey,
   saveExtractionArtifact,
@@ -116,6 +119,8 @@ describe('chapterSummaryStage', () => {
     expect(complete).toHaveBeenCalledTimes(2);
     expect(complete.mock.calls[0][0].system).toBe(CHAPTER_SUMMARY_SYSTEM);
     expect(complete.mock.calls[0][0].maxTokens).toBe(4000);
+    // The per-chapter fan-out runs on the cheap model, not the adapter default.
+    expect(complete.mock.calls[0][0].model).toBe(CHAPTER_SUMMARY_MODEL);
     expect(complete.mock.calls[0][0].messages[0].content).toContain(
       'Chapter: Chapter 1. Alpha',
     );
