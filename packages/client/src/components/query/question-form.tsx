@@ -3,7 +3,7 @@ import { Textarea } from '@/components/ui/textarea';
 
 // The Ask screen's question box (#54 inventory; user story 45): one Fraunces
 // prompt, a shadcn `Textarea`, and a single Ask `Button`. The button reads
-// "Thinking…" and is disabled while the answer streams, and is disabled on an
+// "Thinking..." and is disabled while the answer streams, and is disabled on an
 // empty question so the reader cannot fire a blank query. Submitting is the
 // only action - Enter in the textarea still inserts a newline.
 export function QuestionForm({
@@ -38,7 +38,7 @@ export function QuestionForm({
         className="mt-3"
         disabled={busy || !question.trim()}
       >
-        {busy ? 'Thinking…' : 'Ask'}
+        {busy ? 'Thinking...' : 'Ask'}
       </Button>
     </form>
   );

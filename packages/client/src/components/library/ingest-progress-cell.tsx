@@ -44,7 +44,7 @@ export function IngestProgressCell({
     if (chaptersTotal != null) parts.push(`${chaptersTotal}ch`);
     return (
       <span className="text-muted-foreground font-mono text-xs">
-        {parts.length ? parts.join(' · ') : '—'}
+        {parts.length ? parts.join(' · ') : '-'}
       </span>
     );
   }

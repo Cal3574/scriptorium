@@ -210,7 +210,7 @@ test('a library load failure surfaces in an alert', async () => {
 
 test('the active nav link reflects the route', async () => {
   renderAt('/history');
-  await screen.findByRole('heading', { name: 'Your questions' });
+  await screen.findByRole('heading', { name: 'History' });
 
   expect(screen.getByRole('link', { name: 'History' })).toHaveAttribute(
     'aria-current',
@@ -219,4 +219,104 @@ test('the active nav link reflects the route', async () => {
   expect(screen.getByRole('link', { name: 'Library' })).not.toHaveAttribute(
     'aria-current',
   );
+});
+
+test('history renders the Console worklist: row link + mono summary count', async () => {
+  renderAt('/history');
+
+  const link = await screen.findByRole('link', { name: 'What is focus?' });
+  expect(link).toHaveAttribute('href', '/ask/q1');
+  expect(screen.getByText('1 question')).toBeVisible();
+});
+
+test('a failed history row shows a failed chip and re-asks via /ask?q=', async () => {
+  mockApi.mockImplementation(async (path: string) => {
+    if (path === '/api/v1/queries')
+      return jsonRes([{ ...QUERY, failed: true }]);
+    return jsonRes({ code: 'not_found' }, 404);
+  });
+  const router = renderAt('/history');
+
+  expect(await screen.findByText('failed')).toBeVisible();
+  await userEvent.click(screen.getByRole('button', { name: /ask again/i }));
+
+  expect(router.state.location.pathname).toBe('/ask');
+  expect(router.state.location.search).toBe('?q=What%20is%20focus%3F');
+});
+
+test('an empty history shows the empty state, not a flash of nothing', async () => {
+  mockApi.mockImplementation(async (path: string) => {
+    if (path === '/api/v1/queries') return jsonRes([]);
+    return jsonRes({ code: 'not_found' }, 404);
+  });
+  renderAt('/history');
+
+  expect(await screen.findByText('No questions yet')).toBeVisible();
+});
+
+test('a history load failure surfaces in an alert', async () => {
+  mockApi.mockImplementation(async (path: string) => {
+    if (path === '/api/v1/queries') return jsonRes({ code: 'boom' }, 500);
+    return jsonRes({ code: 'not_found' }, 404);
+  });
+  renderAt('/history');
+
+  const alert = await screen.findByRole('alert');
+  expect(alert).toHaveTextContent(/couldn't load your questions/i);
+});
+
+test('a past query renders its citations and retrieved passages', async () => {
+  mockApi.mockImplementation(async (path: string) => {
+    if (path === '/api/v1/queries/q1')
+      return jsonRes({
+        ...QUERY,
+        citations: [
+          {
+            chunkId: 'c1',
+            bookTitle: 'Deep Work',
+            chapterTitle: 'Rules',
+            chunkText: 'Focus is like a muscle.',
+          },
+        ],
+      });
+    return jsonRes({ code: 'not_found' }, 404);
+  });
+  renderAt('/ask/q1');
+
+  expect(await screen.findByText('Focus is a skill.')).toBeVisible();
+  expect(screen.getByRole('heading', { name: 'Citations' })).toBeVisible();
+  expect(screen.getByText('[1]')).toBeVisible();
+
+  // Passages are collapsed until the disclosure is opened.
+  await userEvent.click(
+    screen.getByRole('button', { name: /retrieved passages/i }),
+  );
+  expect(await screen.findByText('Focus is like a muscle.')).toBeVisible();
+});
+
+test('a failed past query shows an alert and re-asks via /ask?q=', async () => {
+  mockApi.mockImplementation(async (path: string) => {
+    if (path === '/api/v1/queries/q1')
+      return jsonRes({ ...QUERY, answer: null, citations: [] });
+    return jsonRes({ code: 'not_found' }, 404);
+  });
+  const router = renderAt('/ask/q1');
+
+  const alert = await screen.findByRole('alert');
+  expect(alert).toHaveTextContent(/no answer was generated/i);
+
+  await userEvent.click(screen.getByRole('button', { name: /ask again/i }));
+  expect(router.state.location.pathname).toBe('/ask');
+  expect(router.state.location.search).toBe('?q=What%20is%20focus%3F');
+});
+
+test('a past-query load failure surfaces in an alert', async () => {
+  mockApi.mockImplementation(async (path: string) => {
+    if (path === '/api/v1/queries/q1') return jsonRes({ code: 'boom' }, 500);
+    return jsonRes({ code: 'not_found' }, 404);
+  });
+  renderAt('/ask/q1');
+
+  const alert = await screen.findByRole('alert');
+  expect(alert).toHaveTextContent(/couldn't load this question/i);
 });
