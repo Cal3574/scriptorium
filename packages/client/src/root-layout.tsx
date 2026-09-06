@@ -1,7 +1,7 @@
 import { SignIn, useAuth } from '@clerk/react';
 import { Component, Suspense, type ReactNode } from 'react';
 import { Outlet } from 'react-router';
-import { lazyProvider } from './mf';
+import { hasProviderRemote, lazyProvider } from './mf';
 import { AppShell } from './components/shell/app-shell';
 
 // ProviderBoundary catches the lazy() rejection that fires when a provider's
@@ -35,7 +35,11 @@ class ProviderBoundary extends Component<
   }
 }
 
-const ProviderMyProvider = lazyProvider('my-provider', 'App');
+// Only built when the optional external remote is configured (see mf.ts), so
+// an unset `VITE_PROVIDER_REMOTE_URL` never reaches `loadRemote()`.
+const ProviderMyProvider = hasProviderRemote
+  ? lazyProvider('my-provider', 'App')
+  : null;
 
 // The layout route: the real app shell (top bar + centred content column,
 // #61) wrapping every screen. `<Outlet />` is the active screen; screen-swap
@@ -44,9 +48,11 @@ function Shell() {
   return (
     <AppShell>
       <Outlet />
-      <ProviderBoundary name="my-provider">
-        <ProviderMyProvider />
-      </ProviderBoundary>
+      {ProviderMyProvider && (
+        <ProviderBoundary name="my-provider">
+          <ProviderMyProvider />
+        </ProviderBoundary>
+      )}
     </AppShell>
   );
 }

@@ -37,7 +37,10 @@ const mockApi = jest.fn();
 jest.mock('./auth/use-api', () => ({ useApi: () => mockApi }));
 
 // The provider remote: keep it inert.
-jest.mock('./mf', () => ({ lazyProvider: () => () => null }));
+jest.mock('./mf', () => ({
+  hasProviderRemote: false,
+  lazyProvider: () => () => null,
+}));
 
 const BOOK = {
   id: 'b1',
