@@ -258,6 +258,9 @@ importers:
       lucide-react:
         specifier: ^1.41.0
         version: 1.41.0(react@19.2.8)
+      postprocessing:
+        specifier: ^6.39.4
+        version: 6.39.4(three@0.185.1)
       radix-ui:
         specifier: ^1.6.7
         version: 1.6.7(@types/react-dom@19.2.5(@types/react@19.2.18))(@types/react@19.2.18)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
@@ -12513,6 +12516,14 @@ packages:
       }
     engines: { node: '>=0.10.0' }
 
+  postprocessing@6.39.4:
+    resolution:
+      {
+        integrity: sha512-oAS/PjAbc/xT3OzjUrGsorJ4J064XwhVD2t0OwKLP/E8QwDMUJ0oOv6ZI1SYMtLchv4g0ySEx+JcLy92+48vlA==,
+      }
+    peerDependencies:
+      three: '>= 0.168.0 < 0.186.0'
+
   prelude-ls@1.2.1:
     resolution:
       {
@@ -23681,6 +23692,10 @@ snapshots:
   postgres-interval@1.2.0:
     dependencies:
       xtend: 4.0.2
+
+  postprocessing@6.39.4(three@0.185.1):
+    dependencies:
+      three: 0.185.1
 
   prelude-ls@1.2.1: {}
 

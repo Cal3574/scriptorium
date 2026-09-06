@@ -3,6 +3,12 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import type { GLTF } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
+import {
+  BloomEffect,
+  EffectComposer,
+  EffectPass,
+  RenderPass,
+} from 'postprocessing';
 
 import { useTheme } from '../theme';
 import { STOPS } from './stops';
@@ -110,44 +116,87 @@ function mountScene(
   const scene = new THREE.Scene();
   // Fog to the page colour so anything far just dissolves into the page - no
   // horizon, no visible extent to the "scene".
-  scene.fog = new THREE.Fog(C.background, 5.5, 12);
+  scene.fog = new THREE.Fog(C.background, 6, 13);
 
   const camera = new THREE.PerspectiveCamera(38, 1, 0.1, 100);
   camera.position.set(0, 0.3, 6.9);
 
-  // Just enough light to shape the object - no environment, no floor, nothing
-  // for a wash to land on. The object floats in the page background.
-  scene.add(new THREE.AmbientLight(0xffffff, 1.15));
-  const key = new THREE.DirectionalLight(0xffffff, 2.2);
-  key.position.set(2, 3, 5);
-  const front = new THREE.DirectionalLight(0xffffff, 1.1);
-  front.position.set(-1, 0.5, 4);
-  const warm = new THREE.PointLight(C.bookB, 18);
-  warm.position.set(-3, -1, 3);
-  const cool = new THREE.PointLight(C.primary, 30);
-  cool.position.set(-4, 2, 1);
-  scene.add(key, front, warm, cool);
+  // Cinematic two-tone light: a cool key from upper-right, a gold rim from
+  // below-left, a gentle fill. No environment or floor for a wash to land on.
+  scene.add(new THREE.AmbientLight(0xffffff, 0.7));
+  scene.add(new THREE.HemisphereLight(C.primary, C.bookB, 0.4));
+  const key = new THREE.DirectionalLight('#d6e6fb', 2.7);
+  key.position.set(3, 4, 5);
+  const rim = new THREE.DirectionalLight(C.bookB, 2.4);
+  rim.position.set(-4, -1.6, -1);
+  const fill = new THREE.DirectionalLight(0xffffff, 0.55);
+  fill.position.set(-1, 1, 4);
+  scene.add(key, rim, fill);
 
-  // A single tight aura hugging the object - a hint of glow, not a lit box.
+  // ---- atmosphere: layered soft auras + a slow drifting dust field ----
   const rgb = hexToRgbStr(C.primary);
-  const glowTex = radialTexture([
-    [0, `rgba(${rgb},0.6)`],
-    [0.5, `rgba(${rgb},0.14)`],
+  const goldRgb = hexToRgbStr(C.bookB);
+  const softTex = radialTexture([
+    [0, `rgba(${rgb},0.5)`],
+    [0.5, `rgba(${rgb},0.12)`],
     [1, `rgba(${rgb},0)`],
   ]);
-  const glow = new THREE.Sprite(
-    new THREE.SpriteMaterial({
-      map: glowTex,
-      transparent: true,
-      opacity: 0.4 * glowOpacity,
-      depthWrite: false,
-      blending: blend,
-      fog: false,
-    }),
-  );
-  glow.scale.set(4, 5, 1);
-  glow.position.set(0, 0, -0.6);
-  scene.add(glow);
+  const goldTex = radialTexture([
+    [0, `rgba(${goldRgb},0.75)`],
+    [0.5, `rgba(${goldRgb},0.16)`],
+    [1, `rgba(${goldRgb},0)`],
+  ]);
+  const moteTex = radialTexture([
+    [0, 'rgba(255,255,255,1)'],
+    [0.4, 'rgba(255,255,255,0.55)'],
+    [1, 'rgba(255,255,255,0)'],
+  ]);
+
+  const makeAura = (tex: THREE.Texture, sx: number, sy: number, op: number) => {
+    const s = new THREE.Sprite(
+      new THREE.SpriteMaterial({
+        map: tex,
+        transparent: true,
+        opacity: op * glowOpacity,
+        depthWrite: false,
+        blending: blend,
+        fog: false,
+      }),
+    );
+    s.scale.set(sx, sy, 1);
+    return s;
+  };
+
+  // Just a soft halo hugging the object (no room-sized wash) and a warm pool
+  // it appears to rest on.
+  const aura = makeAura(softTex, 3, 3.8, 0.3);
+  aura.position.set(0, 0, -0.55);
+  const contact = makeAura(goldTex, 3.4, 1.2, 0.28);
+  contact.position.set(0, -1.35, -0.15);
+  scene.add(aura, contact);
+
+  const DUST = 170;
+  const dustPos = new Float32Array(DUST * 3);
+  for (let i = 0; i < DUST; i++) {
+    dustPos[i * 3] = (Math.random() - 0.5) * 11;
+    dustPos[i * 3 + 1] = (Math.random() - 0.5) * 7.5;
+    dustPos[i * 3 + 2] = (Math.random() - 0.5) * 7 - 1;
+  }
+  const dustGeo = new THREE.BufferGeometry();
+  dustGeo.setAttribute('position', new THREE.BufferAttribute(dustPos, 3));
+  const dustMat = new THREE.PointsMaterial({
+    size: 0.032,
+    map: moteTex,
+    color: new THREE.Color(C.primary),
+    transparent: true,
+    opacity: 0.5 * glowOpacity,
+    depthWrite: false,
+    sizeAttenuation: true,
+    blending: blend,
+    fog: true,
+  });
+  const dust = new THREE.Points(dustGeo, dustMat);
+  scene.add(dust);
 
   // ---- the object ----
   const rotor = new THREE.Group();
@@ -201,6 +250,10 @@ function mountScene(
   spine.position.x = -0.735;
   const book = new THREE.Group();
   book.add(pages, cover, spine);
+  // A gold bloom behind the cover so the embossed emblem catches the light.
+  const emblemGlow = makeAura(goldTex, 1.9, 2.3, 0.3);
+  emblemGlow.position.set(0, 0, 0.25);
+  book.add(emblemGlow);
   rotor.add(book);
 
   // The book's opacity is driven as one number; `bookMats` is whatever meshes
@@ -317,15 +370,34 @@ function mountScene(
   const lines = new THREE.LineSegments(lineGeo, lineMat);
   rotor.add(probe, lines);
 
+  // ---- bloom (keeps the transparent background) ----
+  const composer = new EffectComposer(renderer, {
+    frameBufferType: THREE.HalfFloatType,
+  });
+  composer.addPass(new RenderPass(scene, camera));
+  composer.addPass(
+    new EffectPass(
+      camera,
+      new BloomEffect({
+        intensity: C.isDark ? 0.85 : 0.22,
+        luminanceThreshold: 0.5,
+        luminanceSmoothing: 0.35,
+        mipmapBlur: true,
+        radius: 0.75,
+      }),
+    ),
+  );
+
   // ---- resize / pointer / loop ----
   const resize = () => {
     const w = host.clientWidth || canvas.clientWidth;
     const h = host.clientHeight || canvas.clientHeight;
     if (!w || !h) return;
     renderer.setSize(w, h, false);
+    composer.setSize(w, h);
     camera.aspect = w / h;
     camera.updateProjectionMatrix();
-    renderer.render(scene, camera); // repaint even if rAF is paused (hidden tab)
+    composer.render(); // repaint even if rAF is paused (hidden tab)
   };
   resize();
   const ro = new ResizeObserver(resize);
@@ -334,7 +406,7 @@ function mountScene(
   // A backgrounded tab pauses requestAnimationFrame; paint one frame the
   // moment it is shown again so the visual is never stale.
   const onVisible = () => {
-    if (!document.hidden) renderer.render(scene, camera);
+    if (!document.hidden) composer.render();
   };
   document.addEventListener('visibilitychange', onVisible);
 
@@ -383,6 +455,18 @@ function mountScene(
     probe.scale.setScalar(asking ? 1 + Math.sin(elapsed * 3.5) * 0.1 : 0.0001);
     lineMat.opacity = damp(lineMat.opacity, asking ? 0.55 : 0, dt);
 
+    // Breathing auras + a gentle float give the object life without motion
+    // that reads as "a scene".
+    const breathe = 0.5 + 0.5 * Math.sin(elapsed * 0.55);
+    (aura.material as THREE.SpriteMaterial).opacity =
+      (0.24 + breathe * 0.1) * glowOpacity;
+    (emblemGlow.material as THREE.SpriteMaterial).opacity =
+      bookOpacity * (0.26 + breathe * 0.16) * glowOpacity;
+    (contact.material as THREE.SpriteMaterial).opacity =
+      bookOpacity * 0.32 * glowOpacity;
+    dust.rotation.y += dt * 0.012;
+    book.position.y = Math.sin(elapsed * 0.6) * 0.045;
+
     // The object sways gently, never a full turn - the reader never sees the
     // spine-side or the back of the book.
     rotor.rotation.y = Math.sin(elapsed * 0.32) * 0.4;
@@ -395,7 +479,7 @@ function mountScene(
     camera.position.z = damp(camera.position.z, zTarget, dt);
     camera.lookAt(0, 0.05, 0);
 
-    renderer.render(scene, camera);
+    composer.render(dt);
   };
 
   // Render frame zero synchronously so there is never a blank canvas, even
@@ -417,6 +501,7 @@ function mountScene(
     ro.disconnect();
     document.removeEventListener('visibilitychange', onVisible);
     host.removeEventListener('pointermove', onPointer);
+    composer.dispose();
     disposeTree(scene);
     // dispose() only - never forceContextLoss(): that permanently kills the
     // canvas element's GL context, so a remount (React StrictMode does one in
