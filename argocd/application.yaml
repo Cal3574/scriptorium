@@ -4,10 +4,12 @@
 #
 #   kubectl apply -n argocd -f argocd/application.yaml
 #
-# From then on ArgoCD watches `k8s/` on the main branch and keeps the cluster
-# matching it (prune + selfHeal). The real Secrets are applied out of band and
-# never live in git - see k8s/shared/secret.example.yaml and
-# k8s/postgres/secret.example.yaml.
+# From then on ArgoCD watches `k8s/` on the main branch (rendered with
+# kustomize - see k8s/kustomization.yaml) and keeps the cluster matching it
+# (prune + selfHeal). The Release workflow bumps the image tags in that
+# kustomization on every merge, which is what triggers a rollout. The real
+# Secrets are applied out of band and never live in git - see
+# k8s/shared/secret.example.yaml and k8s/postgres/secret.example.yaml.
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
@@ -20,12 +22,10 @@ spec:
   source:
     repoURL: https://github.com/Cal3574/scriptorium.git
     targetRevision: main
+    # A kustomization.yaml here makes ArgoCD render with kustomize. Only the
+    # manifests it lists are deployed - the *.example.yaml Secret templates
+    # are left out by omission.
     path: k8s
-    directory:
-      recurse: true
-      # The *.example.yaml Secret templates are documentation, not manifests.
-      # The real Secrets are applied out of band.
-      exclude: '{**/*.example.yaml}'
   destination:
     server: https://kubernetes.default.svc
     namespace: scriptorium

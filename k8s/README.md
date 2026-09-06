@@ -17,6 +17,7 @@ ArgoCD (`argocd/application.yaml`) reconciles this directory on the `main` branc
 | `client/`                    | Static SPA (nginx) Deployment + Service (`/healthz` probe).                |
 | `migrator/job.yaml`          | drizzle migration Job. ArgoCD PreSync hook.                                |
 | `ingress.yaml`               | Traefik Ingress. `/api` + `/health` -> api, `/` -> client.                 |
+| `kustomization.yaml`         | The deployable set + the `images:` tag block CI bumps per release.         |
 
 ## First-time bring-up
 
@@ -33,17 +34,16 @@ kubectl apply -f k8s/postgres/secret.yaml -f k8s/shared/secret.yaml
 # 3. Non-secret config - set the real host in API_URL / CLIENT_ORIGIN / ingress.yaml
 kubectl apply -f k8s/shared/configmap.yaml
 
-# 4. Data stores
-kubectl apply -f k8s/postgres/ -f k8s/redis/
+# 4. Everything else, rendered through kustomize (k8s/kustomization.yaml)
+kubectl apply -k k8s/
 kubectl -n scriptorium rollout status statefulset/postgres
-
-# 5. Schema
-kubectl apply -f k8s/migrator/job.yaml
 kubectl -n scriptorium wait --for=condition=complete job/migrator --timeout=120s
-
-# 6. App + edge
-kubectl apply -f k8s/api/ -f k8s/worker/ -f k8s/client/ -f k8s/ingress.yaml
 ```
+
+`kubectl apply -k` applies the migrator Job alongside the rest; with plain
+`kubectl` (no ArgoCD) it does not enforce PreSync ordering, so the api/worker
+pods may restart a few times waiting on the schema. That is why the manual
+flow above waits on the Job before moving on. ArgoCD does honour the hook.
 
 ## Handing it to ArgoCD instead
 
@@ -53,10 +53,19 @@ kubectl apply -f k8s/postgres/secret.yaml -f k8s/shared/secret.yaml   # still ou
 kubectl apply -n argocd -f argocd/application.yaml
 ```
 
-ArgoCD then applies everything under `k8s/` (skipping `*.example.yaml`) and runs the migrator as a PreSync hook on every sync.
+ArgoCD renders `k8s/` with kustomize, applies every manifest
+`kustomization.yaml` lists (the `*.example.yaml` templates are omitted), and
+runs the migrator as a PreSync hook on every sync.
 
 ## Container images
 
-The Deployments reference `scriptorium/<name>:latest` as a placeholder.
-CI builds from `docker/*.Dockerfile` and rewrites the tag (or an ArgoCD image updater does).
-Set the real registry path before the first deploy.
+Built by `.github/workflows/release.yml` on every push to `main`: it builds
+`docker/*.Dockerfile`, pushes `ghcr.io/<owner>/scriptorium-<svc>:<sha>` (plus
+`:latest`), then runs `kustomize edit set image` in this directory and commits
+the tag bump. ArgoCD syncs the new tags. The `images:` block in
+`kustomization.yaml` is the source of truth for what is deployed;
+`newTag: latest` is the placeholder until the first release runs.
+
+The client image is environment-specific - `VITE_API_URL` and
+`VITE_CLERK_PUBLISHABLE_KEY` are inlined at build time from repo-level Actions
+variables of the same name.

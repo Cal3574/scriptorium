@@ -35,7 +35,7 @@ spec:
             - 'until nc -z postgres 5432 && nc -z redis 6379; do sleep 2; done'
       containers:
         - name: worker
-          image: scriptorium/worker:latest # CI overwrites the tag per release
+          image: ghcr.io/cal3574/scriptorium-worker:latest # tag set by k8s/kustomization.yaml; CI bumps it per release
           envFrom:
             - configMapRef:
                 name: app-config

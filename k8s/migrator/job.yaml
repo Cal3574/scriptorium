@@ -31,7 +31,7 @@ spec:
           command: ['sh', '-c', 'until nc -z postgres 5432; do sleep 2; done']
       containers:
         - name: migrator
-          image: scriptorium/migrator:latest # CI overwrites the tag per release
+          image: ghcr.io/cal3574/scriptorium-migrator:latest # tag set by k8s/kustomization.yaml; CI bumps it per release
           env:
             - name: DATABASE_URL
               valueFrom:
