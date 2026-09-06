@@ -42,6 +42,13 @@
           "cwd": "packages/database"
         }
       },
+      "studio": {
+        "command": "drizzle-kit studio",
+        "continuous": true,
+        "options": {
+          "cwd": "packages/database"
+        }
+      },
       "migrate": {
         "command": "node scripts/migrate.mjs",
         "options": {
