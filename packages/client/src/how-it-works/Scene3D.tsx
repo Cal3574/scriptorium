@@ -1,5 +1,7 @@
 import { useEffect, useRef } from 'react';
 import * as THREE from 'three';
+import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
+import type { GLTF } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
 
 import { useTheme } from '../theme';
@@ -27,6 +29,15 @@ const HALF_LIFE = 0.16;
 const damp = (current: number, target: number, dt: number) =>
   target + (current - target) * Math.pow(2, -dt / HALF_LIFE);
 
+// The book model (a Sketchfab export, optimised to ~240 KB). Lives in
+// public/, so it is only fetched once the 3-D scene actually mounts. A
+// procedural slab stands in until it loads.
+const BOOK_URL = `${import.meta.env.BASE_URL}how-it-works/book.glb`;
+const BOOK_SIZE = 2.2; // world units for the model's largest dimension
+// The model already carries its own Z-up correction; just spin it to face the
+// camera (cover toward +Z).
+const BOOK_ROTATION: [number, number, number] = [0, Math.PI, 0];
+
 function hexToRgbStr(hex: string): string {
   const h = hex.replace('#', '');
   const n = parseInt(
@@ -34,6 +45,26 @@ function hexToRgbStr(hex: string): string {
     16,
   );
   return `${(n >> 16) & 255},${(n >> 8) & 255},${n & 255}`;
+}
+
+// Deep-dispose an Object3D: geometry, materials and every texture they hold.
+function disposeTree(root: THREE.Object3D): void {
+  root.traverse((o) => {
+    const mesh = o as THREE.Mesh;
+    mesh.geometry?.dispose?.();
+    const mats = Array.isArray(mesh.material)
+      ? mesh.material
+      : mesh.material
+        ? [mesh.material]
+        : [];
+    for (const m of mats) {
+      for (const key of Object.keys(m)) {
+        const val = (m as unknown as Record<string, unknown>)[key];
+        if (val instanceof THREE.Texture) val.dispose();
+      }
+      m.dispose();
+    }
+  });
 }
 
 function radialTexture(stops: [number, string][]): THREE.Texture {
@@ -86,14 +117,16 @@ function mountScene(
 
   // Just enough light to shape the object - no environment, no floor, nothing
   // for a wash to land on. The object floats in the page background.
-  scene.add(new THREE.AmbientLight(0xffffff, 0.9));
-  const key = new THREE.PointLight(0xffffff, 60);
-  key.position.set(3, 4, 6);
-  const warm = new THREE.PointLight(C.bookB, 16);
+  scene.add(new THREE.AmbientLight(0xffffff, 1.15));
+  const key = new THREE.DirectionalLight(0xffffff, 2.2);
+  key.position.set(2, 3, 5);
+  const front = new THREE.DirectionalLight(0xffffff, 1.1);
+  front.position.set(-1, 0.5, 4);
+  const warm = new THREE.PointLight(C.bookB, 18);
   warm.position.set(-3, -1, 3);
-  const cool = new THREE.PointLight(C.primary, 28);
-  cool.position.set(-4, 2, 2);
-  scene.add(key, warm, cool);
+  const cool = new THREE.PointLight(C.primary, 30);
+  cool.position.set(-4, 2, 1);
+  scene.add(key, front, warm, cool);
 
   // A single tight aura hugging the object - a hint of glow, not a lit box.
   const rgb = hexToRgbStr(C.primary);
@@ -120,8 +153,8 @@ function mountScene(
   const rotor = new THREE.Group();
   scene.add(rotor);
 
-  // A sleek dark-glass slab with a glowing edge seam - reads as an object,
-  // not a texture-mapped prop.
+  // Placeholder slab shown for the moment before the book model loads (and
+  // the fallback if the model fails to load).
   const coverMat = new THREE.MeshStandardMaterial({
     color: '#222c3b',
     emissive: C.primary,
@@ -169,6 +202,60 @@ function mountScene(
   const book = new THREE.Group();
   book.add(pages, cover, spine);
   rotor.add(book);
+
+  // The book's opacity is driven as one number; `bookMats` is whatever meshes
+  // currently represent the book (the placeholder slab, then the loaded
+  // model). Kept transparent so it can dissolve into the point cloud.
+  let bookMats: THREE.Material[] = [coverMat, pagesMat, spineMat, seamMat];
+  let bookOpacity = bookOpacityFor(STOPS[getStep()]?.id);
+  let gltfGone = false;
+
+  new GLTFLoader().load(
+    BOOK_URL,
+    (gltf: GLTF) => {
+      if (gltfGone) return disposeTree(gltf.scene);
+      const model = gltf.scene;
+      model.rotation.set(...BOOK_ROTATION);
+      model.updateWorldMatrix(true, true);
+      const box = new THREE.Box3().setFromObject(model);
+      const size = box.getSize(new THREE.Vector3());
+      const centre = box.getCenter(new THREE.Vector3());
+      const s = BOOK_SIZE / (Math.max(size.x, size.y, size.z) || 1);
+      model.scale.setScalar(s);
+      model.position.set(-centre.x * s, -centre.y * s, -centre.z * s);
+
+      const mats: THREE.Material[] = [];
+      model.traverse((o) => {
+        const mesh = o as THREE.Mesh;
+        if (!mesh.isMesh) return;
+        const list = Array.isArray(mesh.material)
+          ? mesh.material
+          : [mesh.material];
+        for (const m of list) {
+          const mm = m as THREE.MeshStandardMaterial;
+          mm.transparent = true;
+          mm.opacity = bookOpacity;
+          mm.aoMapIntensity = 0.45;
+          mm.emissive = new THREE.Color(C.primary);
+          mm.emissiveIntensity = 0.12;
+          if ('envMapIntensity' in mm) mm.envMapIntensity = 0.7;
+          mm.needsUpdate = true;
+          mats.push(mm);
+        }
+      });
+
+      book.remove(cover, pages, spine);
+      disposeTree(cover);
+      disposeTree(pages);
+      disposeTree(spine);
+      book.add(model);
+      bookMats = mats;
+    },
+    undefined,
+    () => {
+      /* network / decode failure: keep the procedural slab */
+    },
+  );
 
   const seed = computeTarget(STOPS[getStep()]?.id, SEEDS, C);
   const posArr = seed.pos.slice();
@@ -274,12 +361,9 @@ function mountScene(
     cloudGeo.attributes.position.needsUpdate = true;
     cloudGeo.attributes.color.needsUpdate = true;
 
-    const bo = bookOpacityFor(id);
-    coverMat.opacity = damp(coverMat.opacity, bo, dt);
-    pagesMat.opacity = damp(pagesMat.opacity, bo * 0.95, dt);
-    spineMat.opacity = damp(spineMat.opacity, bo * 0.9, dt);
-    seamMat.opacity = damp(seamMat.opacity, bo * 0.85, dt);
-    book.visible = coverMat.opacity > 0.02;
+    bookOpacity = damp(bookOpacity, bookOpacityFor(id), dt);
+    for (const m of bookMats) m.opacity = bookOpacity;
+    book.visible = bookOpacity > 0.02;
     cloudMat.opacity = damp(
       cloudMat.opacity,
       pointCloudOpacityFor(id) * pointOpacity,
@@ -319,21 +403,12 @@ function mountScene(
   raf = requestAnimationFrame(loop);
 
   return () => {
+    gltfGone = true; // a still-in-flight GLTF load disposes itself on arrival
     cancelAnimationFrame(raf);
     ro.disconnect();
     document.removeEventListener('visibilitychange', onVisible);
     host.removeEventListener('pointermove', onPointer);
-    scene.traverse((obj) => {
-      const mesh = obj as THREE.Mesh;
-      mesh.geometry?.dispose?.();
-      const mat = mesh.material as
-        THREE.Material | THREE.Material[] | undefined;
-      if (Array.isArray(mat)) mat.forEach((m) => m.dispose());
-      else mat?.dispose?.();
-    });
-    glow.material.dispose();
-    glowTex.dispose();
-    dotTex.dispose();
+    disposeTree(scene);
     // dispose() only - never forceContextLoss(): that permanently kills the
     // canvas element's GL context, so a remount (React StrictMode does one in
     // dev, and the step-driven tree can too) can't get a context back.
