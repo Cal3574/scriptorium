@@ -12,10 +12,16 @@ import {
   IngestJobData,
 } from '@scriptorium/contracts';
 import { type Job, UnrecoverableError, Worker } from 'bullmq';
-import { runWithRequestContext } from '@scriptorium/server-core';
+import {
+  IngestRepository,
+  runWithRequestContext,
+} from '@scriptorium/server-core';
 import { IngestProcessor } from './ingest-processor.js';
 import { DeleteProcessor } from './delete-processor.js';
 import { errorMessage } from './errors.js';
+import { StageEventPublisher } from './stage-event-publisher.js';
+
+const TERMINAL_BOOK_STATUSES = new Set(['failed', 'ready', 'deleting']);
 
 // Verbatim from the ingest-job spec. `lockDuration` is renewed automatically
 // by BullMQ while a stage runs; concurrency 1 keeps the single-replica worker
@@ -44,6 +50,8 @@ export class IngestWorker implements OnModuleInit, OnApplicationShutdown {
   constructor(
     private readonly processor: IngestProcessor,
     private readonly deleteProcessor: DeleteProcessor,
+    private readonly repo: IngestRepository,
+    private readonly events: StageEventPublisher,
     private readonly options: IngestWorkerOptions,
   ) {}
 
@@ -57,6 +65,11 @@ export class IngestWorker implements OnModuleInit, OnApplicationShutdown {
       this.logger.error(
         `job ${job?.id} failed (attempt ${job?.attemptsMade}): ${err.message}`,
       );
+      this.recoverStrandedBook(job, err).catch((recoverErr) => {
+        this.logger.error(
+          `job ${job?.id}: failed to recover stranded book after queue-level failure: ${errorMessage(recoverErr)}`,
+        );
+      });
     });
     this.logger.log(
       `listening on "${INGEST_QUEUE_NAME}" (concurrency ${CONCURRENCY})`,
@@ -65,6 +78,34 @@ export class IngestWorker implements OnModuleInit, OnApplicationShutdown {
 
   async onApplicationShutdown(): Promise<void> {
     await this.worker?.close();
+  }
+
+  // A job BullMQ gives up on outside our own error handling - most notably
+  // "stalled more than allowable limit", raised when the process holding the
+  // lock dies (a worker restart, an OOM kill) - never runs `IngestProcessor`'s
+  // catch block, so the book row is left parked in whatever in-progress
+  // status it was last set to, with no route back to `failed` for `/retry` to
+  // pick up. `job.isFailed()` re-reads the queue's own state to tell that
+  // case apart from an ordinary attempt BullMQ is about to retry, for which
+  // this must do nothing.
+  private async recoverStrandedBook(
+    job: Job | undefined,
+    err: Error,
+  ): Promise<void> {
+    if (!job || job.name !== INGEST_JOB_NAME) return;
+    if (!(await job.isFailed())) return;
+
+    const data = IngestJobData.parse(job.data);
+    const book = await this.repo.findById(data.bookId);
+    if (!book || TERMINAL_BOOK_STATUSES.has(book.status)) return;
+
+    const failedStage = book.status;
+    const failureReason = `queue gave up on the job: ${err.message}`;
+    await this.repo.markFailed(data.bookId, { failedStage, failureReason });
+    await this.events.bookFailed(data.bookId, failedStage, failureReason);
+    this.logger.warn(
+      `book ${data.bookId}: marked failed after a queue-level (non-processor) failure - ${err.message}`,
+    );
   }
 
   private async handle(job: Job): Promise<unknown> {

@@ -39,12 +39,19 @@ export class AppModule {
             useFactory: (
               processor: IngestProcessor,
               deleteProcessor: DeleteProcessor,
+              repo: IngestRepository,
+              events: StageEventPublisher,
             ) =>
-              new IngestWorker(processor, deleteProcessor, {
+              new IngestWorker(processor, deleteProcessor, repo, events, {
                 redisUrl: config.REDIS_URL,
                 attempts: JOB_ATTEMPTS,
               }),
-            inject: [IngestProcessor, DeleteProcessor],
+            inject: [
+              IngestProcessor,
+              DeleteProcessor,
+              IngestRepository,
+              StageEventPublisher,
+            ],
           },
         ]
       : [];

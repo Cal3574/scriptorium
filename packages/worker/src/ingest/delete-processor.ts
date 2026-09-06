@@ -1,4 +1,4 @@
-import { Inject, Injectable, Logger } from '@nestjs/common';
+import { Inject, Injectable, Logger, Optional } from '@nestjs/common';
 import {
   OBJECT_STORAGE,
   QUEUE,
@@ -54,7 +54,7 @@ export class DeleteProcessor {
     private readonly repo: IngestRepository,
     @Inject(OBJECT_STORAGE) private readonly storage: ObjectStorage,
     @Inject(QUEUE) private readonly queue: Queue,
-    options: DeleteProcessorOptions = {},
+    @Optional() options: DeleteProcessorOptions = {},
   ) {
     this.activeJobTimeoutMs =
       options.activeJobTimeoutMs ?? DEFAULT_ACTIVE_TIMEOUT_MS;
