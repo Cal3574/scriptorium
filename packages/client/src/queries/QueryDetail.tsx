@@ -73,9 +73,7 @@ export function QueryDetail({
         <div className="space-y-4" data-failed-query>
           <Alert variant="destructive">
             <AlertTitle>This question failed</AlertTitle>
-            <AlertDescription>
-              No answer was generated for it.
-            </AlertDescription>
+            <AlertDescription>No answer was generated for it.</AlertDescription>
           </Alert>
           <Button type="button" onClick={() => onAskAgain(query.question)}>
             Ask again
