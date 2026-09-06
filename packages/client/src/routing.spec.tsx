@@ -221,6 +221,25 @@ test('the active nav link reflects the route', async () => {
   );
 });
 
+test('/how-it-works renders the page and owns the active nav link', async () => {
+  renderAt('/how-it-works');
+
+  expect(
+    await screen.findByRole('heading', {
+      level: 1,
+      name: /how scriptorium works/i,
+    }),
+  ).toBeVisible();
+
+  const link = screen.getByRole('link', { name: 'How it works' });
+  expect(link).toHaveAttribute('aria-current', 'page');
+  for (const label of ['Library', 'Ask', 'History']) {
+    expect(screen.getByRole('link', { name: label })).not.toHaveAttribute(
+      'aria-current',
+    );
+  }
+});
+
 test('history renders the Console worklist: row link + mono summary count', async () => {
   renderAt('/history');
 
