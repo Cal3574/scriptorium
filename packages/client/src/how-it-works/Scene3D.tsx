@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react';
 import * as THREE from 'three';
+import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
 
 import { STOPS } from './stops';
 import { SCENE_COLORS } from './theme-colors';
@@ -59,16 +60,35 @@ function mountScene(
 
   const scene = new THREE.Scene();
   scene.fog = new THREE.Fog(C.background, 8, 20);
+  // A subtle vertical wash instead of a flat fill - depth before anything
+  // else is drawn.
+  const bgCanvas = document.createElement('canvas');
+  bgCanvas.width = 4;
+  bgCanvas.height = 256;
+  const bgCtx = bgCanvas.getContext('2d');
+  if (bgCtx) {
+    const bg = bgCtx.createLinearGradient(0, 0, 0, 256);
+    bg.addColorStop(0, '#0b0c10');
+    bg.addColorStop(0.55, C.background);
+    bg.addColorStop(1, '#141824');
+    bgCtx.fillStyle = bg;
+    bgCtx.fillRect(0, 0, 4, 256);
+  }
+  const bgTex = new THREE.CanvasTexture(bgCanvas);
+  scene.background = bgTex;
 
   const camera = new THREE.PerspectiveCamera(38, 1, 0.1, 100);
   camera.position.set(0, 0.3, 6.9);
 
-  scene.add(new THREE.AmbientLight(0xffffff, 0.7));
-  const key = new THREE.PointLight(C.primary, 60);
-  key.position.set(3, 4, 5);
-  const warm = new THREE.PointLight(C.bookB, 22);
-  warm.position.set(-4, -1, 3);
-  scene.add(key, warm);
+  scene.add(new THREE.AmbientLight(0xffffff, 0.5));
+  scene.add(new THREE.HemisphereLight(C.primary, C.bookB, 0.6));
+  const key = new THREE.PointLight(0xffffff, 70);
+  key.position.set(3, 5, 6);
+  const rim = new THREE.PointLight(C.primary, 40);
+  rim.position.set(-5, 1, -2);
+  const warm = new THREE.PointLight(C.bookB, 20);
+  warm.position.set(-3, -2, 3);
+  scene.add(key, rim, warm);
 
   // ---- decor ----
   const glowTex = radialTexture([
@@ -129,32 +149,41 @@ function mountScene(
   const rotor = new THREE.Group();
   scene.add(rotor);
 
+  // A sleek dark-glass slab with a glowing edge seam - reads as an object,
+  // not a texture-mapped prop.
   const coverMat = new THREE.MeshStandardMaterial({
-    color: C.primary,
+    color: '#1b2431',
     emissive: C.primary,
-    emissiveIntensity: 0.55,
-    roughness: 0.35,
-    metalness: 0.15,
+    emissiveIntensity: 0.22,
+    roughness: 0.16,
+    metalness: 0.6,
     transparent: true,
     opacity: 1,
   });
   const pagesMat = new THREE.MeshStandardMaterial({
     color: C.foreground,
-    roughness: 0.9,
+    roughness: 0.85,
     transparent: true,
     opacity: 0,
   });
   const spineMat = new THREE.MeshStandardMaterial({
     color: C.bookB,
     emissive: C.bookB,
-    emissiveIntensity: 0.6,
-    roughness: 0.5,
+    emissiveIntensity: 0.8,
+    roughness: 0.4,
     transparent: true,
     opacity: 0.9,
   });
-  const cover = new THREE.Mesh(
-    new THREE.BoxGeometry(1.48, 2.1, 0.34),
-    coverMat,
+  const seamMat = new THREE.LineBasicMaterial({
+    color: C.primary,
+    transparent: true,
+    opacity: 0.85,
+    fog: false,
+  });
+  const coverGeo = new RoundedBoxGeometry(1.48, 2.1, 0.34, 4, 0.05);
+  const cover = new THREE.Mesh(coverGeo, coverMat);
+  cover.add(
+    new THREE.LineSegments(new THREE.EdgesGeometry(coverGeo, 24), seamMat),
   );
   const pages = new THREE.Mesh(
     new THREE.BoxGeometry(1.5, 2.02, 0.24),
@@ -162,10 +191,10 @@ function mountScene(
   );
   pages.position.x = 0.02;
   const spine = new THREE.Mesh(
-    new THREE.BoxGeometry(0.06, 2.1, 0.34),
+    new RoundedBoxGeometry(0.07, 2.1, 0.34, 3, 0.03),
     spineMat,
   );
-  spine.position.x = -0.74;
+  spine.position.x = -0.735;
   const book = new THREE.Group();
   book.add(pages, cover, spine);
   rotor.add(book);
@@ -182,7 +211,7 @@ function mountScene(
     [1, 'rgba(255,255,255,0)'],
   ]);
   const cloudMat = new THREE.PointsMaterial({
-    size: 0.07,
+    size: 0.085,
     map: dotTex,
     vertexColors: true,
     transparent: true,
@@ -277,6 +306,7 @@ function mountScene(
     coverMat.opacity = damp(coverMat.opacity, bo, dt);
     pagesMat.opacity = damp(pagesMat.opacity, bo * 0.95, dt);
     spineMat.opacity = damp(spineMat.opacity, bo * 0.9, dt);
+    seamMat.opacity = damp(seamMat.opacity, bo * 0.85, dt);
     book.visible = coverMat.opacity > 0.02;
     cloudMat.opacity = damp(cloudMat.opacity, pointCloudOpacityFor(id), dt);
 
@@ -284,14 +314,18 @@ function mountScene(
     probe.scale.setScalar(asking ? 1 + Math.sin(elapsed * 3.5) * 0.1 : 0.0001);
     lineMat.opacity = damp(lineMat.opacity, asking ? 0.55 : 0, dt);
 
-    rotor.rotation.y += dt * 0.06;
+    // The object sways gently, never a full turn - the reader never sees the
+    // spine-side or the back of the book. The ring alone spins freely.
+    rotor.rotation.y = Math.sin(elapsed * 0.32) * 0.4;
+    rotor.rotation.x = Math.sin(elapsed * 0.21) * 0.06;
     ring.rotation.z += dt * 0.03;
 
-    const zTarget = STOPS[getStep()]?.act === 'asking' ? 6.2 : 6.9;
-    camera.position.x = damp(camera.position.x, pointer.x * 0.35, dt);
-    camera.position.y = damp(camera.position.y, 0.3 + pointer.y * 0.25, dt);
+    const zTarget = STOPS[getStep()]?.act === 'asking' ? 6.4 : 7.2;
+    const driftX = Math.sin(elapsed * 0.13) * 0.14;
+    camera.position.x = damp(camera.position.x, driftX + pointer.x * 0.3, dt);
+    camera.position.y = damp(camera.position.y, 0.35 + pointer.y * 0.22, dt);
     camera.position.z = damp(camera.position.z, zTarget, dt);
-    camera.lookAt(0, 0, 0);
+    camera.lookAt(0, 0.05, 0);
 
     renderer.render(scene, camera);
   };
@@ -323,8 +357,10 @@ function mountScene(
       else mat?.dispose?.();
     });
     glow.material.dispose();
+    core.material.dispose();
     glowTex.dispose();
     dotTex.dispose();
+    bgTex.dispose();
     // dispose() only - never forceContextLoss(): that permanently kills the
     // canvas element's GL context, so a remount (React StrictMode does one in
     // dev, and the step-driven tree can too) can't get a context back.

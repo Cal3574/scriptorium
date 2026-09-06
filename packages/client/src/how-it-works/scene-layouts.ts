@@ -58,6 +58,11 @@ function mix(
 }
 
 const gauss = (r: number) => (r - 0.5) * 2;
+const bright = (c: [number, number, number]): [number, number, number] => [
+  Math.min(c[0] * 1.18, 1),
+  Math.min(c[1] * 1.18, 1),
+  Math.min(c[2] * 1.18, 1),
+];
 
 type Target = { pos: Float32Array; col: Float32Array };
 
@@ -149,7 +154,7 @@ export function computeTarget(
         x = cx + gauss(s.r[0]) * 0.14;
         y = gauss(s.r[1]) * 1.1;
         z = cz + gauss(s.r[2]) * 0.14;
-        c = s.book ? bookB : bookA;
+        c = bright(s.book ? bookB : bookA);
         break;
       }
       case 'meaning-space':
@@ -159,7 +164,7 @@ export function computeTarget(
         x = cx + gauss(s.r[0]) * 0.62;
         y = cy + gauss(s.r[1]) * 0.62;
         z = cz + gauss(s.r[2]) * 0.62;
-        c = s.book ? bookB : bookA;
+        c = bright(s.book ? bookB : bookA);
         if (stopId === 'rerank' && !KEPT.has(i)) {
           z -= 1.4;
           c = mix(c, bg, 0.82);

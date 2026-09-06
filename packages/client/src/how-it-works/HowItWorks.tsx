@@ -44,11 +44,16 @@ function Panel({
 
 // A dark "viewport into the machine" in both app themes - the `dark` scope
 // makes its tokens and the 3-D palette resolve dark, so the glow reads and
-// dark mode never flashes a light panel.
+// dark mode never flashes a light panel. The inset ring + vignette give it a
+// framed, cinematic edge rather than a bare rectangle.
 function Stage({ step }: { step: number }) {
   return (
-    <div className="dark bg-background border-border relative h-full w-full overflow-hidden rounded-2xl border">
+    <div className="dark bg-background border-border/80 relative h-full w-full overflow-hidden rounded-2xl border">
       <PinnedStage step={step} />
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-0 rounded-2xl ring-1 ring-white/5 [box-shadow:inset_0_0_140px_20px_rgba(0,0,0,0.55)]"
+      />
     </div>
   );
 }
@@ -58,11 +63,11 @@ export function HowItWorks() {
   const isDesktop = useIsDesktop();
 
   return (
-    <div className="relative -my-8 overflow-x-clip py-8">
+    <div className="relative">
       {/* Page-wide ambient glow, kept faint so light mode stays calm. */}
       <div
         aria-hidden="true"
-        className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-[60vh] opacity-60 [background:radial-gradient(60%_60%_at_50%_0%,var(--primary),transparent_70%)] [mask-image:linear-gradient(black,transparent)]"
+        className="pointer-events-none absolute inset-x-0 -top-8 -z-10 h-[55vh] opacity-50 [background:radial-gradient(55%_60%_at_50%_0%,var(--primary),transparent_70%)] [mask-image:linear-gradient(black,transparent)]"
       />
 
       <header className="relative flex min-h-[55vh] flex-col justify-center py-16 text-center">
@@ -88,47 +93,43 @@ export function HowItWorks() {
 
       {/* Mobile: the pinned stage as a sticky band under the top bar. */}
       {!isDesktop && (
-        <div className="bg-background/80 border-border/60 sticky top-(--header-height) z-10 -mx-4 mb-6 h-64 border-y p-2 backdrop-blur">
+        <div className="bg-background/80 border-border/60 sticky top-(--header-height) z-10 -mx-(--shell-gutter) mb-6 h-64 border-y p-2 backdrop-blur">
           <Stage step={activeStep} />
         </div>
       )}
 
-      {/* Desktop: break out of the app's content column for a wide band. */}
-      <div className="lg:relative lg:left-1/2 lg:w-screen lg:-translate-x-1/2">
-        <div className="mx-auto max-w-[95rem] px-4 lg:px-10">
-          <div className="lg:grid lg:grid-cols-[minmax(0,24rem)_minmax(0,1fr)] lg:gap-16 xl:gap-24">
-            <div>
-              {STOPS.map((stop, i) => (
-                <div key={stop.id}>
-                  {(i === 0 || STOPS[i - 1].act !== stop.act) && (
-                    <p className="text-muted-foreground border-border mt-8 border-t pt-8 font-mono text-xs tracking-[0.2em] uppercase first:mt-0 first:border-0 first:pt-0">
-                      {ACT_LABELS[stop.act]}
-                    </p>
-                  )}
-                  <Panel register={register(i)}>
-                    <span className="text-primary/70 font-mono text-xs">
-                      {String(i + 1).padStart(2, '0')} / {STOPS.length}
-                    </span>
-                    <h2 className="text-foreground mt-2 mb-0 font-serif text-2xl font-semibold text-balance">
-                      {stop.heading}
-                    </h2>
-                    <p className="text-muted-foreground mt-3 text-base leading-relaxed text-pretty">
-                      {stop.body}
-                    </p>
-                  </Panel>
-                </div>
-              ))}
+      {/* Desktop: a two-column journey - narrow text rail, wide pinned stage. */}
+      <div className="lg:grid lg:grid-cols-[21rem_minmax(0,1fr)] lg:gap-14">
+        <div>
+          {STOPS.map((stop, i) => (
+            <div key={stop.id}>
+              {(i === 0 || STOPS[i - 1].act !== stop.act) && (
+                <p className="text-muted-foreground border-border mt-8 border-t pt-8 font-mono text-xs tracking-[0.2em] uppercase first:mt-0 first:border-0 first:pt-0">
+                  {ACT_LABELS[stop.act]}
+                </p>
+              )}
+              <Panel register={register(i)}>
+                <span className="text-primary/70 font-mono text-xs">
+                  {String(i + 1).padStart(2, '0')} / {STOPS.length}
+                </span>
+                <h2 className="text-foreground mt-2 mb-0 font-serif text-2xl font-semibold text-balance">
+                  {stop.heading}
+                </h2>
+                <p className="text-muted-foreground mt-3 text-base leading-relaxed text-pretty">
+                  {stop.body}
+                </p>
+              </Panel>
             </div>
-
-            {isDesktop && (
-              <div>
-                <div className="sticky top-[calc(var(--header-height)+2.5rem)] h-[min(78vh,660px)]">
-                  <Stage step={activeStep} />
-                </div>
-              </div>
-            )}
-          </div>
+          ))}
         </div>
+
+        {isDesktop && (
+          <div>
+            <div className="sticky top-[calc(var(--header-height)+2.5rem)] h-[min(80vh,640px)]">
+              <Stage step={activeStep} />
+            </div>
+          </div>
+        )}
       </div>
 
       <section className="border-border relative mt-16 border-t pt-12 pb-16">
