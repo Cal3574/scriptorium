@@ -1,0 +1,45 @@
+# The ArgoCD Application that owns the whole Scriptorium deployment. Apply it
+# once, into the `argocd` namespace, against a cluster that already runs
+# ArgoCD:
+#
+#   kubectl apply -n argocd -f argocd/application.yaml
+#
+# From then on ArgoCD watches `k8s/` on the main branch and keeps the cluster
+# matching it (prune + selfHeal). The real Secrets are applied out of band and
+# never live in git - see k8s/shared/secret.example.yaml and
+# k8s/postgres/secret.example.yaml.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: scriptorium
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/Cal3574/scriptorium.git
+    targetRevision: main
+    path: k8s
+    directory:
+      recurse: true
+      # The *.example.yaml Secret templates are documentation, not manifests.
+      # The real Secrets are applied out of band.
+      exclude: '{**/*.example.yaml}'
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: scriptorium
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      # k8s/namespace.yaml creates the namespace; no need for ArgoCD to.
+      - CreateNamespace=false
+      - ApplyOutOfSyncOnly=true
+    retry:
+      limit: 3
+      backoff:
+        duration: 10s
+        factor: 2
+        maxDuration: 3m

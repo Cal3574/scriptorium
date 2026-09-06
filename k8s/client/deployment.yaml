@@ -1,0 +1,53 @@
+# Scriptorium client - the built SPA served by nginx (nginxinc/nginx-
+# unprivileged, listening on 8080 as a non-root user). Fully static: the API
+# URL and the Clerk publishable key are baked into the bundle at image-build
+# time, so this pod takes no env and no shared config.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: client
+  namespace: scriptorium
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: client
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 1
+  template:
+    metadata:
+      labels:
+        app: client
+    spec:
+      containers:
+        - name: client
+          image: scriptorium/client:latest # CI overwrites the tag per release
+          ports:
+            - name: http
+              containerPort: 8080
+          # `location = /healthz` in docker/client.nginx.conf returns a bare
+          # 200.
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            initialDelaySeconds: 3
+            periodSeconds: 10
+            timeoutSeconds: 3
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 20
+            timeoutSeconds: 3
+            failureThreshold: 6
+          resources:
+            requests:
+              memory: 32Mi
+              cpu: 25m
+            limits:
+              memory: 128Mi

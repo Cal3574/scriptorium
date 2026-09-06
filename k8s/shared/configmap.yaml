@@ -1,0 +1,26 @@
+# Non-secret config shared by api and worker. Plain key/value, visible to
+# anyone with cluster read access - nothing sensitive goes here (see
+# shared/secret.example.yaml for that).
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: app-config
+  namespace: scriptorium
+data:
+  NODE_ENV: production
+  # live = real LlamaParse / OpenAI / Claude adapters and real S3. This is a
+  # real deployment, so it is never `fake`. `live` also makes the provider
+  # keys and the S3 keys in shared/secret.yaml required at startup.
+  PROVIDER_MODE: live
+  # The Clerk *publishable* key is safe to expose - it ships in the browser
+  # bundle too. The secret key is in shared/secret.yaml.
+  CLERK_PUBLISHABLE_KEY: pk_live_REPLACE_ME
+  # Reader-upload bucket (docs/s3-setup.md). The bucket name and region are
+  # not secret; the IAM keys that sign uploads are.
+  S3_BUCKET: scriptorium-uploads-prod
+  S3_REGION: eu-west-2
+  # The api's own public base URL (used for presigned-callback links and log
+  # context) and the single browser origin allowed through CORS / accepted as
+  # the Clerk token `azp`. Both must line up with the host in k8s/ingress.yaml.
+  API_URL: https://scriptorium.example.com/api/v1
+  CLIENT_ORIGIN: https://scriptorium.example.com

@@ -1,0 +1,62 @@
+# Scriptorium worker - BullMQ consumer on the `ingest` queue. No HTTP server,
+# so there is no Service and no httpGet probe. In-process concurrency is set
+# by WORKER_CONCURRENCY (app-config); scale out by raising `replicas` only if
+# one pod cannot keep up.
+#
+# `enableShutdownHooks()` in main.ts drains the active job on SIGTERM, so give
+# termination real headroom - a chapter deep-dive can take a while.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: worker
+  namespace: scriptorium
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: worker
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 1
+  template:
+    metadata:
+      labels:
+        app: worker
+    spec:
+      terminationGracePeriodSeconds: 300
+      initContainers:
+        - name: wait-for-deps
+          image: busybox:1.36
+          command:
+            - sh
+            - -c
+            - 'until nc -z postgres 5432 && nc -z redis 6379; do sleep 2; done'
+      containers:
+        - name: worker
+          image: scriptorium/worker:latest # CI overwrites the tag per release
+          envFrom:
+            - configMapRef:
+                name: app-config
+            - secretRef:
+                name: app-secrets
+          # No health endpoint to hit. The worker is useless if it cannot
+          # reach Redis, so liveness is a short TCP check against the broker -
+          # a wedged pod with a dead connection gets restarted.
+          livenessProbe:
+            exec:
+              command:
+                - node
+                - -e
+                - "const s=require('net').connect(6379,'redis');s.on('connect',()=>process.exit(0));s.on('error',()=>process.exit(1));setTimeout(()=>process.exit(1),2000)"
+            initialDelaySeconds: 30
+            periodSeconds: 30
+            timeoutSeconds: 5
+            failureThreshold: 4
+          resources:
+            requests:
+              memory: 512Mi
+              cpu: 250m
+            limits:
+              memory: 1536Mi

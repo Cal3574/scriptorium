@@ -1,0 +1,26 @@
+# Build context hygiene - keep the context small and deterministic.
+**/node_modules
+**/dist
+**/out-tsc
+**/.nx
+.nx
+tmp
+coverage
+**/*.log
+
+.git
+.github
+.vscode
+.idea
+
+# Local dev only
+.env
+.env.*
+!.env.example
+docker-compose.yml
+mock-data
+
+# Docs / meta
+docs
+*.md
+!README.md

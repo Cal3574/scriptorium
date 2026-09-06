@@ -29,6 +29,10 @@ node_modules
 .env.*
 !.env.example
 
+# k8s Secrets - only the *.example.yaml templates are committed. The real
+# Secrets are filled in locally and applied out of band.
+k8s/**/secret.yaml
+
 # misc
 /.sass-cache
 /connect.lock
