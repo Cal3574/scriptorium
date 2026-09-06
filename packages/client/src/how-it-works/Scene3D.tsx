@@ -34,9 +34,9 @@ const damp = (current: number, target: number, dt: number) =>
 // procedural slab stands in until it loads.
 const BOOK_URL = `${import.meta.env.BASE_URL}how-it-works/book.glb`;
 const BOOK_SIZE = 2.2; // world units for the model's largest dimension
-// The model already carries its own Z-up correction; just spin it to face the
-// camera (cover toward +Z).
-const BOOK_ROTATION: [number, number, number] = [0, Math.PI, 0];
+// Applied after the model's own baked node transform is stripped: stands the
+// book upright with the front cover toward the camera (and not mirrored).
+const BOOK_ROTATION: [number, number, number] = [-Math.PI / 2, 0, 0];
 
 function hexToRgbStr(hex: string): string {
   const h = hex.replace('#', '');
@@ -215,6 +215,15 @@ function mountScene(
     (gltf: GLTF) => {
       if (gltfGone) return disposeTree(gltf.scene);
       const model = gltf.scene;
+      // Strip the exporter's baked node transform (a ~x100 scale + Z-up
+      // rotation), then orient it ourselves in the raw mesh frame.
+      model.traverse((o) => {
+        if (o !== model) {
+          o.position.set(0, 0, 0);
+          o.rotation.set(0, 0, 0);
+          o.scale.set(1, 1, 1);
+        }
+      });
       model.rotation.set(...BOOK_ROTATION);
       model.updateWorldMatrix(true, true);
       const box = new THREE.Box3().setFromObject(model);
