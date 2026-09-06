@@ -44,15 +44,6 @@ const BOOK_SIZE = 2.2; // world units for the model's largest dimension
 // book upright with the front cover toward the camera (and not mirrored).
 const BOOK_ROTATION: [number, number, number] = [-Math.PI / 2, 0, 0];
 
-function hexToRgbStr(hex: string): string {
-  const h = hex.replace('#', '');
-  const n = parseInt(
-    h.length === 3 ? h[0] + h[0] + h[1] + h[1] + h[2] + h[2] : h || '7d9dc4',
-    16,
-  );
-  return `${(n >> 16) & 255},${(n >> 8) & 255},${n & 255}`;
-}
-
 // Deep-dispose an Object3D: geometry, materials and every texture they hold.
 function disposeTree(root: THREE.Object3D): void {
   root.traverse((o) => {
@@ -121,61 +112,26 @@ function mountScene(
   const camera = new THREE.PerspectiveCamera(38, 1, 0.1, 100);
   camera.position.set(0, 0.3, 6.9);
 
-  // Cinematic two-tone light: a cool key from upper-right, a gold rim from
-  // below-left, a gentle fill. No environment or floor for a wash to land on.
-  scene.add(new THREE.AmbientLight(0xffffff, 0.7));
-  scene.add(new THREE.HemisphereLight(C.primary, C.bookB, 0.4));
-  const key = new THREE.DirectionalLight('#d6e6fb', 2.7);
-  key.position.set(3, 4, 5);
-  const rim = new THREE.DirectionalLight(C.bookB, 2.4);
-  rim.position.set(-4, -1.6, -1);
-  const fill = new THREE.DirectionalLight(0xffffff, 0.55);
-  fill.position.set(-1, 1, 4);
+  // The whole lighting design: a warm key from the upper right that rakes
+  // across the cover, a soft rim from behind it to lift the edges off the
+  // dark page, and a low ambient + faint cool fill for the shadow side.
+  scene.add(new THREE.AmbientLight(0xffffff, 0.55));
+  const key = new THREE.DirectionalLight('#fff2e2', 4.2);
+  key.position.set(5, 5.5, 3);
+  const rim = new THREE.DirectionalLight('#fff6ea', 1.9);
+  rim.position.set(4, 4, -4);
+  const fill = new THREE.DirectionalLight('#c6d2e4', 0.4);
+  fill.position.set(-3, -1, 2);
   scene.add(key, rim, fill);
 
-  // ---- atmosphere: layered soft auras + a slow drifting dust field ----
-  const rgb = hexToRgbStr(C.primary);
-  const goldRgb = hexToRgbStr(C.bookB);
-  const softTex = radialTexture([
-    [0, `rgba(${rgb},0.5)`],
-    [0.5, `rgba(${rgb},0.12)`],
-    [1, `rgba(${rgb},0)`],
-  ]);
-  const goldTex = radialTexture([
-    [0, `rgba(${goldRgb},0.75)`],
-    [0.5, `rgba(${goldRgb},0.16)`],
-    [1, `rgba(${goldRgb},0)`],
-  ]);
+  // ---- atmosphere: just a faint drifting dust field ----
   const moteTex = radialTexture([
     [0, 'rgba(255,255,255,1)'],
-    [0.4, 'rgba(255,255,255,0.55)'],
+    [0.4, 'rgba(255,255,255,0.5)'],
     [1, 'rgba(255,255,255,0)'],
   ]);
 
-  const makeAura = (tex: THREE.Texture, sx: number, sy: number, op: number) => {
-    const s = new THREE.Sprite(
-      new THREE.SpriteMaterial({
-        map: tex,
-        transparent: true,
-        opacity: op * glowOpacity,
-        depthWrite: false,
-        blending: blend,
-        fog: false,
-      }),
-    );
-    s.scale.set(sx, sy, 1);
-    return s;
-  };
-
-  // Just a soft halo hugging the object (no room-sized wash) and a warm pool
-  // it appears to rest on.
-  const aura = makeAura(softTex, 3, 3.8, 0.3);
-  aura.position.set(0, 0, -0.55);
-  const contact = makeAura(goldTex, 3.4, 1.2, 0.28);
-  contact.position.set(0, -1.35, -0.15);
-  scene.add(aura, contact);
-
-  const DUST = 170;
+  const DUST = 110;
   const dustPos = new Float32Array(DUST * 3);
   for (let i = 0; i < DUST; i++) {
     dustPos[i * 3] = (Math.random() - 0.5) * 11;
@@ -185,11 +141,11 @@ function mountScene(
   const dustGeo = new THREE.BufferGeometry();
   dustGeo.setAttribute('position', new THREE.BufferAttribute(dustPos, 3));
   const dustMat = new THREE.PointsMaterial({
-    size: 0.032,
+    size: 0.03,
     map: moteTex,
-    color: new THREE.Color(C.primary),
+    color: new THREE.Color('#e9ddc9'),
     transparent: true,
-    opacity: 0.5 * glowOpacity,
+    opacity: 0.32 * glowOpacity,
     depthWrite: false,
     sizeAttenuation: true,
     blending: blend,
@@ -250,10 +206,6 @@ function mountScene(
   spine.position.x = -0.735;
   const book = new THREE.Group();
   book.add(pages, cover, spine);
-  // A gold bloom behind the cover so the embossed emblem catches the light.
-  const emblemGlow = makeAura(goldTex, 1.9, 2.3, 0.3);
-  emblemGlow.position.set(0, 0, 0.25);
-  book.add(emblemGlow);
   rotor.add(book);
 
   // The book's opacity is driven as one number; `bookMats` is whatever meshes
@@ -297,10 +249,10 @@ function mountScene(
           const mm = m as THREE.MeshStandardMaterial;
           mm.transparent = true;
           mm.opacity = bookOpacity;
-          mm.aoMapIntensity = 0.45;
-          mm.emissive = new THREE.Color(C.primary);
-          mm.emissiveIntensity = 0.12;
-          if ('envMapIntensity' in mm) mm.envMapIntensity = 0.7;
+          mm.aoMapIntensity = 0.35;
+          mm.emissive = new THREE.Color('#2a2418');
+          mm.emissiveIntensity = 0.05;
+          if ('envMapIntensity' in mm) mm.envMapIntensity = 0.6;
           mm.needsUpdate = true;
           mats.push(mm);
         }
@@ -379,11 +331,11 @@ function mountScene(
     new EffectPass(
       camera,
       new BloomEffect({
-        intensity: C.isDark ? 0.85 : 0.22,
-        luminanceThreshold: 0.5,
-        luminanceSmoothing: 0.35,
+        intensity: C.isDark ? 0.7 : 0.2,
+        luminanceThreshold: 0.62,
+        luminanceSmoothing: 0.3,
         mipmapBlur: true,
-        radius: 0.75,
+        radius: 0.7,
       }),
     ),
   );
@@ -455,17 +407,10 @@ function mountScene(
     probe.scale.setScalar(asking ? 1 + Math.sin(elapsed * 3.5) * 0.1 : 0.0001);
     lineMat.opacity = damp(lineMat.opacity, asking ? 0.55 : 0, dt);
 
-    // Breathing auras + a gentle float give the object life without motion
+    // A slow drift and a gentle float give the object life without motion
     // that reads as "a scene".
-    const breathe = 0.5 + 0.5 * Math.sin(elapsed * 0.55);
-    (aura.material as THREE.SpriteMaterial).opacity =
-      (0.24 + breathe * 0.1) * glowOpacity;
-    (emblemGlow.material as THREE.SpriteMaterial).opacity =
-      bookOpacity * (0.26 + breathe * 0.16) * glowOpacity;
-    (contact.material as THREE.SpriteMaterial).opacity =
-      bookOpacity * 0.32 * glowOpacity;
-    dust.rotation.y += dt * 0.012;
-    book.position.y = Math.sin(elapsed * 0.6) * 0.045;
+    dust.rotation.y += dt * 0.01;
+    book.position.y = Math.sin(elapsed * 0.6) * 0.04;
 
     // The object sways gently, never a full turn - the reader never sees the
     // spine-side or the back of the book.
