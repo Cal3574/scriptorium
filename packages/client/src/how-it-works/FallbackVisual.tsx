@@ -1,19 +1,16 @@
 import type { ReactNode } from 'react';
-import { AnimatePresence, motion } from 'motion/react';
 
-import { SummaryProse } from '@/components/prose/summary-prose';
-import { AnswerBlock } from '@/components/query/answer-block';
-import { CitationList } from '@/components/query/citation-list';
 import { MEANING_SPACE_CAVEAT, STOPS } from './stops';
-import { usePrefersReducedMotion } from './use-prefers-reduced-motion';
+import { isPayoffStep } from './payoff-samples';
+import { PayoffCard } from './PayoffCard';
 
-// The single pinned visual: one book object transforming as the reader
-// scrolls. `step` is the active stop index (0-10). Stops 1-6 and 8-10 are
-// bespoke inline SVG in one visual language, themed through the design tokens
-// so they work in light and dark. Stops 7 and 11 render the real product
-// components fed static sample content - the journey ends on exactly what the
-// reader sees in the app. Nothing here fetches or animates layout; the
-// crossfade between states respects reduced-motion.
+// The flat, no-motion fallback for the pinned visual: shown whenever the 3D
+// stage can't run - reduced motion, no WebGL, no scripting, or while the 3D
+// chunk is still loading. Stops 1-6 and 8-10 are bespoke inline SVG in one
+// visual language, themed through the design tokens so they work in light and
+// dark; stops 7 and 11 defer to the real product components in `PayoffCard`.
+// This is also the structural guarantee the tests lean on: every step's key
+// visual is here without a canvas, a frame of animation, or a scroll.
 
 const BOOK_COLOURS = ['var(--primary)', 'var(--status-progress)'];
 
@@ -23,7 +20,7 @@ function Frame({ children }: { children: ReactNode }) {
       viewBox="0 0 240 200"
       role="img"
       aria-hidden="true"
-      className="text-muted-foreground h-full w-full"
+      className="text-muted-foreground h-full max-h-[60vh] w-full"
       fill="none"
     >
       {children}
@@ -74,8 +71,7 @@ function ScatterField({ mode }: { mode: 'settled' | 'question' | 'kept' }) {
   return (
     <>
       {points.map((p) => {
-        const lit =
-          mode !== 'kept' || kept.has(p.id) ? 1 : mode === 'kept' ? 0.15 : 1;
+        const lit = mode !== 'kept' || kept.has(p.id) ? 1 : 0.15;
         return (
           <circle
             key={p.id}
@@ -286,93 +282,20 @@ function StepGraphic({ step }: { step: number }) {
   }
 }
 
-const SAMPLE_SUMMARY = `## What the book argues
-
-Deep, undistracted work is a skill you build, not a mood you wait for. The
-author sets it against *shallow work* - email, meetings, quick tasks - and
-argues that the ability to focus without interruption is becoming both rarer
-and more valuable.
-
-## How to put it into practice
-
-- Schedule focus blocks like appointments, and protect them.
-- Make shallow work visible so it stops expanding to fill the day.
-- Treat boredom as training, not as time to fill.`;
-
-const SAMPLE_ANSWER = `Both books treat focus as trainable rather than fixed. *Deep Work* frames it
-as a professional skill you schedule and defend [1], while *Hyperfocus*
-describes the same capacity as directing a limited pool of attention onto one
-thing at a time [2]. They differ on distraction: one argues for removing it
-from the environment [1], the other for noticing and redirecting it [2].`;
-
-const SAMPLE_CITATIONS = [
-  {
-    key: 'c1',
-    marker: 1,
-    bookTitle: 'Deep Work',
-    chapterTitle: 'The Deep Work Hypothesis',
-  },
-  {
-    key: 'c2',
-    marker: 2,
-    bookTitle: 'Hyperfocus',
-    chapterTitle: 'Taming Distractions',
-  },
-];
-
-function Payoff({ step }: { step: number }) {
-  if (STOPS[step]?.id === 'book-summary') {
-    return (
-      <div className="border-border bg-card max-h-full overflow-auto rounded-lg border p-5">
-        <p className="text-muted-foreground mb-2 font-mono text-xs">
-          Sample summary
-        </p>
-        <SummaryProse markdown={SAMPLE_SUMMARY} />
-      </div>
-    );
-  }
-  return (
-    <div className="border-border bg-card max-h-full space-y-4 overflow-auto rounded-lg border p-5">
-      <p className="text-muted-foreground font-mono text-xs">Sample answer</p>
-      <AnswerBlock markdown={SAMPLE_ANSWER} streaming={false} />
-      <div>
-        <h2 className="text-foreground mb-2 font-serif text-base font-semibold">
-          Citations
-        </h2>
-        <CitationList citations={SAMPLE_CITATIONS} />
-      </div>
-    </div>
-  );
-}
-
-export function PinnedVisual({ step }: { step: number }) {
-  const reduce = usePrefersReducedMotion();
+export function FallbackVisual({ step }: { step: number }) {
   const id = STOPS[step]?.id;
-  const isPayoff = id === 'book-summary' || id === 'answer';
   const showCaveat =
     id === 'meaning-space' || id === 'retrieve' || id === 'rerank';
-  const body = isPayoff ? <Payoff step={step} /> : <StepGraphic step={step} />;
 
   return (
     <figure className="relative m-0 flex h-full w-full flex-col items-center justify-center">
-      {reduce ? (
-        <div className="flex w-full flex-1 items-center justify-center">
-          {body}
-        </div>
-      ) : (
-        <AnimatePresence mode="wait" initial={false}>
-          <motion.div
-            key={step}
-            className="flex w-full flex-1 items-center justify-center"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.25 }}
-          >
-            {body}
-          </motion.div>
-        </AnimatePresence>
-      )}
+      <div className="flex w-full flex-1 items-center justify-center">
+        {isPayoffStep(step) ? (
+          <PayoffCard step={step} />
+        ) : (
+          <StepGraphic step={step} />
+        )}
+      </div>
       {showCaveat && (
         <figcaption className="text-muted-foreground mt-3 text-center text-xs">
           {MEANING_SPACE_CAVEAT}
