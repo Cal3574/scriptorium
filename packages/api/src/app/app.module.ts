@@ -13,6 +13,7 @@ import {
 import { BooksController } from '../books/books.controller';
 import { BookEventsController } from '../books/books-events.controller';
 import { MAX_UPLOAD_BYTES, SSE_HEARTBEAT_MS } from '../books/books.tokens';
+import { DEFAULT_PLAN_LIMITS, PLAN_LIMITS } from '../entitlements/plan-limits';
 import { DevUploadsController } from '../books/dev-uploads.controller';
 import { MeController } from '../me/me.controller';
 import { QueriesController } from '../queries/queries.controller';
@@ -58,6 +59,7 @@ export class AppModule {
           },
         },
         { provide: MAX_UPLOAD_BYTES, useValue: config.MAX_UPLOAD_BYTES },
+        { provide: PLAN_LIMITS, useValue: DEFAULT_PLAN_LIMITS },
         {
           provide: SSE_HEARTBEAT_MS,
           useValue: config.SSE_HEARTBEAT_MS ?? DEFAULT_SSE_HEARTBEAT_MS,
@@ -68,6 +70,9 @@ export class AppModule {
         },
         IngestEventStream,
       ],
+      // Exported so the test-app factory's `planLimits` override is visible to
+      // the test-only ProbeController that reads it back.
+      exports: [PLAN_LIMITS],
     };
   }
 }
