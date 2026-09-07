@@ -3,9 +3,12 @@ import { Module } from '@nestjs/common';
 import type { NestExpressApplication } from '@nestjs/platform-express';
 import { Test } from '@nestjs/testing';
 import { parseApiConfig } from '@scriptorium/config';
-import { RequestAwareLogger } from '@scriptorium/server-core';
+import {
+  type PlanLimits,
+  PLAN_LIMITS,
+  RequestAwareLogger,
+} from '@scriptorium/server-core';
 import { AppModule } from '../app/app.module';
-import { type PlanLimits, PLAN_LIMITS } from '../entitlements/plan-limits';
 import { ProbeController } from './probe.controller';
 
 export interface TestAppOptions {

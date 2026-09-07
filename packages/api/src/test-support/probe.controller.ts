@@ -5,10 +5,11 @@ import {
   type AuthenticatedUser,
   CurrentUser,
   DB,
+  type PlanLimits,
+  PLAN_LIMITS,
 } from '@scriptorium/server-core';
 import { createZodDto } from 'nestjs-zod';
 import { z } from 'zod';
-import { type PlanLimits, PLAN_LIMITS } from '../entitlements/plan-limits';
 
 // Test-only routes. `#21` ships no owned-resource endpoints of its own, but
 // the ownership `404` rule and the `422` / `400` validation split are

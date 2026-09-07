@@ -9,6 +9,7 @@ import {
   Param,
   Patch,
   Post,
+  UseGuards,
 } from '@nestjs/common';
 import {
   type BookDetailDto,
@@ -29,6 +30,8 @@ import {
   QUEUE,
   type Queue,
   BooksRepository,
+  EntitlementGuard,
+  Quota,
   ResourceNotFoundException,
 } from '@scriptorium/server-core';
 import { createZodDto } from 'nestjs-zod';
@@ -52,6 +55,7 @@ class CreateBookDto extends createZodDto(CreateBookRequest) {}
 class UpdateBookDto extends createZodDto(UpdateBookFields) {}
 
 @Controller('books')
+@UseGuards(EntitlementGuard)
 export class BooksController {
   constructor(
     private readonly books: BooksRepository,
@@ -91,7 +95,11 @@ export class BooksController {
   // Step 2: the client has completed the PUT. Verify the object really landed
   // under this caller's prefix at the claimed size, then land a `pending` row
   // and enqueue the ingest job (`jobId = bookId`, deduped by the queue).
+  // `@Quota('books')` runs before the handler: a Free reader at their book
+  // ceiling gets 402 `book_limit_reached` here and no row is written. The
+  // presigned-URL step is deliberately not guarded.
   @Post()
+  @Quota('books')
   async create(
     @Body() body: CreateBookDto,
     @CurrentUser() caller: AuthenticatedUser,

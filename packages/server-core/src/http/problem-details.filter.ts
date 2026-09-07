@@ -23,6 +23,7 @@ import { getRequestId } from './request-context.js';
 const STATUS_META: Record<number, { code: string; title: string }> = {
   400: { code: 'bad_request', title: 'Bad request' },
   401: { code: 'unauthorized', title: 'Unauthorized' },
+  402: { code: 'payment_required', title: 'Payment required' },
   404: { code: 'not_found', title: 'Not found' },
   422: { code: 'unprocessable_entity', title: 'Unprocessable entity' },
   500: { code: 'internal_error', title: 'Internal server error' },

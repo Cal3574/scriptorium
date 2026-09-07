@@ -1,5 +1,5 @@
+import { DEFAULT_PLAN_LIMITS } from '@scriptorium/server-core';
 import request from 'supertest';
-import { DEFAULT_PLAN_LIMITS } from './entitlements/plan-limits';
 import { createTestApp } from './test-support/create-test-app';
 import { createTestAuthority, type TestAuthority } from './test-support/rsa-jwt';
 import {

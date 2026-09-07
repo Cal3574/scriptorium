@@ -32,7 +32,12 @@ describe('ClerkAuthGuard', () => {
   } as unknown as UsersRepository;
 
   const verifier: TokenVerifier = {
-    verify: jest.fn(async () => ({ sub: 'user_x', email: 'x@example.com' })),
+    verify: jest.fn(async () => ({
+      sub: 'user_x',
+      email: 'x@example.com',
+      plan: 'pro',
+      features: [],
+    })),
   };
 
   const guard = new ClerkAuthGuard(new Reflector(), verifier, users);
@@ -60,13 +65,15 @@ describe('ClerkAuthGuard', () => {
     );
   });
 
-  it('attaches the local user id (not the Clerk sub) on success', async () => {
+  it('attaches the local user id (not the Clerk sub) and the token plan on success', async () => {
     const { ctx, request } = contextFor({ authorization: 'Bearer abc' });
     await guard.canActivate(ctx);
     expect(request.user).toEqual({
       id: 'local-1',
       clerkUserId: 'user_x',
       email: 'x@example.com',
+      plan: 'pro',
+      features: [],
     });
   });
 });

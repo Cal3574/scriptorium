@@ -78,6 +78,29 @@ export {
   type ClerkTokenVerifierConfig,
 } from './auth/token-verifier.js';
 
+export {
+  PLAN_LIMITS,
+  DEFAULT_PLAN_LIMITS,
+  limitsForPlan,
+  type PlanSlug,
+  type PlanLimit,
+  type PlanLimits,
+} from './entitlements/plan-limits.js';
+export {
+  Quota,
+  QUOTA_KEY,
+  type QuotaLever,
+} from './entitlements/quota.decorator.js';
+export { EntitlementGuard } from './entitlements/entitlement.guard.js';
+export {
+  BookLimitReachedException,
+  QueryLimitReachedException,
+} from './entitlements/entitlement.problems.js';
+export {
+  parsePlanClaims,
+  type PlanClaims,
+} from './entitlements/plan-claims.js';
+
 export { ProblemDetailsFilter } from './http/problem-details.filter.js';
 export { RequestAwareLogger } from './http/request-aware-logger.js';
 export {
