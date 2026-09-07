@@ -14,26 +14,30 @@ apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 
 resources:
-  - namespace.yaml
-  - shared/configmap.yaml
-  - postgres/service.yaml
-  - postgres/statefulset.yaml
-  - redis/service.yaml
-  - redis/deployment.yaml
-  - api/service.yaml
-  - api/deployment.yaml
-  - worker/deployment.yaml
-  - client/service.yaml
-  - client/deployment.yaml
-  - migrator/job.yaml
-  - ingress.yaml
+- namespace.yaml
+- shared/configmap.yaml
+- postgres/service.yaml
+- postgres/statefulset.yaml
+- redis/service.yaml
+- redis/deployment.yaml
+- api/service.yaml
+- api/deployment.yaml
+- worker/deployment.yaml
+- client/service.yaml
+- client/deployment.yaml
+- migrator/job.yaml
+- ingress.yaml
 
 images:
-  - name: ghcr.io/cal3574/scriptorium-api
-    newTag: latest
-  - name: ghcr.io/cal3574/scriptorium-worker
-    newTag: latest
-  - name: ghcr.io/cal3574/scriptorium-migrator
-    newTag: latest
-  - name: ghcr.io/cal3574/scriptorium-client
-    newTag: latest
+- name: ghcr.io/cal3574/scriptorium-api
+  newName: ghcr.io/cal3574/scriptorium-api
+  newTag: 804daae6c7c448f1134e25075d56bb9d1ea0b4ed
+- name: ghcr.io/cal3574/scriptorium-client
+  newName: ghcr.io/cal3574/scriptorium-client
+  newTag: 804daae6c7c448f1134e25075d56bb9d1ea0b4ed
+- name: ghcr.io/cal3574/scriptorium-migrator
+  newName: ghcr.io/cal3574/scriptorium-migrator
+  newTag: 804daae6c7c448f1134e25075d56bb9d1ea0b4ed
+- name: ghcr.io/cal3574/scriptorium-worker
+  newName: ghcr.io/cal3574/scriptorium-worker
+  newTag: 804daae6c7c448f1134e25075d56bb9d1ea0b4ed
