@@ -1,7 +1,4 @@
-import {
-  cleanExtractedMarkdown,
-  cleanHeadingText,
-} from './clean-text.js';
+import { cleanExtractedMarkdown, cleanHeadingText } from './clean-text.js';
 
 describe('cleanHeadingText', () => {
   it('strips inline presentational HTML tags', () => {
@@ -70,7 +67,9 @@ describe('cleanHeadingText', () => {
   });
 
   it('is idempotent', () => {
-    const once = cleanHeadingText('<span>Cause &amp; <b>Effect</b></span>\u200b');
+    const once = cleanHeadingText(
+      '<span>Cause &amp; <b>Effect</b></span>\u200b',
+    );
     expect(cleanHeadingText(once)).toBe(once);
   });
 

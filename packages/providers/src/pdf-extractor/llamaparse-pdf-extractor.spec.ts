@@ -16,10 +16,9 @@ function stubFetch(result: StubResult): jest.Mock {
   return jest.fn(async (url: string | URL) => {
     const href = url.toString();
     if (href.endsWith('/parse/upload')) {
-      return new Response(
-        JSON.stringify({ id: JOB_ID, status: 'PENDING' }),
-        { status: 200 },
-      );
+      return new Response(JSON.stringify({ id: JOB_ID, status: 'PENDING' }), {
+        status: 200,
+      });
     }
     if (href.includes('expand=')) {
       return new Response(JSON.stringify(result), { status: 200 });
@@ -80,7 +79,12 @@ describe('LlamaParseExtractor text cleaning', () => {
     const extraction = await extractor.extract(input);
 
     expect(extraction.items).toEqual([
-      { type: 'heading', level: 2, text: 'Chapter 1. Level of Effort', page: 1 },
+      {
+        type: 'heading',
+        level: 2,
+        text: 'Chapter 1. Level of Effort',
+        page: 1,
+      },
     ]);
     expect(extraction.pages[0].markdown).toBe(
       '## Chapter 1. Level of Effort\n\nWork with Katas & repeat.',
