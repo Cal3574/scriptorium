@@ -21,11 +21,24 @@ const FROM_NODE = [
 // them for task scheduling and Node's MessagePort keeps the event loop alive,
 // which stops Jest exiting. The scheduler falls back to setTimeout without it.
 
+// jsdom *does* ship these two, but its `AbortSignal` is a different class from
+// Node's. The Ask screen passes `new AbortController().signal` to `fetch()`,
+// whose `Request` constructor (copied from Node above) does an `instanceof
+// AbortSignal` check against *Node's* class and throws "Expected signal to be
+// an instance of AbortSignal". Force Node's versions so the signal and the
+// fetch that receives it agree.
+const OVERRIDE_FROM_NODE = ['AbortController', 'AbortSignal'];
+
 class ClientTestEnvironment extends JSDOMEnvironment {
   constructor(config, context) {
     super(config, context);
     for (const key of FROM_NODE) {
       if (this.global[key] === undefined && globalThis[key] !== undefined) {
+        this.global[key] = globalThis[key];
+      }
+    }
+    for (const key of OVERRIDE_FROM_NODE) {
+      if (globalThis[key] !== undefined) {
         this.global[key] = globalThis[key];
       }
     }
