@@ -1,5 +1,6 @@
 import type { PDFDocumentLoadingTask, PDFDocumentProxy } from 'pdfjs-dist';
 import type { PdfOutlineItem } from './pdf-extractor.js';
+import { cleanHeadingText } from './clean-text.js';
 
 // The bookmark ("outline") tree is not something LlamaParse returns, so the
 // live extractor runs a second, local pass over the same PDF bytes with
@@ -63,7 +64,7 @@ async function mapNodes(
 ): Promise<PdfOutlineItem[]> {
   const out: PdfOutlineItem[] = [];
   for (const node of nodes) {
-    const title = (node.title ?? '').trim();
+    const title = cleanHeadingText(node.title ?? '');
     if (title.length === 0) continue;
     out.push({
       title,
