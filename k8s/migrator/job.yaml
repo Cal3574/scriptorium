@@ -2,18 +2,25 @@
 # then exits. Pods never migrate on boot (see docker/migrator.Dockerfile), so
 # this Job is the only writer of the schema.
 #
-# ArgoCD runs it as a PreSync hook: on every sync it executes to completion
-# BEFORE the api/worker Deployments roll, and the previous Job object is
-# deleted just before the next run (Jobs are immutable, so re-applying in
-# place would fail). Idempotent - drizzle skips already-applied migrations.
+# ArgoCD runs it as a Sync hook in sync-wave 1: Postgres and Redis (wave 0)
+# are created and become healthy first, then this Job runs to completion,
+# then the api/worker/client Deployments (wave 2) roll. It cannot be a
+# PreSync hook - PreSync runs before ANY resource in the app, including
+# Postgres, so the Job would wait forever for a database that has not been
+# created yet.
+#
+# `hook-delete-policy: BeforeHookCreation` deletes the previous Job object
+# just before the next run (Jobs are immutable, so re-applying in place would
+# fail). Idempotent - drizzle skips already-applied migrations.
 apiVersion: batch/v1
 kind: Job
 metadata:
   name: migrator
   namespace: scriptorium
   annotations:
-    argocd.argoproj.io/hook: PreSync
+    argocd.argoproj.io/hook: Sync
     argocd.argoproj.io/hook-delete-policy: BeforeHookCreation
+    argocd.argoproj.io/sync-wave: '1'
 spec:
   backoffLimit: 3
   # Kubernetes reaps the finished Job (and its pod) after an hour, for the

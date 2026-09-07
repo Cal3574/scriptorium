@@ -15,7 +15,7 @@ ArgoCD (`argocd/application.yaml`) reconciles this directory on the `main` branc
 | `api/`                       | NestJS API Deployment + ClusterIP Service (port 3000, `/health` probe).    |
 | `worker/`                    | BullMQ consumer Deployment. No Service, no HTTP probe.                     |
 | `client/`                    | Static SPA (nginx) Deployment + Service (`/healthz` probe).                |
-| `migrator/job.yaml`          | drizzle migration Job. ArgoCD PreSync hook.                                |
+| `migrator/job.yaml`          | drizzle migration Job. ArgoCD Sync hook, sync-wave 1 (after the DB).       |
 | `ingress.yaml`               | Traefik Ingress. `/api` + `/health` -> api, `/` -> client.                 |
 | `kustomization.yaml`         | The deployable set + the `images:` tag block CI bumps per release.         |
 | `bootstrap/`                 | One-time cluster-scoped setup, applied by hand (not in the kustomization). |
@@ -68,10 +68,11 @@ kubectl -n scriptorium rollout status statefulset/postgres
 kubectl -n scriptorium wait --for=condition=complete job/migrator --timeout=120s
 ```
 
-`kubectl apply -k` applies the migrator Job alongside the rest; with plain
-`kubectl` (no ArgoCD) it does not enforce PreSync ordering, so the api/worker
-pods may restart a few times waiting on the schema. That is why the manual
-flow above waits on the Job before moving on. ArgoCD does honour the hook.
+`kubectl apply -k` applies everything at once; plain `kubectl` (no ArgoCD)
+ignores the sync-wave annotations, so the migrator and the api/worker pods
+race Postgres coming up. Their `wait-for-*` init containers absorb most of
+that, and the explicit waits above cover the rest. ArgoCD honours the waves:
+Postgres/Redis (0), migrator (1), apps (2).
 
 ## Handing it to ArgoCD instead
 
@@ -84,7 +85,8 @@ kubectl apply -n argocd -f argocd/application.yaml
 
 ArgoCD renders `k8s/` with kustomize, applies every manifest
 `kustomization.yaml` lists (the `*.example.yaml` templates are omitted), and
-runs the migrator as a PreSync hook on every sync.
+runs the migrator as a Sync hook in sync-wave 1 - after Postgres and Redis
+(wave 0) are healthy, before the app Deployments (wave 2).
 
 ## Container images
 
