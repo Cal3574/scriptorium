@@ -23,6 +23,10 @@ export {
 } from './pdf-extractor/pdf-extractor.js';
 export { FakePdfExtractor } from './pdf-extractor/fake-pdf-extractor.js';
 export {
+  cleanHeadingText,
+  cleanExtractedMarkdown,
+} from './pdf-extractor/clean-text.js';
+export {
   LlamaParseExtractor,
   type LlamaParseExtractorOptions,
 } from './pdf-extractor/llamaparse-pdf-extractor.js';
