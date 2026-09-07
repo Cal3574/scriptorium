@@ -8,6 +8,9 @@ kind: Deployment
 metadata:
   name: api
   namespace: scriptorium
+  annotations:
+    # Roll after Postgres/Redis (wave 0) and the migrator (wave 1).
+    argocd.argoproj.io/sync-wave: '2'
 spec:
   replicas: 2
   selector:

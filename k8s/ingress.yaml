@@ -22,6 +22,8 @@ metadata:
   namespace: scriptorium
   annotations:
     cert-manager.io/cluster-issuer: letsencrypt-prod
+    # Create with the app Deployments, after the migrator.
+    argocd.argoproj.io/sync-wave: '2'
 spec:
   ingressClassName: traefik
   tls:
