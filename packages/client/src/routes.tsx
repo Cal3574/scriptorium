@@ -15,12 +15,28 @@ export const routes: RouteObject[] = [
     element: <RootLayout />,
     children: [
       { index: true, loader: () => redirect('/library') },
-      { path: 'library', element: <Library /> },
+      {
+        path: 'library',
+        element: <Library />,
+        handle: { title: 'Library' },
+      },
       { path: 'books/:bookId', element: <BookDetail /> },
-      { path: 'ask', element: <QueryScreen /> },
-      { path: 'ask/:queryId', element: <QueryScreen /> },
-      { path: 'history', element: <QueryHistory /> },
-      { path: 'how-it-works', element: <HowItWorks /> },
+      { path: 'ask', element: <QueryScreen />, handle: { title: 'Ask' } },
+      {
+        path: 'ask/:queryId',
+        element: <QueryScreen />,
+        handle: { title: 'Ask' },
+      },
+      {
+        path: 'history',
+        element: <QueryHistory />,
+        handle: { title: 'History' },
+      },
+      {
+        path: 'how-it-works',
+        element: <HowItWorks />,
+        handle: { title: 'How it works' },
+      },
     ],
   },
 ];

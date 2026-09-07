@@ -14,6 +14,7 @@ import { EditableField } from '@/components/book-detail/editable-field';
 import { NotGeneratedYet } from '@/components/book-detail/not-generated-yet';
 import { ProcessingStatus } from '@/components/book-detail/processing-status';
 import { useApi } from '../auth/use-api';
+import { setDocumentTitle } from '../use-document-title';
 import { problemMessage } from './problem';
 import { useIngestEvents } from './use-ingest-events';
 
@@ -47,6 +48,13 @@ export function BookDetail() {
     setError(null);
     load().catch((err: Error) => setError(err.message));
   }, [load]);
+
+  // No `handle.title` for this route - the title is the book itself. Reset to
+  // the bare site name on unmount so a stale book name never lingers.
+  useEffect(() => {
+    if (book?.title) setDocumentTitle(book.title);
+    return () => setDocumentTitle();
+  }, [book?.title]);
 
   // While the book is mid-pipeline (including straight after a retry) follow
   // the live progress stream; when it settles, refetch the detail so the
