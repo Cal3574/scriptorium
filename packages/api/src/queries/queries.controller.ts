@@ -7,6 +7,7 @@ import {
   Post,
   Req,
   Res,
+  UseGuards,
 } from '@nestjs/common';
 import {
   CreateQueryRequest,
@@ -20,7 +21,9 @@ import {
   type AuthenticatedUser,
   BooksRepository,
   CurrentUser,
+  EntitlementGuard,
   QueriesRepository,
+  Quota,
 } from '@scriptorium/server-core';
 import { createZodDto } from 'nestjs-zod';
 import { QuestionTooLongException } from './queries.problems.js';
@@ -56,6 +59,7 @@ class CreateQueryDto extends createZodDto(CreateQueryRequest) {}
  * synthesis failure - is an SSE `error` event, never an HTTP status.
  */
 @Controller('queries')
+@UseGuards(EntitlementGuard)
 export class QueriesController {
   constructor(
     private readonly service: QueryService,
@@ -87,7 +91,13 @@ export class QueriesController {
     return toQueryDetailDto(row);
   }
 
+  // `@Quota('queries')` runs in `EntitlementGuard` before this handler, so a
+  // reader at their plan's monthly question ceiling gets `402
+  // query_limit_reached` before any stream headers are flushed and no `queries`
+  // row is written. The count derives from existing rows (this user's `queries`
+  // created since the UTC calendar month began, null answers included).
   @Post()
+  @Quota('queries')
   @HttpCode(200)
   async create(
     @Body() body: CreateQueryDto,
