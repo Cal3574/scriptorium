@@ -1,0 +1,9 @@
+{
+  "name": "prototype-chapter-detection",
+  "private": true,
+  "type": "module",
+  "description": "THROWAWAY - wayfinder ticket #7",
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.68.0"
+  }
+}
