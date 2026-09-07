@@ -4,6 +4,7 @@ import { Library } from './books/Library';
 import { BookDetail } from './books/BookDetail';
 import { QueryScreen } from './queries/QueryScreen';
 import { QueryHistory } from './queries/QueryHistory';
+import { PricingPage } from './pricing/PricingPage';
 
 // One layout route wraps the five full-page screens; the index route just
 // redirects `/` to `/library` (a data-mode loader redirect, so it never
@@ -19,6 +20,7 @@ export const routes: RouteObject[] = [
       { path: 'ask', element: <QueryScreen /> },
       { path: 'ask/:queryId', element: <QueryScreen /> },
       { path: 'history', element: <QueryHistory /> },
+      { path: 'pricing', element: <PricingPage /> },
     ],
   },
 ];
