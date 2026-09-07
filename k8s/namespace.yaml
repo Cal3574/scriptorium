@@ -1,0 +1,7 @@
+# Every Scriptorium resource lives in this namespace so it is isolated from
+# ArgoCD's own objects (namespace `argocd`) and from anything else on the
+# cluster. `kubectl -n scriptorium get all` then shows the whole app.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: scriptorium

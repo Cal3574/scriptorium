@@ -1,0 +1,118 @@
+# Build the four service images and roll them out via GitOps.
+#
+# On every push to `main` (after CI has passed on the PR): build api, worker,
+# migrator and client from docker/*.Dockerfile, push them to GHCR tagged with
+# the commit SHA, then bump the image tags in k8s/kustomization.yaml and
+# commit that back. ArgoCD watches k8s/ and syncs the new tags to the cluster.
+#
+# The tag-bump commit is made with a `chore(release):` subject and is
+# filtered out below so it does not trigger another run.
+name: Release
+
+on:
+  push:
+    branches:
+      - main
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+permissions:
+  contents: write # push the tag-bump commit
+  packages: write # push images to GHCR
+
+jobs:
+  prep:
+    # Skip the run triggered by our own tag-bump commit.
+    if: "!startsWith(github.event.head_commit.message, 'chore(release):')"
+    runs-on: ubuntu-latest
+    outputs:
+      image_prefix: ${{ steps.p.outputs.prefix }}
+    steps:
+      # GHCR paths must be lowercase; the owner login may not be.
+      - id: p
+        run: echo "prefix=ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/scriptorium" >> "$GITHUB_OUTPUT"
+
+  build:
+    needs: prep
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: api
+            dockerfile: docker/api.Dockerfile
+          - name: worker
+            dockerfile: docker/worker.Dockerfile
+          - name: migrator
+            dockerfile: docker/migrator.Dockerfile
+          - name: client
+            dockerfile: docker/client.Dockerfile
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # The client bundle statically inlines these at build time, so the image
+      # is environment-specific. Not sensitive (they ship in the browser
+      # bundle) but stored as repo secrets, so GHA masks them in the logs.
+      - name: Assemble client build args
+        if: matrix.name == 'client'
+        id: client_args
+        env:
+          VITE_API_URL: ${{ secrets.VITE_API_URL }}
+          VITE_CLERK_PUBLISHABLE_KEY: ${{ secrets.VITE_CLERK_PUBLISHABLE_KEY }}
+        run: |
+          {
+            echo 'args<<EOF'
+            echo "VITE_API_URL=${VITE_API_URL}"
+            echo "VITE_CLERK_PUBLISHABLE_KEY=${VITE_CLERK_PUBLISHABLE_KEY}"
+            echo EOF
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Build and push ${{ matrix.name }}
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ${{ matrix.dockerfile }}
+          push: true
+          tags: |
+            ${{ needs.prep.outputs.image_prefix }}-${{ matrix.name }}:${{ github.sha }}
+            ${{ needs.prep.outputs.image_prefix }}-${{ matrix.name }}:latest
+          build-args: ${{ matrix.name == 'client' && steps.client_args.outputs.args || '' }}
+          cache-from: type=gha,scope=${{ matrix.name }}
+          cache-to: type=gha,scope=${{ matrix.name }},mode=max
+
+  bump-tags:
+    needs: [prep, build]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Point kustomize at the new image tags
+        working-directory: k8s
+        env:
+          PREFIX: ${{ needs.prep.outputs.image_prefix }}
+        run: |
+          for svc in api worker migrator client; do
+            kustomize edit set image "${PREFIX}-${svc}=${PREFIX}-${svc}:${GITHUB_SHA}"
+          done
+
+      - name: Commit the bump
+        run: |
+          git config user.name  'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          if git diff --quiet -- k8s/kustomization.yaml; then
+            echo "No image change to commit."
+            exit 0
+          fi
+          git add k8s/kustomization.yaml
+          git commit -m "chore(release): ${GITHUB_SHA::7}"
+          git push

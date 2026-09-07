@@ -1,0 +1,39 @@
+# The deployable set. ArgoCD points its Application `path` at this directory
+# and renders it with kustomize.
+#
+# `resources` lists only the real manifests - the *.example.yaml Secret
+# templates are documentation and are deliberately left out, so the real
+# Secrets (applied out of band) are the only ones that ever reach the cluster.
+#
+# `images` is the single source of truth for which build each service runs.
+# The Release workflow (.github/workflows/release.yml) runs
+# `kustomize edit set image ...=<repo>:<sha>` here and commits the result;
+# ArgoCD then syncs the new tags. `newTag: latest` is the pre-first-release
+# placeholder.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - namespace.yaml
+  - shared/configmap.yaml
+  - postgres/service.yaml
+  - postgres/statefulset.yaml
+  - redis/service.yaml
+  - redis/deployment.yaml
+  - api/service.yaml
+  - api/deployment.yaml
+  - worker/deployment.yaml
+  - client/service.yaml
+  - client/deployment.yaml
+  - migrator/job.yaml
+  - ingress.yaml
+
+images:
+  - name: ghcr.io/cal3574/scriptorium-api
+    newTag: latest
+  - name: ghcr.io/cal3574/scriptorium-worker
+    newTag: latest
+  - name: ghcr.io/cal3574/scriptorium-migrator
+    newTag: latest
+  - name: ghcr.io/cal3574/scriptorium-client
+    newTag: latest

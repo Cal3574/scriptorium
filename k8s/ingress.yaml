@@ -1,0 +1,55 @@
+# The one entry point from outside the cluster. k3s ships Traefik as its
+# ingress controller (same "batteries-included" stack as the local-path
+# storage class the StatefulSet/PVCs use).
+#
+# Routing, longest-prefix wins:
+#   /api     -> api Service    (NestJS, global prefix /api/v1)
+#   /health  -> api Service    (probe endpoint, outside the /api/v1 prefix)
+#   /        -> client Service (SPA shell + assets; nginx does the SPA
+#                               fallback to index.html)
+#
+# SSE: `GET /api/v1/books/:id/events` streams. Traefik forwards the response
+# unbuffered by default, so no per-route annotation is needed. If this is ever
+# moved behind ingress-nginx, add
+# `nginx.ingress.kubernetes.io/proxy-buffering: "off"`.
+#
+# TLS: cert-manager issues the cert into the Secret named below. The host here
+# must match API_URL / CLIENT_ORIGIN in shared/configmap.yaml.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: scriptorium
+  namespace: scriptorium
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+spec:
+  ingressClassName: traefik
+  tls:
+    - hosts:
+        - scriptorium-ai.com
+      secretName: scriptorium-tls
+  rules:
+    - host: scriptorium-ai.com
+      http:
+        paths:
+          - path: /api
+            pathType: Prefix
+            backend:
+              service:
+                name: api
+                port:
+                  number: 3000
+          - path: /health
+            pathType: Prefix
+            backend:
+              service:
+                name: api
+                port:
+                  number: 3000
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: client
+                port:
+                  number: 80

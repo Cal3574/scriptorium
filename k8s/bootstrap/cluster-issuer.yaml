@@ -1,0 +1,33 @@
+# cert-manager ClusterIssuer for Let's Encrypt production certificates.
+#
+# Bootstrap only - NOT part of k8s/kustomization.yaml, because it is
+# cluster-scoped and depends on cert-manager's CRDs already being installed.
+# Apply it once, by hand, after cert-manager is up:
+#
+#   # 1. install cert-manager (its own release, once per cluster)
+#   kubectl apply -f https://github.com/cert-manager/cert-manager/releases/latest/download/cert-manager.yaml
+#   kubectl -n cert-manager rollout status deploy/cert-manager-webhook
+#
+#   # 2. this issuer
+#   kubectl apply -f k8s/bootstrap/cluster-issuer.yaml
+#
+# k8s/ingress.yaml references it by name via the
+# `cert-manager.io/cluster-issuer: letsencrypt-prod` annotation; cert-manager
+# then solves the HTTP-01 challenge through the Traefik ingress and writes the
+# cert into the `scriptorium-tls` Secret the Ingress names.
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: letsencrypt-prod
+spec:
+  acme:
+    server: https://acme-v02.api.letsencrypt.org/directory
+    # Expiry and policy notices go here. Set a real address before applying.
+    email: ops@scriptorium-ai.com
+    # Account key cert-manager creates and reuses; not the certificate itself.
+    privateKeySecretRef:
+      name: letsencrypt-prod-account-key
+    solvers:
+      - http01:
+          ingress:
+            class: traefik

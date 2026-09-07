@@ -1,0 +1,50 @@
+# Schema migration - runs drizzle migrations against the cluster Postgres,
+# then exits. Pods never migrate on boot (see docker/migrator.Dockerfile), so
+# this Job is the only writer of the schema.
+#
+# ArgoCD runs it as a PreSync hook: on every sync it executes to completion
+# BEFORE the api/worker Deployments roll, and the previous Job object is
+# deleted just before the next run (Jobs are immutable, so re-applying in
+# place would fail). Idempotent - drizzle skips already-applied migrations.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: migrator
+  namespace: scriptorium
+  annotations:
+    argocd.argoproj.io/hook: PreSync
+    argocd.argoproj.io/hook-delete-policy: BeforeHookCreation
+spec:
+  backoffLimit: 3
+  # Kubernetes reaps the finished Job (and its pod) after an hour, for the
+  # non-ArgoCD path (`kubectl apply -f k8s/migrator/job.yaml`).
+  ttlSecondsAfterFinished: 3600
+  template:
+    metadata:
+      labels:
+        app: migrator
+    spec:
+      restartPolicy: Never
+      # Private GHCR packages; `ghcr-pull` Secret created out of band (see
+      # k8s/README.md).
+      imagePullSecrets:
+        - name: ghcr-pull
+      initContainers:
+        - name: wait-for-postgres
+          image: busybox:1.36
+          command: ['sh', '-c', 'until nc -z postgres 5432; do sleep 2; done']
+      containers:
+        - name: migrator
+          image: ghcr.io/cal3574/scriptorium-migrator:latest # tag set by k8s/kustomization.yaml; CI bumps it per release
+          env:
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: app-secrets
+                  key: DATABASE_URL
+          resources:
+            requests:
+              memory: 128Mi
+              cpu: 100m
+            limits:
+              memory: 384Mi

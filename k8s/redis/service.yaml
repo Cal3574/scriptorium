@@ -1,0 +1,16 @@
+# Stable in-cluster address for the broker. The api and worker connect via
+# `redis://redis:6379` (REDIS_URL in shared/secret.yaml). ClusterIP only -
+# Redis is never exposed outside the cluster, which is why it runs without
+# auth.
+apiVersion: v1
+kind: Service
+metadata:
+  name: redis
+  namespace: scriptorium
+spec:
+  selector:
+    app: redis
+  ports:
+    - name: redis
+      port: 6379
+      targetPort: 6379

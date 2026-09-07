@@ -1,0 +1,14 @@
+# In-cluster address for the SPA. The Ingress sends every path that is not
+# `/api` or `/health` here.
+apiVersion: v1
+kind: Service
+metadata:
+  name: client
+  namespace: scriptorium
+spec:
+  selector:
+    app: client
+  ports:
+    - name: http
+      port: 80
+      targetPort: http

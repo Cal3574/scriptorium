@@ -1,0 +1,74 @@
+# Postgres + pgvector. A StatefulSet, not a Deployment, because this pod has
+# identity and disk: a stable name (`postgres-0`) and a PersistentVolumeClaim
+# that survives pod restarts. Replicas stays at 1 - two Postgres pods would
+# race on the same data or need real replication, neither of which belongs
+# here yet.
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: postgres
+  namespace: scriptorium
+spec:
+  serviceName: postgres
+  replicas: 1
+  selector:
+    matchLabels:
+      app: postgres
+  template:
+    metadata:
+      labels:
+        app: postgres
+    spec:
+      # SIGTERM -> fast shutdown is a clean Postgres stop; give it room.
+      terminationGracePeriodSeconds: 60
+      containers:
+        - name: postgres
+          image: pgvector/pgvector:pg17
+          ports:
+            - name: postgres
+              containerPort: 5432
+          envFrom:
+            - secretRef:
+                name: postgres-secret
+          env:
+            # The default mount is the volume root; point PGDATA at a
+            # subdirectory so Postgres does not trip over lost+found on some
+            # volume types.
+            - name: PGDATA
+              value: /var/lib/postgresql/data/pgdata
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/postgresql/data
+          # readiness gates traffic and the migrator Job; liveness restarts a
+          # wedged server. `pg_isready` with no args checks the local socket.
+          readinessProbe:
+            exec:
+              command: ['pg_isready', '-U', 'scriptorium', '-d', 'scriptorium']
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 5
+          livenessProbe:
+            exec:
+              command: ['pg_isready', '-U', 'scriptorium', '-d', 'scriptorium']
+            initialDelaySeconds: 30
+            periodSeconds: 20
+            timeoutSeconds: 5
+            failureThreshold: 6
+          resources:
+            requests:
+              memory: 256Mi
+              cpu: 250m
+            limits:
+              memory: 1Gi
+  # One PVC per pod. `local-path` is the storage class k3s ships with - the
+  # volume is a directory on the VPS SSD. Deleting the pod keeps the data;
+  # deleting this claim destroys it.
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes: ['ReadWriteOnce']
+        storageClassName: local-path
+        resources:
+          requests:
+            storage: 10Gi

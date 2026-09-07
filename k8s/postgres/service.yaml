@@ -1,0 +1,17 @@
+# Headless Service (clusterIP: None) - required by the StatefulSet for stable
+# per-pod DNS. With one replica the pod is reachable both as
+# `postgres-0.postgres.scriptorium.svc` and, because there is exactly one
+# endpoint, as plain `postgres:5432`. The apps use the short form.
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres
+  namespace: scriptorium
+spec:
+  clusterIP: None
+  selector:
+    app: postgres
+  ports:
+    - name: postgres
+      port: 5432
+      targetPort: 5432
