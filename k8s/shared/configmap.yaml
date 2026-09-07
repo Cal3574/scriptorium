@@ -22,8 +22,10 @@ data:
   # not secret; the IAM keys that sign uploads are.
   S3_BUCKET: scriptorium-uploads-prod
   S3_REGION: eu-west-2
-  # The api's own public base URL (used for presigned-callback links and log
+  # The api's own public *origin* (used for presigned-callback links and log
   # context) and the single browser origin allowed through CORS / accepted as
-  # the Clerk token `azp`. Both must line up with the host in k8s/ingress.yaml.
-  API_URL: https://scriptorium-ai.com/api/v1
+  # the Clerk token `azp`. Both are origin-only, no path - the api mounts its
+  # routes under /api/v1 itself, and the client appends that prefix to every
+  # request. Both must line up with the host in k8s/ingress.yaml.
+  API_URL: https://scriptorium-ai.com
   CLIENT_ORIGIN: https://scriptorium-ai.com
