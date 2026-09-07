@@ -23,7 +23,7 @@ spec:
   acme:
     server: https://acme-v02.api.letsencrypt.org/directory
     # Expiry and policy notices go here. Set a real address before applying.
-    email: ops@scriptorium-ai.com
+    email: callumhall65@gmail.com
     # Account key cert-manager creates and reuses; not the certificate itself.
     privateKeySecretRef:
       name: letsencrypt-prod-account-key
