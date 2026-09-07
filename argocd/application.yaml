@@ -20,7 +20,10 @@ metadata:
 spec:
   project: default
   source:
-    repoURL: https://github.com/Cal3574/scriptorium.git
+    # Must match the `url` in the argocd repository Secret exactly (ArgoCD
+    # pairs credentials to the Application by URL string). SSH form -> the
+    # Secret carries an sshPrivateKey (read-only deploy key).
+    repoURL: git@github.com:Cal3574/scriptorium.git
     targetRevision: main
     # A kustomization.yaml here makes ArgoCD render with kustomize. Only the
     # manifests it lists are deployed - the *.example.yaml Secret templates
