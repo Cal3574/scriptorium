@@ -4,9 +4,12 @@
 # Build from the repo root:
 #
 #   docker build -f docker/client.Dockerfile \
-#     --build-arg VITE_API_URL=https://api.example.com/api/v1 \
+#     --build-arg VITE_API_URL=https://scriptorium-ai.com \
 #     --build-arg VITE_CLERK_PUBLISHABLE_KEY=pk_live_... \
 #     -t scriptorium/client .
+#
+# VITE_API_URL is an origin, no /api/v1 path - the client prepends that prefix
+# to every request path itself (see packages/client/src/auth/use-api.ts).
 #
 # Vite statically inlines `import.meta.env.VITE_*` at build time (see
 # packages/client/src/env.ts), so the bundle - and therefore this image - is
