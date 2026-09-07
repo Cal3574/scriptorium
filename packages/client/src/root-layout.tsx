@@ -3,6 +3,7 @@ import { Component, Suspense, type ReactNode } from 'react';
 import { Outlet } from 'react-router';
 import { hasProviderRemote, lazyProvider } from './mf';
 import { AppShell } from './components/shell/app-shell';
+import { useDocumentTitle } from './use-document-title';
 
 // ProviderBoundary catches the lazy() rejection that fires when a provider's
 // remoteEntry.js can't be fetched (provider not running, network error,
@@ -58,6 +59,11 @@ function Shell() {
 }
 
 export function RootLayout() {
+  // Keeps `document.title` in step with the active route (routes.tsx
+  // `handle.title`). Lives here because RootLayout wraps every screen and
+  // sits inside the router.
+  useDocumentTitle();
+
   // Core 3 dropped <SignedIn>/<SignedOut>; gate on the hook instead. An
   // unauthenticated visitor only ever sees <SignIn />.
   const { isLoaded, isSignedIn } = useAuth();
