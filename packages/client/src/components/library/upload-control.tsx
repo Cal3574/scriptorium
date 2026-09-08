@@ -3,7 +3,11 @@ import { UploadIcon } from 'lucide-react';
 import type { CreateUploadUrlResponse } from '@scriptorium/contracts';
 
 import { Button } from '@/components/ui/button';
-import { problemMessage } from '@/books/problem';
+import {
+  isLimitReached,
+  problemMessage,
+  type LimitCode,
+} from '@/books/problem';
 import type { useApi } from '@/auth/use-api';
 
 const PDF_CONTENT_TYPE = 'application/pdf';
@@ -18,9 +22,14 @@ type ApiFetch = ReturnType<typeof useApi>;
 export function UploadControl({
   api,
   onUploaded,
+  onLimitReached,
 }: {
   api: ApiFetch;
   onUploaded: () => void;
+  // Called with the limit code when `POST /books` comes back 402 (book quota
+  // spent). The library screen renders the shared limit-reached notice; a
+  // full-width Alert has no place in this horizontal toolbar.
+  onLimitReached: (code: LimitCode) => void;
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);
@@ -65,6 +74,14 @@ export function UploadControl({
         }),
       });
       if (!createRes.ok) {
+        // A 402 here means the book quota is spent. `useApi` has already
+        // pinged the usage bus, so the meter is refetching; swap our inline
+        // error for the shared limit-reached notice.
+        const limitCode = await isLimitReached(createRes);
+        if (limitCode) {
+          onLimitReached(limitCode);
+          return;
+        }
         throw new Error((await problemMessage(createRes)) ?? 'create failed');
       }
 

@@ -15,8 +15,13 @@ import { CitationList } from '@/components/query/citation-list';
 import { QuestionForm } from '@/components/query/question-form';
 import { RetrievedPassages } from '@/components/query/retrieved-passages';
 import { env } from '../env';
-import { problemMessage } from '../books/problem';
+import {
+  isLimitReached,
+  problemMessage,
+  type LimitCode,
+} from '../books/problem';
 import { useUsage } from '../usage/use-usage';
+import { LimitReachedNotice } from '../usage/limit-reached-notice';
 import { askAgainPath } from './ask-again';
 import { QueryDetail } from './QueryDetail';
 
@@ -45,6 +50,7 @@ export function QueryScreen() {
   const [answer, setAnswer] = useState('');
   const [citations, setCitations] = useState<Citation[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [limit, setLimit] = useState<LimitCode | null>(null);
   const abortRef = useRef<AbortController | null>(null);
 
   // "Ask again" lands here with `?q=`; the same component instance is reused
@@ -58,6 +64,7 @@ export function QueryScreen() {
     setAnswer('');
     setCitations([]);
     setError(null);
+    setLimit(null);
   }, [searchParams]);
 
   const askAgain = useCallback(
@@ -79,6 +86,7 @@ export function QueryScreen() {
     setAnswer('');
     setCitations([]);
     setError(null);
+    setLimit(null);
 
     try {
       const token = await getToken();
@@ -94,6 +102,16 @@ export function QueryScreen() {
       });
 
       if (!res.ok || !res.body) {
+        // A 402 means the monthly question quota is spent. This screen uses
+        // raw `fetch`, not `useApi`, so the usage bus was not pinged - refetch
+        // the meter here, and show the shared notice instead of an error.
+        const limitCode = await isLimitReached(res);
+        if (limitCode) {
+          setLimit(limitCode);
+          setPhase('error');
+          void refetchUsage();
+          return;
+        }
         setError((await problemMessage(res)) ?? `query failed: ${res.status}`);
         setPhase('error');
         return;
@@ -168,6 +186,8 @@ export function QueryScreen() {
         onSubmit={() => void ask()}
         busy={busy}
       />
+
+      {limit && <LimitReachedNotice code={limit} />}
 
       {error && (
         <Alert variant="destructive" className="mb-6">

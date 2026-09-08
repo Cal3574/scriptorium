@@ -1,6 +1,7 @@
 import type { BookListItemDto, UsageDto } from '@scriptorium/contracts';
 
 import { statusRole } from '@/books/status';
+import type { LimitCode } from '@/books/problem';
 import { UploadControl } from './upload-control';
 import { UsageMeter } from './usage-meter';
 import type { useApi } from '@/auth/use-api';
@@ -30,11 +31,13 @@ export function Toolbar({
   usage,
   api,
   onUploaded,
+  onLimitReached,
 }: {
   books: BookListItemDto[];
   usage: UsageDto | null;
   api: ApiFetch;
   onUploaded: () => void;
+  onLimitReached: (code: LimitCode) => void;
 }) {
   return (
     <div className="border-border bg-card mb-4 flex items-center gap-4 rounded-lg border px-4 py-3 shadow-xs">
@@ -44,7 +47,11 @@ export function Toolbar({
       </span>
       {usage && <UsageMeter usage={usage} />}
       <div className="ml-auto">
-        <UploadControl api={api} onUploaded={onUploaded} />
+        <UploadControl
+          api={api}
+          onUploaded={onUploaded}
+          onLimitReached={onLimitReached}
+        />
       </div>
     </div>
   );

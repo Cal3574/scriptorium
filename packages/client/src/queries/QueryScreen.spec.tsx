@@ -217,6 +217,22 @@ test('a non-OK response body surfaces the problem message in an alert', async ()
   expect(await screen.findByRole('alert')).toHaveTextContent('rate limited');
 });
 
+test('a 402 shows the limit-reached notice and refetches usage, not a plain error', async () => {
+  fetchMock.mockResolvedValue(jsonRes({ code: 'query_limit_reached' }, 402));
+  renderAsk();
+
+  await userEvent.type(screen.getByLabelText('question'), 'one more?');
+  await userEvent.click(screen.getByRole('button', { name: 'Ask' }));
+
+  expect(await screen.findByText(/monthly question limit/i)).toBeVisible();
+  expect(screen.getByRole('link', { name: 'Upgrade to Pro' })).toHaveAttribute(
+    'href',
+    '/pricing',
+  );
+  expect(usageRefetch).toHaveBeenCalled();
+  expect(screen.queryByText(/didn't go through/i)).not.toBeInTheDocument();
+});
+
 test('lands with the question pre-filled from ?q=', () => {
   renderAsk('/ask?q=What%20is%20focus%3F');
   expect(screen.getByLabelText('question')).toHaveValue('What is focus?');
