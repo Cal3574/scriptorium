@@ -1,5 +1,6 @@
 import {
   parseSentinelPages,
+  parseSentinelPagesLenient,
   SentinelMismatchError,
 } from './parse-sentinel-pages.js';
 
@@ -52,9 +53,7 @@ describe('parseSentinelPages', () => {
 
   it('throws when pages are out of order', () => {
     const response = '<!-- page 2 -->\nB\n<!-- page 1 -->\nA';
-    expect(() => parseSentinelPages(response, [1, 2])).toThrow(
-      /\[1, 2\] but got \[2, 1\]/,
-    );
+    expect(() => parseSentinelPages(response, [1, 2])).toThrow(/out of order/);
   });
 
   it('throws when the model emits an extra page', () => {
@@ -62,5 +61,38 @@ describe('parseSentinelPages', () => {
     expect(() => parseSentinelPages(response, [1])).toThrow(
       SentinelMismatchError,
     );
+  });
+});
+
+describe('parseSentinelPagesLenient', () => {
+  it('returns the pages it got and the ones it did not, for a dropped tail', () => {
+    const response = '<!-- page 5 -->\nA\n<!-- page 6 -->\nB';
+    expect(parseSentinelPagesLenient(response, [5, 6, 7, 8])).toEqual({
+      pages: [
+        { page: 5, markdown: 'A' },
+        { page: 6, markdown: 'B' },
+      ],
+      missing: [7, 8],
+    });
+  });
+
+  it('reports a dropped middle page', () => {
+    const response = '<!-- page 1 -->\nA\n<!-- page 3 -->\nC';
+    expect(parseSentinelPagesLenient(response, [1, 2, 3])).toEqual({
+      pages: [
+        { page: 1, markdown: 'A' },
+        { page: 3, markdown: 'C' },
+      ],
+      missing: [2],
+    });
+  });
+
+  it('still throws on an out-of-order or unexpected sentinel', () => {
+    expect(() =>
+      parseSentinelPagesLenient('<!-- page 2 -->\nB\n<!-- page 1 -->\nA', [1, 2]),
+    ).toThrow(SentinelMismatchError);
+    expect(() =>
+      parseSentinelPagesLenient('<!-- page 9 -->\nX', [1, 2]),
+    ).toThrow(SentinelMismatchError);
   });
 });

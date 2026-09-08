@@ -29,6 +29,30 @@ export function parseSentinelPages(
   response: string,
   expectedPages: number[],
 ): PdfPage[] {
+  const { pages, missing } = parseSentinelPagesLenient(response, expectedPages);
+  if (missing.length > 0) {
+    throw new SentinelMismatchError(
+      `expected page sentinels [${expectedPages.join(', ')}] but got [${pages
+        .map((p) => p.page)
+        .join(', ')}]`,
+    );
+  }
+  return pages;
+}
+
+/**
+ * Like {@link parseSentinelPages}, but tolerates a response that dropped one or
+ * more pages: as long as the sentinels it *did* emit are a subset of
+ * `expectedPages` in the right order (no extras, no reordering), the parsed
+ * pages are returned alongside `missing` - the expected pages with no sentinel.
+ * The adapter salvages those one at a time rather than failing the whole book.
+ * A genuinely scrambled response (an extra or out-of-order sentinel) still
+ * throws {@link SentinelMismatchError}.
+ */
+export function parseSentinelPagesLenient(
+  response: string,
+  expectedPages: number[],
+): { pages: PdfPage[]; missing: number[] } {
   const lines = response.split('\n');
   const found: Array<{ page: number; body: string[] }> = [];
 
@@ -41,18 +65,31 @@ export function parseSentinelPages(
     }
   }
 
-  const foundPages = found.map((p) => p.page);
-  if (
-    foundPages.length !== expectedPages.length ||
-    foundPages.some((page, index) => page !== expectedPages[index])
-  ) {
-    throw new SentinelMismatchError(
-      `expected page sentinels [${expectedPages.join(', ')}] but got [${foundPages.join(', ')}]`,
-    );
+  const expected = new Set(expectedPages);
+  let cursor = 0;
+  for (const { page } of found) {
+    // Every sentinel must be an expected page, and they must appear in the same
+    // order as `expectedPages` - advance a cursor through it, allowing gaps.
+    if (!expected.has(page)) {
+      throw new SentinelMismatchError(
+        `unexpected page sentinel ${page} (expected a subset of [${expectedPages.join(', ')}])`,
+      );
+    }
+    const next = expectedPages.indexOf(page, cursor);
+    if (next === -1) {
+      throw new SentinelMismatchError(
+        `page sentinel ${page} is out of order (expected [${expectedPages.join(', ')}])`,
+      );
+    }
+    cursor = next + 1;
   }
 
-  return found.map((p) => ({
-    page: p.page,
-    markdown: p.body.join('\n').trim(),
-  }));
+  const foundPages = new Set(found.map((p) => p.page));
+  return {
+    pages: found.map((p) => ({
+      page: p.page,
+      markdown: p.body.join('\n').trim(),
+    })),
+    missing: expectedPages.filter((page) => !foundPages.has(page)),
+  };
 }

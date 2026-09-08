@@ -10,7 +10,7 @@ import {
 import { extractPdfStructure, type PdfStructure } from './pdfjs-outline.js';
 import { classifyGeminiError } from './gemini/classify-error.js';
 import { deriveHeadings } from './gemini/derive-headings.js';
-import { parseSentinelPages } from './gemini/parse-sentinel-pages.js';
+import { parseSentinelPagesLenient } from './gemini/parse-sentinel-pages.js';
 import {
   pagesInRange,
   slicePageRanges,
@@ -31,6 +31,11 @@ const MAX_BACKOFF_MS = 30_000;
 // rather than 0. Still effectively no thinking - no `thoughtsTokenCount` comes
 // back at this budget.
 const MIN_THINKING_BUDGET = 128;
+
+// The Flash-Lite models cap output at 65536 tokens; ask for all of it. A dense
+// 10-page batch runs ~5k tokens, but code-heavy or tabular pages can blow past
+// the model's (lower) default and get silently truncated mid-batch.
+const MAX_OUTPUT_TOKENS = 65_536;
 
 // Every configurable safety category, pinned to no-block. A literary book
 // routinely trips these on quoted violence, sexual content, or slurs from
@@ -266,11 +271,30 @@ export class GeminiPdfExtractor implements PdfExtractor {
     const expected = pagesInRange(range);
 
     try {
-      const pages = await this.transcribeWithRetry(slice, expected, range);
-      return pages.map((page) => ({ ...page, unresolved: false }));
+      const { pages, missing } = await this.transcribeWithRetry(
+        slice,
+        expected,
+        range,
+      );
+      const salvaged =
+        missing.length > 0
+          ? await this.salvagePages(
+              input,
+              missing,
+              'transcription unavailable (page dropped by the model)',
+            )
+          : [];
+      return orderPages(
+        [...pages.map((page) => ({ ...page, unresolved: false })), ...salvaged],
+        expected,
+      );
     } catch (error) {
       if (error instanceof SafetyBlockError) {
-        return this.salvagePageByPage(input, range);
+        return this.salvagePages(
+          input,
+          pagesInRange(range),
+          'transcription unavailable (content filter)',
+        );
       }
       throw error;
     }
@@ -280,11 +304,19 @@ export class GeminiPdfExtractor implements PdfExtractor {
     slice: Uint8Array,
     expectedPages: number[],
     range: PageRange,
-  ): Promise<PdfPage[]> {
+  ): Promise<TranscribeResult> {
     let lastError: unknown;
+    let best: TranscribeResult | null = null;
     for (let attempt = 1; attempt <= BATCH_ATTEMPTS; attempt++) {
       try {
-        return await this.transcribe(slice, expectedPages);
+        const result = await this.transcribe(slice, expectedPages);
+        if (result.missing.length === 0) return result;
+        // A short-but-ordered response: the model dropped a page. Often
+        // transient, so retry; keep the fullest attempt to fall back on.
+        if (!best || result.pages.length > best.pages.length) best = result;
+        lastError = new Error(
+          `dropped pages ${result.missing.join(', ')} of ${rangeLabel(range)}`,
+        );
       } catch (error) {
         lastError = error;
         if (error instanceof SafetyBlockError) throw error;
@@ -297,13 +329,16 @@ export class GeminiPdfExtractor implements PdfExtractor {
             { cause: error },
           );
         }
-        if (attempt === BATCH_ATTEMPTS) break;
-        await this.sleep(backoffMs(attempt, error));
       }
+      if (attempt < BATCH_ATTEMPTS) await this.sleep(backoffMs(attempt, lastError));
     }
-    // Retries exhausted on a transient failure. Surface it as non-retryable so
-    // `extractStage`'s outer `withRetry` does not re-run the batches that
-    // already succeeded - only whole-call setup failures are retryable.
+    // Retries exhausted. If we got a usable partial, hand it back so the batch
+    // can salvage the missing pages one at a time; the whole book should not
+    // fail over a couple of stubborn pages.
+    if (best && best.pages.length > 0) return best;
+    // Nothing usable. Surface it as non-retryable so `extractStage`'s outer
+    // `withRetry` does not re-run the batches that already succeeded - only
+    // whole-call setup failures are retryable.
     throw new PdfExtractionError(
       `Gemini extraction failed for pages ${rangeLabel(range)} after ${BATCH_ATTEMPTS} attempts: ${
         lastError instanceof Error ? lastError.message : String(lastError)
@@ -316,7 +351,7 @@ export class GeminiPdfExtractor implements PdfExtractor {
   private async transcribe(
     slice: Uint8Array,
     expectedPages: number[],
-  ): Promise<PdfPage[]> {
+  ): Promise<TranscribeResult> {
     const response = await this.client.models.generateContent({
       model: this.model,
       contents: [
@@ -335,6 +370,7 @@ export class GeminiPdfExtractor implements PdfExtractor {
       ],
       config: {
         temperature: 0,
+        maxOutputTokens: MAX_OUTPUT_TOKENS,
         thinkingConfig: { thinkingBudget: MIN_THINKING_BUDGET },
         safetySettings: SAFETY_CATEGORIES.map((category) => ({
           category,
@@ -358,38 +394,73 @@ export class GeminiPdfExtractor implements PdfExtractor {
       );
     }
 
-    return parseSentinelPages(text, expectedPages);
+    return parseSentinelPagesLenient(text, expectedPages);
   }
 
-  // Re-run a safety-blocked batch one page at a time. Pages that transcribe on
-  // their own are kept; a page that still blocks becomes a placeholder and
+  // Re-run a set of pages one at a time - used both for a safety-blocked batch
+  // and for pages a batch response dropped. A page that transcribes on its own
+  // is kept; one that still fails becomes a placeholder carrying `note` and
   // marks the extraction partial.
-  private async salvagePageByPage(
+  private async salvagePages(
     input: PdfExtractInput,
-    range: PageRange,
+    pageNumbers: number[],
+    note: string,
   ): Promise<SalvageablePage[]> {
     const pages: SalvageablePage[] = [];
-    for (const page of pagesInRange(range)) {
+    for (const page of pageNumbers) {
       const single = { start: page, end: page };
       const slice = await this.slice(input.data, single);
       try {
-        const [transcribed] = await this.transcribeWithRetry(
+        const { pages: transcribed } = await this.transcribeWithRetry(
           slice,
           [page],
           single,
         );
-        pages.push({ page, markdown: transcribed.markdown, unresolved: false });
-      } catch (error) {
-        if (!(error instanceof SafetyBlockError)) throw error;
+        if (transcribed.length > 0) {
+          pages.push({
+            page,
+            markdown: transcribed[0].markdown,
+            unresolved: false,
+          });
+          continue;
+        }
         pages.push({
           page,
-          markdown: `<!-- page ${page}: transcription unavailable (content filter) -->`,
+          markdown: `<!-- page ${page}: ${note} -->`,
+          unresolved: true,
+        });
+      } catch (error) {
+        if (
+          !(error instanceof SafetyBlockError) &&
+          !(error instanceof PdfExtractionError)
+        ) {
+          throw error;
+        }
+        pages.push({
+          page,
+          markdown: `<!-- page ${page}: ${note} -->`,
           unresolved: true,
         });
       }
     }
     return pages;
   }
+}
+
+interface TranscribeResult {
+  pages: PdfPage[];
+  missing: number[];
+}
+
+// Batch pages plus salvaged pages, back into the batch's page order.
+function orderPages(
+  pages: SalvageablePage[],
+  expected: number[],
+): SalvageablePage[] {
+  const order = new Map(expected.map((page, index) => [page, index]));
+  return [...pages].sort(
+    (a, b) => (order.get(a.page) ?? 0) - (order.get(b.page) ?? 0),
+  );
 }
 
 interface SalvageablePage extends PdfPage {

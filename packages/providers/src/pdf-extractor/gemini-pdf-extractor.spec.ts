@@ -230,6 +230,60 @@ describe('GeminiPdfExtractor', () => {
     );
   });
 
+  it('salvages a page the batch dropped, once retries do not recover it', async () => {
+    const events: ExtractionPartialEvent[] = [];
+    const { extractor, client } = build(
+      (pages) => {
+        // The 11-20 batch always omits page 17; a single-page call gets it.
+        if (pages.length > 1 && pages[0] === 11) {
+          return okResponse(sentinelBody(pages.filter((p) => p !== 17)));
+        }
+        return okResponse(sentinelBody(pages));
+      },
+      { emitEvent: (e) => events.push(e) },
+    );
+
+    const result = await extractor.extract(input);
+
+    expect(result.pages).toHaveLength(25);
+    expect(result.pages.map((p) => p.page)).toEqual(
+      Array.from({ length: 25 }, (_, i) => i + 1),
+    );
+    expect(result.pages.find((p) => p.page === 17)?.markdown).toBe(
+      'Body of page 17.',
+    );
+    // No unresolved pages, so no partial event.
+    expect(events).toEqual([]);
+    // 3 batches + 2 retries of 11-20 + 1 single-page call for 17.
+    expect(client.requests).toHaveLength(6);
+  });
+
+  it('placeholders a dropped page that never transcribes and records it partial', async () => {
+    const events: ExtractionPartialEvent[] = [];
+    const { extractor } = build(
+      (pages) => {
+        if (pages.length > 1 && pages[0] === 11) {
+          return okResponse(sentinelBody(pages.filter((p) => p !== 17)));
+        }
+        if (pages.length === 1 && pages[0] === 17) {
+          return okResponse('nothing usable here');
+        }
+        return okResponse(sentinelBody(pages));
+      },
+      { emitEvent: (e) => events.push(e) },
+    );
+
+    const result = await extractor.extract(input);
+
+    expect(result.pages).toHaveLength(25);
+    expect(result.pages.find((p) => p.page === 17)?.markdown).toMatch(
+      /transcription unavailable/,
+    );
+    expect(events).toEqual([
+      { type: 'extraction.partial', bookId: 'book-1', unresolvedPageCount: 1 },
+    ]);
+  });
+
   it('honours an API Retry-After over the computed backoff', async () => {
     const sleeps: number[] = [];
     const client = new FakeGemini((pages, attempt) => {
