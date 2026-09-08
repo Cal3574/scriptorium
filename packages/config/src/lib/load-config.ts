@@ -32,7 +32,7 @@ const sharedShape = {
   LLAMAPARSE_API_KEY: z.string().min(1).optional(),
   GEMINI_API_KEY: z.string().min(1).optional(),
   // Optional Gemini tuning, cost/latency/reliability knobs with spec defaults.
-  GEMINI_MODEL: z.string().min(1).default('gemini-2.5-flash-lite'),
+  GEMINI_MODEL: z.string().min(1).default('gemini-3.5-flash-lite'),
   GEMINI_PAGES_PER_BATCH: z.coerce.number().int().positive().default(10),
   GEMINI_BATCH_CONCURRENCY: z.coerce.number().int().positive().default(5),
   OPENAI_API_KEY: z.string().min(1).optional(),

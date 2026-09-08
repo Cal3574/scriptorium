@@ -25,6 +25,15 @@ async function loadGetDocument(): Promise<GetDocument | null> {
   try {
     // The legacy build is the one that runs under Node without a DOM.
     const mod = await import('pdfjs-dist/legacy/build/pdf.mjs');
+    // Under Node there is no browser Worker, so pdfjs falls back to importing
+    // its worker entry from `GlobalWorkerOptions.workerSrc` (default
+    // `./pdf.worker.mjs`), which resolves relative to the *bundled* output and
+    // is not there. Importing the worker module ourselves registers
+    // `globalThis.pdfjsWorker`; pdfjs then runs the worker on the main thread
+    // and never touches `workerSrc`. Fine for our one-shot structural pass.
+    if (!(globalThis as { pdfjsWorker?: unknown }).pdfjsWorker) {
+      await import('pdfjs-dist/legacy/build/pdf.worker.mjs');
+    }
     return (mod as { getDocument: GetDocument }).getDocument;
   } catch {
     return null;

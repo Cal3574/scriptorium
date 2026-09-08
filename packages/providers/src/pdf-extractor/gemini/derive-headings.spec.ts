@@ -25,4 +25,35 @@ describe('deriveHeadings', () => {
   it('returns nothing for a book with no headings', () => {
     expect(deriveHeadings([{ page: 1, markdown: 'Just prose.' }])).toEqual([]);
   });
+
+  it('folds a wrapped heading tail back into the title', () => {
+    const pages = [
+      {
+        page: 12,
+        markdown:
+          '# Chapter 5: Identifying Architectural\nCharacteristics\n\n1. First question.',
+      },
+    ];
+    expect(deriveHeadings(pages)).toEqual([
+      {
+        type: 'heading',
+        level: 1,
+        text: 'Chapter 5: Identifying Architectural Characteristics',
+        page: 12,
+      },
+    ]);
+  });
+
+  it('does not swallow a paragraph that butts against a heading', () => {
+    const pages = [
+      {
+        page: 3,
+        markdown:
+          '## Summary\nThis chapter covered a great many things in detail.',
+      },
+    ];
+    expect(deriveHeadings(pages)).toEqual([
+      { type: 'heading', level: 2, text: 'Summary', page: 3 },
+    ]);
+  });
 });

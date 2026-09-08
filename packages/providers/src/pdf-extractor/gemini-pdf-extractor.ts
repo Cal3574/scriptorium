@@ -18,12 +18,19 @@ import {
 } from './gemini/slice-page-ranges.js';
 import { slicePdfPages } from './gemini/slice-pdf-pages.js';
 
-const DEFAULT_MODEL = 'gemini-2.5-flash-lite';
+const DEFAULT_MODEL = 'gemini-3.5-flash-lite';
 const DEFAULT_PAGES_PER_BATCH = 10;
 const DEFAULT_BATCH_CONCURRENCY = 5;
 const BATCH_ATTEMPTS = 3;
 const BASE_BACKOFF_MS = 1_000;
 const MAX_BACKOFF_MS = 30_000;
+
+// Transcription needs no reasoning, so we want the thinking budget as low as the
+// model allows. `gemini-2.5-flash-lite` accepts 0 (fully off); the 3.x lite
+// models reject 0 with a 400 and enforce a small floor, so we pin the floor
+// rather than 0. Still effectively no thinking - no `thoughtsTokenCount` comes
+// back at this budget.
+const MIN_THINKING_BUDGET = 128;
 
 // Every configurable safety category, pinned to no-block. A literary book
 // routinely trips these on quoted violence, sexual content, or slurs from
@@ -328,7 +335,7 @@ export class GeminiPdfExtractor implements PdfExtractor {
       ],
       config: {
         temperature: 0,
-        thinkingConfig: { thinkingBudget: 0 },
+        thinkingConfig: { thinkingBudget: MIN_THINKING_BUDGET },
         safetySettings: SAFETY_CATEGORIES.map((category) => ({
           category,
           threshold: 'BLOCK_NONE',

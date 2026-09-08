@@ -249,7 +249,7 @@ describe('PDF_EXTRACTOR', () => {
   it('defaults to gemini with the spec Gemini tuning defaults', () => {
     const config = parseWorkerConfig({ ...validWorkerEnv });
     expect(config.PDF_EXTRACTOR).toBe('gemini');
-    expect(config.GEMINI_MODEL).toBe('gemini-2.5-flash-lite');
+    expect(config.GEMINI_MODEL).toBe('gemini-3.5-flash-lite');
     expect(config.GEMINI_PAGES_PER_BATCH).toBe(10);
     expect(config.GEMINI_BATCH_CONCURRENCY).toBe(5);
   });

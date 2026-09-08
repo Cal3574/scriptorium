@@ -124,19 +124,46 @@ describe('detectChapters - markers', () => {
     ]);
   });
 
-  it('drops markers longer than 60 characters', async () => {
-    const long = `Chapter 2. ${'x'.repeat(70)}`;
+  it('keeps a long-but-plausible chapter title, drops a paragraph-length one', async () => {
+    const longTitle = `Chapter 2. ${'Orchestration-Driven Service-Oriented Architecture and More'}`;
+    const paragraph = `Chapter 3. ${'x'.repeat(120)}`;
     const chapters = await detectChapters(
       baseInput({
         pageCount: 20,
         items: [
           heading(2, 'Chapter 1. Fine', 2),
-          heading(2, long, 8),
-          heading(2, 'Chapter 3. Fine', 14),
+          heading(2, longTitle, 8),
+          heading(2, paragraph, 14),
+          heading(2, 'Chapter 4. Fine', 18),
         ],
       }),
     );
-    expect(chapters.some((c) => c.title === long)).toBe(false);
+    const titles = chapters.map((c) => c.title);
+    expect(titles).toContain(longTitle);
+    expect(chapters.some((c) => c.title === paragraph)).toBe(false);
+  });
+
+  it('drops a back-matter recap that repeats the chapter list', async () => {
+    const chapters = await detectChapters(
+      baseInput({
+        pageCount: 60,
+        items: [
+          heading(1, 'Chapter 1. Introduction', 2),
+          heading(1, 'Chapter 2. Middle', 20),
+          heading(1, 'Chapter 3. End', 38),
+          // A "Discussion Questions" style recap near the back.
+          heading(2, 'Chapter 1: Introduction', 50),
+          heading(2, 'Chapter 2: Middle', 53),
+          heading(2, 'Chapter 3: End', 56),
+        ],
+      }),
+    );
+    expect(chapters.map((c) => c.title)).toEqual([
+      'Chapter 1. Introduction',
+      'Chapter 2. Middle',
+      'Chapter 3. End',
+    ]);
+    expect(chapters.map((c) => c.startPage)).toEqual([2, 20, 38]);
   });
 });
 
