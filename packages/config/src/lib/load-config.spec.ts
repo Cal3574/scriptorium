@@ -5,6 +5,7 @@ import {
 } from './load-config.js';
 
 const liveProviderKeys = {
+  GEMINI_API_KEY: 'gm-test',
   LLAMAPARSE_API_KEY: 'llx-test',
   OPENAI_API_KEY: 'sk-openai',
   ANTHROPIC_API_KEY: 'sk-ant-test',
@@ -140,28 +141,50 @@ describe('parseWorkerConfig', () => {
 });
 
 describe('PROVIDER_MODE', () => {
-  it('requires all three provider keys when live', () => {
-    const { LLAMAPARSE_API_KEY, OPENAI_API_KEY, ANTHROPIC_API_KEY, ...rest } =
-      validApiEnv;
-    void [LLAMAPARSE_API_KEY, OPENAI_API_KEY, ANTHROPIC_API_KEY];
+  it('requires OpenAI, Anthropic and the selected extractor key when live', () => {
+    const {
+      GEMINI_API_KEY,
+      LLAMAPARSE_API_KEY,
+      OPENAI_API_KEY,
+      ANTHROPIC_API_KEY,
+      ...rest
+    } = validApiEnv;
+    void [
+      GEMINI_API_KEY,
+      LLAMAPARSE_API_KEY,
+      OPENAI_API_KEY,
+      ANTHROPIC_API_KEY,
+    ];
     try {
       parseApiConfig({ ...rest, PROVIDER_MODE: 'live' });
       fail('expected ConfigError');
     } catch (error) {
       expect((error as ConfigError).keys).toEqual(
         expect.arrayContaining([
-          'LLAMAPARSE_API_KEY',
+          'GEMINI_API_KEY',
           'OPENAI_API_KEY',
           'ANTHROPIC_API_KEY',
         ]),
       );
+      // LlamaParse is not the default extractor - its key is not required.
+      expect((error as ConfigError).keys).not.toContain('LLAMAPARSE_API_KEY');
     }
   });
 
   it('does not require the provider keys when fake', () => {
-    const { LLAMAPARSE_API_KEY, OPENAI_API_KEY, ANTHROPIC_API_KEY, ...rest } =
-      validWorkerEnv;
-    void [LLAMAPARSE_API_KEY, OPENAI_API_KEY, ANTHROPIC_API_KEY];
+    const {
+      GEMINI_API_KEY,
+      LLAMAPARSE_API_KEY,
+      OPENAI_API_KEY,
+      ANTHROPIC_API_KEY,
+      ...rest
+    } = validWorkerEnv;
+    void [
+      GEMINI_API_KEY,
+      LLAMAPARSE_API_KEY,
+      OPENAI_API_KEY,
+      ANTHROPIC_API_KEY,
+    ];
     const config = parseWorkerConfig({ ...rest, PROVIDER_MODE: 'fake' });
     expect(config.PROVIDER_MODE).toBe('fake');
     expect(config.OPENAI_API_KEY).toBeUndefined();
@@ -219,5 +242,71 @@ describe('PROVIDER_MODE', () => {
     void [S3_BUCKET, S3_REGION, AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY];
     const config = parseApiConfig({ ...rest, PROVIDER_MODE: 'fake' });
     expect(config.MAX_UPLOAD_BYTES).toBe(50 * 1024 * 1024);
+  });
+});
+
+describe('PDF_EXTRACTOR', () => {
+  it('defaults to gemini with the spec Gemini tuning defaults', () => {
+    const config = parseWorkerConfig({ ...validWorkerEnv });
+    expect(config.PDF_EXTRACTOR).toBe('gemini');
+    expect(config.GEMINI_MODEL).toBe('gemini-2.5-flash-lite');
+    expect(config.GEMINI_PAGES_PER_BATCH).toBe(10);
+    expect(config.GEMINI_BATCH_CONCURRENCY).toBe(5);
+  });
+
+  it('coerces the Gemini tuning numbers from strings', () => {
+    const config = parseWorkerConfig({
+      ...validWorkerEnv,
+      GEMINI_PAGES_PER_BATCH: '6',
+      GEMINI_BATCH_CONCURRENCY: '2',
+    });
+    expect(config.GEMINI_PAGES_PER_BATCH).toBe(6);
+    expect(config.GEMINI_BATCH_CONCURRENCY).toBe(2);
+  });
+
+  it('requires GEMINI_API_KEY and not LLAMAPARSE_API_KEY when live + gemini', () => {
+    const { GEMINI_API_KEY, LLAMAPARSE_API_KEY, ...rest } = validWorkerEnv;
+    void [GEMINI_API_KEY, LLAMAPARSE_API_KEY];
+    try {
+      parseWorkerConfig({ ...rest, PROVIDER_MODE: 'live' });
+      fail('expected ConfigError');
+    } catch (error) {
+      expect((error as ConfigError).keys).toContain('GEMINI_API_KEY');
+      expect((error as ConfigError).keys).not.toContain('LLAMAPARSE_API_KEY');
+    }
+  });
+
+  it('requires LLAMAPARSE_API_KEY and not GEMINI_API_KEY when live + llamaparse', () => {
+    const { GEMINI_API_KEY, LLAMAPARSE_API_KEY, ...rest } = validWorkerEnv;
+    void [GEMINI_API_KEY, LLAMAPARSE_API_KEY];
+    try {
+      parseWorkerConfig({
+        ...rest,
+        PROVIDER_MODE: 'live',
+        PDF_EXTRACTOR: 'llamaparse',
+      });
+      fail('expected ConfigError');
+    } catch (error) {
+      expect((error as ConfigError).keys).toContain('LLAMAPARSE_API_KEY');
+      expect((error as ConfigError).keys).not.toContain('GEMINI_API_KEY');
+    }
+  });
+
+  it('accepts live + llamaparse with only the LlamaParse key', () => {
+    const { GEMINI_API_KEY, ...rest } = validWorkerEnv;
+    void GEMINI_API_KEY;
+    expect(() =>
+      parseWorkerConfig({
+        ...rest,
+        PROVIDER_MODE: 'live',
+        PDF_EXTRACTOR: 'llamaparse',
+      }),
+    ).not.toThrow();
+  });
+
+  it('rejects an unknown PDF_EXTRACTOR value naming that key', () => {
+    expect(() =>
+      parseWorkerConfig({ ...validWorkerEnv, PDF_EXTRACTOR: 'docling' }),
+    ).toThrow(/PDF_EXTRACTOR/);
   });
 });

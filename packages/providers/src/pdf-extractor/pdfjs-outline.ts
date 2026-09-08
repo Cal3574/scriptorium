@@ -1,5 +1,5 @@
 import type { PDFDocumentLoadingTask, PDFDocumentProxy } from 'pdfjs-dist';
-import type { PdfOutlineItem } from './pdf-extractor.js';
+import type { PdfMetadata, PdfOutlineItem } from './pdf-extractor.js';
 
 // The bookmark ("outline") tree is not something LlamaParse returns, so the
 // live extractor runs a second, local pass over the same PDF bytes with
@@ -94,6 +94,72 @@ export async function extractPdfOutline(
     return await mapNodes(doc, outline);
   } catch {
     return [];
+  } finally {
+    await task?.destroy().catch(() => undefined);
+  }
+}
+
+// The structural facts about a PDF that do not depend on the transcription
+// provider: the bookmark outline, the document's own metadata, and the page
+// count. The Gemini adapter needs all three - the outline and metadata as
+// chapter-detection inputs (LlamaParse used to supply the metadata), the page
+// count to compute batch ranges.
+export interface PdfStructure {
+  outline: PdfOutlineItem[];
+  metadata: PdfMetadata;
+  pageCount: number;
+}
+
+const EMPTY_METADATA: PdfMetadata = { title: null, author: null };
+
+function cleanMetaString(value: unknown): string | null {
+  return typeof value === 'string' && value.trim().length > 0
+    ? value.trim()
+    : null;
+}
+
+/**
+ * Read the outline, metadata, and page count in one local `pdfjs-dist` pass.
+ * The outline and metadata are best-effort (an unreadable dict yields `[]` /
+ * nulls), but a document pdfjs cannot open at all - encrypted, truncated,
+ * not a PDF - throws, because there is nothing to batch. The caller maps that
+ * to a terminal extraction failure.
+ */
+export async function extractPdfStructure(
+  data: Uint8Array,
+): Promise<PdfStructure> {
+  const getDocument = await loadGetDocument();
+  if (!getDocument) {
+    throw new Error('pdfjs-dist is unavailable; cannot read PDF structure');
+  }
+
+  let task: PDFDocumentLoadingTask | null = null;
+  try {
+    task = getDocument({ data: data.slice(), useSystemFonts: true });
+    const doc = await task.promise;
+    const pageCount = doc.numPages;
+
+    let outline: PdfOutlineItem[] = [];
+    try {
+      const raw = (await doc.getOutline()) as OutlineNode[] | null;
+      if (raw && raw.length > 0) outline = await mapNodes(doc, raw);
+    } catch {
+      outline = [];
+    }
+
+    let metadata: PdfMetadata = EMPTY_METADATA;
+    try {
+      const info = (await doc.getMetadata()).info as
+        { Title?: unknown; Author?: unknown } | undefined;
+      metadata = {
+        title: cleanMetaString(info?.Title),
+        author: cleanMetaString(info?.Author),
+      };
+    } catch {
+      metadata = EMPTY_METADATA;
+    }
+
+    return { outline, metadata, pageCount };
   } finally {
     await task?.destroy().catch(() => undefined);
   }

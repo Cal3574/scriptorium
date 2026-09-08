@@ -26,6 +26,12 @@ export {
   LlamaParseExtractor,
   type LlamaParseExtractorOptions,
 } from './pdf-extractor/llamaparse-pdf-extractor.js';
+export {
+  GeminiPdfExtractor,
+  type GeminiPdfExtractorOptions,
+  type GeminiContentClient,
+  type ExtractionPartialEvent,
+} from './pdf-extractor/gemini-pdf-extractor.js';
 
 export type { EmbeddingClient } from './embedding-client/embedding-client.js';
 export {
