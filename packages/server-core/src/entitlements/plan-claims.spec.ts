@@ -9,10 +9,12 @@ describe('parsePlanClaims', () => {
   });
 
   it('splits a comma-separated scoped `fea` list', () => {
-    expect(parsePlanClaims({ pla: 'u:free', fea: 'u:seats,u:export' })).toEqual({
-      plan: 'free',
-      features: ['seats', 'export'],
-    });
+    expect(parsePlanClaims({ pla: 'u:free', fea: 'u:seats,u:export' })).toEqual(
+      {
+        plan: 'free',
+        features: ['seats', 'export'],
+      },
+    );
   });
 
   it('yields an empty feature list - never undefined - when `fea` is absent', () => {

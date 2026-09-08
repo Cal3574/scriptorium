@@ -10,3 +10,5 @@
 *.swcrc
 # Drizzle-generated migration bookkeeping - owned by drizzle-kit, not prettier.
 /packages/database/migrations
+# Package-manager lockfile - owned by pnpm, not prettier.
+/pnpm-lock.yaml

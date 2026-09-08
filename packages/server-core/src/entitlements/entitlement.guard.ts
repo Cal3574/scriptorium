@@ -13,11 +13,7 @@ import {
   BookLimitReachedException,
   QueryLimitReachedException,
 } from './entitlement.problems.js';
-import {
-  limitsForPlan,
-  type PlanLimits,
-  PLAN_LIMITS,
-} from './plan-limits.js';
+import { limitsForPlan, type PlanLimits, PLAN_LIMITS } from './plan-limits.js';
 import { QUOTA_KEY, type QuotaLever } from './quota.decorator.js';
 
 /**

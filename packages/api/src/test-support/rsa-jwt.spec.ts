@@ -1,6 +1,8 @@
 import { createTestAuthority } from './rsa-jwt';
 
-function decodeClaims(header: { Authorization: string }): Record<string, unknown> {
+function decodeClaims(header: {
+  Authorization: string;
+}): Record<string, unknown> {
   const token = header.Authorization.replace(/^Bearer /, '');
   const payload = token.split('.')[1];
   return JSON.parse(Buffer.from(payload, 'base64url').toString());

@@ -1,13 +1,13 @@
 import type { INestApplication } from '@nestjs/common';
 import { PROBLEM_CONTENT_TYPE } from '@scriptorium/contracts';
-import {
-  FakeObjectStorage,
-  OBJECT_STORAGE,
-} from '@scriptorium/providers';
+import { FakeObjectStorage, OBJECT_STORAGE } from '@scriptorium/providers';
 import type { PlanLimits } from '@scriptorium/server-core';
 import request from 'supertest';
 import { createTestApp } from './test-support/create-test-app';
-import { createTestAuthority, type TestAuthority } from './test-support/rsa-jwt';
+import {
+  createTestAuthority,
+  type TestAuthority,
+} from './test-support/rsa-jwt';
 import {
   setupTestDatabase,
   type TestDatabase,
@@ -71,7 +71,11 @@ describe('book quota enforcement (Seam 1)', () => {
     const urlRes = await request(server())
       .post('/api/v1/books/upload-url')
       .set(header)
-      .send({ filename: name, contentType: 'application/pdf', fileSizeBytes: size })
+      .send({
+        filename: name,
+        contentType: 'application/pdf',
+        fileSizeBytes: size,
+      })
       .expect(201);
     storage.simulateUpload(urlRes.body.s3Key, size);
     return request(server()).post('/api/v1/books').set(header).send({
@@ -90,7 +94,10 @@ describe('book quota enforcement (Seam 1)', () => {
   }
 
   async function userId(header: { Authorization: string }): Promise<string> {
-    const me = await request(server()).get('/api/v1/me').set(header).expect(200);
+    const me = await request(server())
+      .get('/api/v1/me')
+      .set(header)
+      .expect(200);
     return me.body.id;
   }
 
@@ -204,9 +211,7 @@ describe('book quota enforcement (Seam 1)', () => {
     });
 
     it('still lets the reader query', async () => {
-      const res = await request(server())
-        .get('/api/v1/queries')
-        .set(header);
+      const res = await request(server()).get('/api/v1/queries').set(header);
       expect(res.status).toBe(200);
     });
   });

@@ -1,7 +1,10 @@
 import { DEFAULT_PLAN_LIMITS } from '@scriptorium/server-core';
 import request from 'supertest';
 import { createTestApp } from './test-support/create-test-app';
-import { createTestAuthority, type TestAuthority } from './test-support/rsa-jwt';
+import {
+  createTestAuthority,
+  type TestAuthority,
+} from './test-support/rsa-jwt';
 import {
   setupTestDatabase,
   type TestDatabase,
@@ -31,7 +34,10 @@ describe('subscription test support (Seam 1)', () => {
   };
 
   it('still authenticates a plan-carrying token with no network call', async () => {
-    const app = await createTestApp({ jwtKey: auth.jwtKey, databaseUrl: db.url });
+    const app = await createTestApp({
+      jwtKey: auth.jwtKey,
+      databaseUrl: db.url,
+    });
     try {
       const res = await request(app.getHttpServer())
         .get('/api/v1/me')
@@ -71,7 +77,10 @@ describe('subscription test support (Seam 1)', () => {
   });
 
   it('falls back to the shipped limits when the option is omitted', async () => {
-    const app = await createTestApp({ jwtKey: auth.jwtKey, databaseUrl: db.url });
+    const app = await createTestApp({
+      jwtKey: auth.jwtKey,
+      databaseUrl: db.url,
+    });
     try {
       const res = await request(app.getHttpServer())
         .get('/api/v1/_probe/plan-limits')
