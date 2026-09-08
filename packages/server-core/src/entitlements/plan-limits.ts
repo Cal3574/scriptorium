@@ -5,7 +5,12 @@
 // factory's `planLimits` option.
 export const PLAN_LIMITS = 'PLAN_LIMITS';
 
-export type PlanSlug = 'free' | 'pro';
+// The closed set of plan slugs. Source of truth for both the type and the
+// runtime membership check in `resolvePlanSlug` - kept in step with the
+// `PlanSlug` enum in `@scriptorium/contracts` (which this leaf package can't
+// import).
+export const PLAN_SLUGS = ['free', 'pro'] as const;
+export type PlanSlug = (typeof PLAN_SLUGS)[number];
 
 export interface PlanLimit {
   books: number;
@@ -29,8 +34,17 @@ export function limitsForPlan(
   limits: PlanLimits,
   plan: string | undefined,
 ): PlanLimit {
-  if (plan && Object.prototype.hasOwnProperty.call(limits, plan)) {
-    return limits[plan as PlanSlug];
-  }
-  return limits.free;
+  return limits[resolvePlanSlug(plan)];
+}
+
+/**
+ * The concrete plan slug a token maps to, applying the same unknown/absent ->
+ * `free` fallback as {@link limitsForPlan}. Only ever returns a slug in
+ * {@link PLAN_SLUGS}, so the usage endpoint never puts a raw, unrecognised
+ * `pla` value on the wire even if `PLAN_LIMITS` later carries extra keys.
+ */
+export function resolvePlanSlug(plan: string | undefined): PlanSlug {
+  return (PLAN_SLUGS as readonly string[]).includes(plan ?? '')
+    ? (plan as PlanSlug)
+    : 'free';
 }

@@ -8,6 +8,7 @@ import {
   QueryEvent,
   UpdateBookFields,
   UpdateBookRequest,
+  UsageDto,
 } from './index.js';
 
 describe('@scriptorium/contracts', () => {
@@ -67,6 +68,30 @@ describe('@scriptorium/contracts', () => {
   it('discriminates QueryEvent by type', () => {
     const parsed = QueryEvent.parse({ type: 'text_delta', text: 'hello' });
     expect(parsed.type).toBe('text_delta');
+  });
+
+  it('accepts a well-formed UsageDto and rejects an unknown plan', () => {
+    const usage = {
+      plan: 'free' as const,
+      books: { used: 1, limit: 2 },
+      queries: { used: 14, limit: 20, resetsAt: '2026-10-01T00:00:00.000Z' },
+    };
+    expect(UsageDto.parse(usage)).toEqual(usage);
+    expect(() => UsageDto.parse({ ...usage, plan: 'enterprise' })).toThrow();
+  });
+
+  it('UsageDto rejects a zero or negative limit and a non-integer count', () => {
+    const base = {
+      plan: 'pro' as const,
+      books: { used: 0, limit: 50 },
+      queries: { used: 0, limit: 1000, resetsAt: '2026-10-01T00:00:00.000Z' },
+    };
+    expect(() =>
+      UsageDto.parse({ ...base, books: { used: 0, limit: 0 } }),
+    ).toThrow();
+    expect(() =>
+      UsageDto.parse({ ...base, books: { used: 1.5, limit: 50 } }),
+    ).toThrow();
   });
 
   it('exposes the queue and job-name constants', () => {

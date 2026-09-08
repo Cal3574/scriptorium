@@ -16,6 +16,7 @@ import { QuestionForm } from '@/components/query/question-form';
 import { RetrievedPassages } from '@/components/query/retrieved-passages';
 import { env } from '../env';
 import { problemMessage } from '../books/problem';
+import { useUsage } from '../usage/use-usage';
 import { askAgainPath } from './ask-again';
 import { QueryDetail } from './QueryDetail';
 
@@ -32,6 +33,7 @@ type Phase = 'idle' | 'streaming' | 'done' | 'error';
 // CitationList, RetrievedPassages - and left the SSE reader untouched.
 export function QueryScreen() {
   const { getToken } = useAuth();
+  const { refetch: refetchUsage } = useUsage();
   const { queryId } = useParams();
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
@@ -131,6 +133,8 @@ export function QueryScreen() {
         case 'done':
           setAnswer(event.answer);
           setPhase('done');
+          // A completed query stream spent one question: refresh the meter.
+          void refetchUsage();
           break;
         case 'error':
           setError(event.message);
@@ -140,7 +144,7 @@ export function QueryScreen() {
           break;
       }
     }
-  }, [question, getToken]);
+  }, [question, getToken, refetchUsage]);
 
   const busy = phase === 'streaming';
 

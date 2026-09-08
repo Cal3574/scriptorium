@@ -20,6 +20,14 @@ jest.mock('react-markdown', () => ({
 }));
 jest.mock('remark-gfm', () => ({ __esModule: true, default: () => undefined }));
 
+// The usage meter is an ambient concern of the shell, not this screen; stub
+// its context so QueryScreen can render standalone. `refetchUsage` is asserted
+// via `usageRefetch` where a test cares that a completed stream refreshes it.
+const usageRefetch = jest.fn();
+jest.mock('../usage/use-usage', () => ({
+  useUsage: () => ({ usage: null, refetch: usageRefetch }),
+}));
+
 const CHUNK_A = '11111111-1111-4111-8111-111111111111';
 const CHUNK_B = '22222222-2222-4222-8222-222222222222';
 const BOOK_A = '33333333-3333-4333-8333-333333333333';
@@ -95,6 +103,7 @@ beforeEach(() => {
 afterEach(() => {
   cleanup();
   fetchMock.mockReset();
+  usageRefetch.mockReset();
 });
 
 test('the Ask button is disabled until the question box has content', async () => {
@@ -178,6 +187,8 @@ test('asking POSTs the question and streams the answer into prose with citations
     expect(screen.queryByTestId('answer-caret')).not.toBeInTheDocument(),
   );
   expect(screen.getByRole('button', { name: 'Ask' })).toBeEnabled();
+  // A completed stream is a usage-meter refetch trigger.
+  expect(usageRefetch).toHaveBeenCalled();
 });
 
 test('a query error surfaces in an alert', async () => {

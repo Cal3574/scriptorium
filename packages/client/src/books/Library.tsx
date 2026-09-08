@@ -10,6 +10,7 @@ import {
   LibraryTableSkeleton,
 } from '@/components/library/library-table';
 import { useApi } from '../auth/use-api';
+import { useUsage } from '../usage/use-usage';
 
 // The library worklist plus the upload control. One screen: uploading a book
 // and seeing it land as `pending` are the same user moment. Opening a book is
@@ -18,6 +19,7 @@ import { useApi } from '../auth/use-api';
 // (#63) - only the markup moved to the Console visual direction.
 export function Library() {
   const api = useApi();
+  const { usage, refetch: refetchUsage } = useUsage();
   const [books, setBooks] = useState<BookListItemDto[] | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -27,17 +29,35 @@ export function Library() {
     setBooks((await res.json()) as BookListItemDto[]);
   }, [api]);
 
+  // Library-screen mount is one of the four usage-meter refetch triggers.
+  useEffect(() => {
+    void refetchUsage();
+  }, [refetchUsage]);
+
   useEffect(() => {
     refresh().catch((err: Error) => setError(err.message));
   }, [refresh]);
 
+  // A book row settling (ingest finished) only changes the list, not the
+  // counts - the book was counted at upload.
   const onSettled = useCallback(() => {
     refresh().catch((err: Error) => setError(err.message));
   }, [refresh]);
 
+  // A successful upload adds a book row: refresh the list and the meter.
+  const onUploaded = useCallback(() => {
+    onSettled();
+    void refetchUsage();
+  }, [onSettled, refetchUsage]);
+
   return (
     <section>
-      <Toolbar books={books ?? []} api={api} onUploaded={onSettled} />
+      <Toolbar
+        books={books ?? []}
+        usage={usage}
+        api={api}
+        onUploaded={onUploaded}
+      />
 
       {error && (
         <Alert variant="destructive" className="mb-4">

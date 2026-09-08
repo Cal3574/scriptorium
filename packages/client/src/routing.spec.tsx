@@ -63,6 +63,16 @@ const QUERY = {
   failed: false,
 };
 
+const USAGE = {
+  plan: 'free',
+  books: { used: 1, limit: 2 },
+  queries: {
+    used: 14,
+    limit: 20,
+    resetsAt: '2099-01-01T00:00:00.000Z',
+  },
+};
+
 function jsonRes(body: unknown, status = 200): Response {
   return {
     ok: status < 400,
@@ -75,6 +85,7 @@ beforeEach(() => {
   mockApi.mockImplementation(async (path: string) => {
     if (path === '/api/v1/me')
       return jsonRes({ id: 'u1', email: 'reader@test' });
+    if (path === '/api/v1/me/usage') return jsonRes(USAGE);
     if (path === '/api/v1/books') return jsonRes([BOOK]);
     if (path === '/api/v1/books/b1') return jsonRes(BOOK);
     if (path === '/api/v1/queries') return jsonRes([QUERY]);
@@ -185,6 +196,21 @@ test('the library renders the Console worklist: toolbar count, status chip, row 
   expect(screen.getByText('ready')).toBeVisible();
   // mono summary count in the toolbar
   expect(screen.getByText('1 book')).toBeVisible();
+});
+
+test('the library toolbar carries the usage meter, linking to /pricing', async () => {
+  renderAt('/library');
+
+  await screen.findByRole('heading', { name: 'Library' });
+  expect(await screen.findByText('Books 1 / 2')).toBeVisible();
+  expect(screen.getByText(/Questions 14 \/ 20 · resets in/)).toBeVisible();
+  const meter = screen.getByRole('link', { name: 'View plans and pricing' });
+  expect(meter).toHaveAttribute('href', '/pricing');
+
+  await userEvent.click(meter);
+  expect(
+    await screen.findByRole('heading', { name: /plans & pricing/i }),
+  ).toBeVisible();
 });
 
 test('an empty library shows the empty state, not a flash of nothing', async () => {

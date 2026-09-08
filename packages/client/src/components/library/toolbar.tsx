@@ -1,7 +1,8 @@
-import type { BookListItemDto } from '@scriptorium/contracts';
+import type { BookListItemDto, UsageDto } from '@scriptorium/contracts';
 
 import { statusRole } from '@/books/status';
 import { UploadControl } from './upload-control';
+import { UsageMeter } from './usage-meter';
 import type { useApi } from '@/auth/use-api';
 
 type ApiFetch = ReturnType<typeof useApi>;
@@ -26,10 +27,12 @@ function summarise(books: BookListItemDto[]): string {
 // primary upload action. Panel background with the one ambient shadow.
 export function Toolbar({
   books,
+  usage,
   api,
   onUploaded,
 }: {
   books: BookListItemDto[];
+  usage: UsageDto | null;
   api: ApiFetch;
   onUploaded: () => void;
 }) {
@@ -39,6 +42,7 @@ export function Toolbar({
       <span className="text-muted-foreground font-mono text-xs">
         {summarise(books)}
       </span>
+      {usage && <UsageMeter usage={usage} />}
       <div className="ml-auto">
         <UploadControl api={api} onUploaded={onUploaded} />
       </div>

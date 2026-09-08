@@ -80,12 +80,18 @@ export {
 
 export {
   PLAN_LIMITS,
+  PLAN_SLUGS,
   DEFAULT_PLAN_LIMITS,
   limitsForPlan,
+  resolvePlanSlug,
   type PlanSlug,
   type PlanLimit,
   type PlanLimits,
 } from './entitlements/plan-limits.js';
+export {
+  currentMonthStartUtc,
+  nextMonthStartUtc,
+} from './entitlements/billing-period.js';
 export {
   Quota,
   QUOTA_KEY,
