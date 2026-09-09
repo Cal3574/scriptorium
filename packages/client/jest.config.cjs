@@ -17,6 +17,11 @@ module.exports = {
   },
   moduleNameMapper: {
     '^@/(.*)$': '<rootDir>/src/$1',
+    // Vite's `?worker` import is meaningless to Jest; hand it an inert class.
+    '\\?worker$': '<rootDir>/src/test-support/pdf-worker-stub.js',
+    // pdfjs-dist is ESM-only and uses `import.meta`; specs mock the preview
+    // module, so Jest only needs the import to resolve.
+    '^pdfjs-dist$': '<rootDir>/src/test-support/pdfjs-stub.js',
   },
   moduleFileExtensions: ['ts', 'tsx', 'js', 'jsx', 'html'],
   coverageDirectory: 'test-output/jest/coverage',

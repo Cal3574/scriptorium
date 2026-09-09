@@ -9,6 +9,7 @@ import {
   LibraryTable,
   LibraryTableSkeleton,
 } from '@/components/library/library-table';
+import { DepositSlot } from '@/components/library/deposit-slot';
 import { useApi } from '../auth/use-api';
 import { useUsage } from '../usage/use-usage';
 import type { LimitCode } from './problem';
@@ -92,7 +93,16 @@ export function Library() {
         <EmptyState
           icon={LibraryBigIcon}
           title="No books yet"
-          body="Upload a PDF with the button above and it will appear here as it processes."
+          body="Your books will appear here as they process."
+          action={
+            <DepositSlot
+              api={api}
+              books={books}
+              onUploaded={onUploaded}
+              onLimitReached={onLimitReached}
+              variant="panel"
+            />
+          }
         />
       ) : (
         <LibraryTable books={books} onSettled={onSettled} />

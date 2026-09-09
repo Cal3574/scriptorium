@@ -59,6 +59,15 @@ jest.mock('./books/use-ingest-events', () => ({
   useIngestEvents: () => ({ progress: null, connected: false, deleted: false }),
 }));
 
+// pdf.js cannot render in jsdom; the deposit slip only needs a page count and
+// a cover image to show.
+jest.mock('./books/pdf-preview', () => ({
+  renderPdfPreview: jest.fn(async () => ({
+    pageCount: 128,
+    thumbnailUrl: 'data:image/png;base64,AAA',
+  })),
+}));
+
 const mockApi = jest.fn();
 jest.mock('./auth/use-api', () => ({ useApi: () => mockApi }));
 
@@ -279,19 +288,52 @@ test('the library toolbar shows the list summary but no plan-limit meter', async
   ).not.toBeInTheDocument();
 });
 
-test('hitting the book limit on upload shows the inline notice with live numbers and an Upgrade link', async () => {
+test('at the book limit the library deposit slot is spent and points to Activity', async () => {
+  mockApi.mockImplementation(async (path: string) => {
+    if (path === '/api/v1/me/usage')
+      return jsonRes({ ...USAGE, books: { used: 2, limit: 2 } });
+    if (path === '/api/v1/books') return jsonRes([BOOK]);
+    return jsonRes({ code: 'not_found' }, 404);
+  });
+
+  renderAt('/library');
+  await screen.findByRole('heading', { name: 'Library' });
+
+  expect(await screen.findByText(/Book limit reached/i)).toBeVisible();
+  expect(
+    screen.getByRole('link', { name: 'manage on Activity' }),
+  ).toHaveAttribute('href', '/activity');
+  expect(
+    screen.queryByRole('button', { name: 'Deposit a PDF' }),
+  ).not.toBeInTheDocument();
+});
+
+test('a 402 while depositing shows the inline notice with live numbers and an Upgrade link', async () => {
   const realFetch = globalThis.fetch;
   globalThis.fetch = jest
     .fn()
     .mockResolvedValue({ ok: true, status: 200 } as Response);
+
+  // Under the ceiling on mount (so the slot is live), spent by the time the
+  // register call is made and the meter refetches.
+  let quotaSpent = false;
   mockApi.mockImplementation(async (path: string, init?: RequestInit) => {
     if (path === '/api/v1/me/usage')
-      return jsonRes({ ...USAGE, books: { used: 2, limit: 2 } });
-    if (path === '/api/v1/books' && init?.method === 'POST')
+      return jsonRes({
+        ...USAGE,
+        books: { used: quotaSpent ? 2 : 1, limit: 2 },
+      });
+    if (path === '/api/v1/books' && init?.method === 'POST') {
+      quotaSpent = true;
       return jsonRes({ code: 'book_limit_reached' }, 402);
+    }
     if (path === '/api/v1/books') return jsonRes([BOOK]);
     if (path === '/api/v1/books/upload-url')
-      return jsonRes({ uploadUrl: 'https://s3.test/put', s3Key: 'k' });
+      return jsonRes({
+        uploadUrl: 'https://s3.test/put',
+        s3Key: 'k',
+        expiresInSeconds: 300,
+      });
     return jsonRes({ code: 'not_found' }, 404);
   });
 
@@ -302,6 +344,9 @@ test('hitting the book limit on upload shows the inline notice with live numbers
     await userEvent.upload(
       document.querySelector('input[type="file"]') as HTMLInputElement,
       new File(['%PDF-1.4'], 'book.pdf', { type: 'application/pdf' }),
+    );
+    await userEvent.click(
+      await screen.findByRole('button', { name: 'Deposit' }),
     );
 
     expect(await screen.findByText(/reached your book limit/i)).toBeVisible();
