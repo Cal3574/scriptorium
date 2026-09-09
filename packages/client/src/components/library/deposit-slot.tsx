@@ -34,7 +34,7 @@ const REJECTION_COPY: Record<DropRejection, string> = {
 // drag; `spent` is the muted book-limit state.
 function chuteClass(variant: Variant, state: 'idle' | 'over' | 'spent') {
   return cn(
-    'flex items-center justify-center gap-2 rounded-md border border-dashed border-t-2 transition-[colors,transform] outline-none select-none focus-visible:ring-ring/50 focus-visible:ring-[3px]',
+    'flex items-center justify-center gap-2 rounded-md border border-dashed border-t-2 transition-colors outline-none select-none focus-visible:ring-ring/50 focus-visible:ring-[3px]',
     variant === 'compact'
       ? 'h-8 min-w-52 px-3'
       : 'min-h-40 w-full flex-col px-6 py-8',
