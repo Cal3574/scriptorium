@@ -12,6 +12,7 @@ import { StatusChip } from './status-chip';
 import { IngestProgressCell } from './ingest-progress-cell';
 import { FailureReasonLine } from './failure-reason-line';
 import { BookCover } from './book-cover';
+import { IngestProgressSheet } from '@/components/ingest/ingest-progress-sheet';
 
 const TERMINAL: ReadonlySet<string> = new Set(['ready', 'failed']);
 
@@ -105,6 +106,17 @@ export function BookRow({
     }
   }
 
+  const progressCell = (
+    <IngestProgressCell
+      role={role}
+      stage={progress?.stage ?? null}
+      progress={progress?.progress ?? null}
+      pageCount={book.pageCount}
+      chaptersTotal={progress?.chaptersTotal ?? null}
+      failedStage={failedStage}
+    />
+  );
+
   return (
     <div
       className={cn(
@@ -142,19 +154,23 @@ export function BookRow({
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1 sm:contents">
         <StatusChip status={status} />
 
-        <span
-          role={role === 'working' ? 'status' : undefined}
-          data-connected={role === 'working' ? connected : undefined}
-        >
-          <IngestProgressCell
-            role={role}
-            stage={progress?.stage ?? null}
-            progress={progress?.progress ?? null}
-            pageCount={book.pageCount}
-            chaptersTotal={progress?.chaptersTotal ?? null}
-            failedStage={failedStage}
-          />
-        </span>
+        {role === 'working' || role === 'queued' || failed ? (
+          <IngestProgressSheet
+            book={book}
+            progress={progress}
+            connected={connected}
+            onRetry={failed ? () => void retry() : undefined}
+          >
+            <span
+              role={role === 'working' ? 'status' : undefined}
+              data-connected={role === 'working' ? connected : undefined}
+            >
+              {progressCell}
+            </span>
+          </IngestProgressSheet>
+        ) : (
+          <span>{progressCell}</span>
+        )}
       </div>
 
       <span className="flex flex-wrap gap-1 sm:justify-end sm:opacity-55 sm:transition-opacity sm:group-focus-within:opacity-100 sm:group-hover:opacity-100">
