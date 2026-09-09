@@ -107,6 +107,7 @@ afterEach(() => {
   localStorage.clear();
   document.documentElement.className = '';
   document.documentElement.style.colorScheme = '';
+  document.title = '';
 });
 
 function renderAt(path: string) {
@@ -135,6 +136,25 @@ test('/books/:bookId renders BookDetail; the back link returns to /library', asy
 
   expect(await screen.findByRole('heading', { name: 'Library' })).toBeVisible();
   expect(router.state.location.pathname).toBe('/library');
+});
+
+test('document.title follows the route', async () => {
+  renderAt('/library');
+  expect(await screen.findByRole('heading', { name: 'Library' })).toBeVisible();
+  expect(document.title).toBe('Library · Scriptorium');
+});
+
+test('a book page titles itself after the book; leaving it resets the title', async () => {
+  const router = renderAt('/books/b1');
+  expect(
+    await screen.findByRole('heading', { name: 'Deep Work' }),
+  ).toBeVisible();
+  expect(document.title).toBe('Deep Work · Scriptorium');
+
+  await userEvent.click(screen.getByRole('link', { name: /back to library/i }));
+  expect(await screen.findByRole('heading', { name: 'Library' })).toBeVisible();
+  expect(router.state.location.pathname).toBe('/library');
+  expect(document.title).toBe('Library · Scriptorium');
 });
 
 test('browser back from a book returns to the library', async () => {
@@ -299,6 +319,25 @@ test('the active nav link reflects the route', async () => {
   expect(screen.getByRole('link', { name: 'Library' })).not.toHaveAttribute(
     'aria-current',
   );
+});
+
+test('/how-it-works renders the page and owns the active nav link', async () => {
+  renderAt('/how-it-works');
+
+  expect(
+    await screen.findByRole('heading', {
+      level: 1,
+      name: /how scriptorium works/i,
+    }),
+  ).toBeVisible();
+
+  const link = screen.getByRole('link', { name: 'How it works' });
+  expect(link).toHaveAttribute('aria-current', 'page');
+  for (const label of ['Library', 'Ask', 'History']) {
+    expect(screen.getByRole('link', { name: label })).not.toHaveAttribute(
+      'aria-current',
+    );
+  }
 });
 
 test('history renders the Console worklist: row link + mono summary count', async () => {

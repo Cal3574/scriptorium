@@ -8,6 +8,7 @@ import {
   type PdfOutlineItem,
   type PdfPage,
 } from './pdf-extractor.js';
+import { cleanExtractedMarkdown, cleanHeadingText } from './clean-text.js';
 import { extractPdfOutline } from './pdfjs-outline.js';
 
 // LlamaParse v2 REST. Per the integration research (#5) the worker owns its own
@@ -78,10 +79,12 @@ interface LlamaParseResult {
   };
 }
 
-function cleanString(value: unknown): string | null {
-  return typeof value === 'string' && value.trim().length > 0
-    ? value.trim()
-    : null;
+// PDF metadata strings carry the same LlamaParse HTML noise as headings, so run
+// them through the heading scrubber before the empty-check.
+function cleanMetadataString(value: unknown): string | null {
+  if (typeof value !== 'string') return null;
+  const cleaned = cleanHeadingText(value);
+  return cleaned.length > 0 ? cleaned : null;
 }
 
 export class LlamaParseExtractor implements PdfExtractor {
@@ -184,7 +187,7 @@ export class LlamaParseExtractor implements PdfExtractor {
     const rawPages = (result.markdown?.pages ?? [])
       .map((p, index) => ({
         page: p.page_number ?? index + 1,
-        markdown: (p.markdown ?? '').trim(),
+        markdown: cleanExtractedMarkdown(p.markdown ?? '').trim(),
       }))
       .sort((a, b) => a.page - b.page);
 
@@ -199,7 +202,7 @@ export class LlamaParseExtractor implements PdfExtractor {
       .map((item) => ({
         type: 'heading' as const,
         level: item.level ?? 1,
-        text: (item.value ?? '').trim(),
+        text: cleanHeadingText(item.value ?? ''),
         page: item.page,
       }))
       .filter((item) => item.text.length > 0);
@@ -212,8 +215,8 @@ export class LlamaParseExtractor implements PdfExtractor {
       rawPages.length > 0 ? rawPages : [{ page: 1, markdown }];
 
     const metadata: PdfMetadata = {
-      title: cleanString(result.metadata?.document?.title),
-      author: cleanString(result.metadata?.document?.author),
+      title: cleanMetadataString(result.metadata?.document?.title),
+      author: cleanMetadataString(result.metadata?.document?.author),
     };
 
     return { markdown, pages, items, outline, metadata, pageCount };
