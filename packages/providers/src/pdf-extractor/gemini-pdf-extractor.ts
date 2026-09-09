@@ -330,7 +330,8 @@ export class GeminiPdfExtractor implements PdfExtractor {
           );
         }
       }
-      if (attempt < BATCH_ATTEMPTS) await this.sleep(backoffMs(attempt, lastError));
+      if (attempt < BATCH_ATTEMPTS)
+        await this.sleep(backoffMs(attempt, lastError));
     }
     // Retries exhausted. If we got a usable partial, hand it back so the batch
     // can salvage the missing pages one at a time; the whole book should not

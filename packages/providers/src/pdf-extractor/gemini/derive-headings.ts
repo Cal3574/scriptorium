@@ -11,7 +11,8 @@ const HEADING = /^(#{1,6})[ \t]+(.*\S)[ \t]*$/;
 
 // A line that starts a new markdown block, so it cannot be the wrapped
 // continuation of a heading above it.
-const BLOCK_START = /^(#{1,6}[ \t]|[-*+][ \t]|\d+[.)][ \t]|>|\||```|~~~|-{3,}$|\*{3,}$|_{3,}$)/;
+const BLOCK_START =
+  /^(#{1,6}[ \t]|[-*+][ \t]|\d+[.)][ \t]|>|\||```|~~~|-{3,}$|\*{3,}$|_{3,}$)/;
 
 // When a long heading wraps, Gemini emits the tail on the next line with no
 // blank line between - `# Chapter 5: Identifying Architectural\nCharacteristics`.
@@ -22,7 +23,11 @@ const BLOCK_START = /^(#{1,6}[ \t]|[-*+][ \t]|\d+[.)][ \t]|>|\||```|~~~|-{3,}$|\
 const SENTENCE_END = /[.!?]$/;
 const CONTINUATION_MAX_CHARS = 50;
 
-function headingText(lines: string[], startIndex: number, base: string): string {
+function headingText(
+  lines: string[],
+  startIndex: number,
+  base: string,
+): string {
   let text = base;
   for (let i = startIndex + 1; i < lines.length; i++) {
     const line = lines[i].trim();

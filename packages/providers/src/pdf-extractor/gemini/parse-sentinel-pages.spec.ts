@@ -89,7 +89,10 @@ describe('parseSentinelPagesLenient', () => {
 
   it('still throws on an out-of-order or unexpected sentinel', () => {
     expect(() =>
-      parseSentinelPagesLenient('<!-- page 2 -->\nB\n<!-- page 1 -->\nA', [1, 2]),
+      parseSentinelPagesLenient(
+        '<!-- page 2 -->\nB\n<!-- page 1 -->\nA',
+        [1, 2],
+      ),
     ).toThrow(SentinelMismatchError);
     expect(() =>
       parseSentinelPagesLenient('<!-- page 9 -->\nX', [1, 2]),
