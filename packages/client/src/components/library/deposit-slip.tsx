@@ -126,9 +126,7 @@ export function DepositSlip({
           <Cover preview={preview} />
 
           <div className="flex min-w-0 flex-1 flex-col gap-1">
-            <p className="text-foreground font-mono text-sm break-all">
-              {file.name}
-            </p>
+            <BreakableName name={file.name} />
             <p className="text-muted-foreground font-mono text-xs tabular-nums">
               {formatBytes(file.size)}
               {preview.state === 'ready' &&
@@ -145,8 +143,8 @@ export function DepositSlip({
             )}
             {duplicateOf && (
               <Notice>
-                &quot;{file.name}&quot; ({formatBytes(file.size)}) is already in
-                your library.
+                This PDF is already in your library - deposit again to add a
+                second copy.
               </Notice>
             )}
             {phase.name === 'failed' && <Notice>{phase.message}</Notice>}
@@ -175,6 +173,22 @@ export function DepositSlip({
         </DialogFooter>
       </DialogContent>
     </Dialog>
+  );
+}
+
+// A downloaded filename (`_OceanofPDF.com_Fundamentals_of_..._Richards.pdf`)
+// often has no spaces, so the browser has no wrap point and either overflows
+// or, with `break-all`, snaps mid-word. Add a soft break after each `-` `_` `.`
+// so it wraps at readable boundaries; `overflow-wrap: anywhere` still catches a
+// pathological unbroken run.
+function BreakableName({ name }: { name: string }) {
+  const segments = name.split(/(?<=[-_.])/);
+  return (
+    <p className="text-foreground font-mono text-sm [overflow-wrap:anywhere]">
+      {segments.flatMap((segment, i) =>
+        i === 0 ? [segment] : [<wbr key={i} />, segment],
+      )}
+    </p>
   );
 }
 

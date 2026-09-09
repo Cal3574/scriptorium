@@ -74,6 +74,14 @@ test('shows the page count once pdf.js resolves', async () => {
   expect(await screen.findByText(/12 pages/)).toBeInTheDocument();
 });
 
+test('a long separator-only filename stays one string with soft break points', async () => {
+  const long = '_OceanofPDF.com_Fundamentals_of_Software_Architecture.pdf';
+  renderSlip({ file: file(long) });
+
+  const name = await screen.findByText(long);
+  expect(name.querySelectorAll('wbr').length).toBeGreaterThan(3);
+});
+
 test('Deposit runs the handoff and calls onDeposited', async () => {
   happyApi();
   renderSlip();
