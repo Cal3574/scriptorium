@@ -11,6 +11,7 @@ import { cn } from '@/lib/utils';
 import { StatusChip } from './status-chip';
 import { IngestProgressCell } from './ingest-progress-cell';
 import { FailureReasonLine } from './failure-reason-line';
+import { BookCover } from './book-cover';
 
 const TERMINAL: ReadonlySet<string> = new Set(['ready', 'failed']);
 
@@ -18,7 +19,7 @@ const TERMINAL: ReadonlySet<string> = new Set(['ready', 'failed']);
 // is a stacked card (see the wrapper below) so long titles and the status /
 // progress meta never fight over a squashed column on a phone.
 export const GRID_COLS =
-  'sm:grid-cols-[minmax(0,1fr)_7rem_minmax(0,12rem)_8.5rem]';
+  'sm:grid-cols-[2.75rem_minmax(0,1fr)_7rem_minmax(0,12rem)_8.5rem]';
 export const ROW_GRID = `sm:grid ${GRID_COLS} sm:items-start sm:gap-x-3 sm:gap-y-1 sm:px-4 sm:py-2`;
 
 // One library row. Unchanged from the original in every respect that touches
@@ -113,19 +114,28 @@ export function BookRow({
       )}
       data-status={status}
     >
-      <span className="min-w-0">
-        <Link
-          to={`/books/${book.id}`}
-          className="text-foreground line-clamp-2 font-serif text-[15px] leading-tight font-medium no-underline hover:underline sm:line-clamp-none"
-        >
-          {title}
-        </Link>
-        {book.author && (
-          <span className="text-muted-foreground mt-0.5 block truncate text-xs">
-            {book.author}
-          </span>
-        )}
-      </span>
+      {/* Cover + title: a flex pair on a phone, dissolved into the first two
+          grid columns from `sm` up via `sm:contents`. */}
+      <div className="flex gap-3 sm:contents">
+        <BookCover
+          id={book.id}
+          title={title}
+          className="w-10 self-start sm:w-11"
+        />
+        <span className="min-w-0">
+          <Link
+            to={`/books/${book.id}`}
+            className="text-foreground line-clamp-2 font-serif text-[15px] leading-tight font-medium no-underline hover:underline sm:line-clamp-none"
+          >
+            {title}
+          </Link>
+          {book.author && (
+            <span className="text-muted-foreground mt-0.5 block truncate text-xs">
+              {book.author}
+            </span>
+          )}
+        </span>
+      </div>
 
       {/* Status + progress: a wrapped meta row on a phone, dissolved back into
           the grid columns from `sm` up via `sm:contents`. */}
