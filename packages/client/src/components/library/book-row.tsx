@@ -14,9 +14,12 @@ import { FailureReasonLine } from './failure-reason-line';
 
 const TERMINAL: ReadonlySet<string> = new Set(['ready', 'failed']);
 
-// Shared grid template for the header row and every book row.
-export const ROW_GRID =
-  'grid grid-cols-[minmax(0,1fr)_7rem_minmax(0,12rem)_8.5rem] items-start gap-x-3 gap-y-1 px-4';
+// The four-column worklist grid, applied only from `sm` up. Below that a row
+// is a stacked card (see the wrapper below) so long titles and the status /
+// progress meta never fight over a squashed column on a phone.
+export const GRID_COLS =
+  'sm:grid-cols-[minmax(0,1fr)_7rem_minmax(0,12rem)_8.5rem]';
+export const ROW_GRID = `sm:grid ${GRID_COLS} sm:items-start sm:gap-x-3 sm:gap-y-1 sm:px-4 sm:py-2`;
 
 // One library row. Unchanged from the original in every respect that touches
 // the network: while the book is non-terminal it subscribes to the SSE
@@ -104,7 +107,7 @@ export function BookRow({
   return (
     <div
       className={cn(
-        'group border-border hover:bg-accent/40 border-b py-2 last:border-b-0',
+        'group border-border hover:bg-accent/40 flex flex-col gap-2 border-b px-4 py-3 last:border-b-0',
         ROW_GRID,
         deleting && 'pointer-events-none opacity-50',
       )}
@@ -113,34 +116,38 @@ export function BookRow({
       <span className="min-w-0">
         <Link
           to={`/books/${book.id}`}
-          className="text-foreground font-serif text-[15px] leading-tight font-medium no-underline hover:underline"
+          className="text-foreground line-clamp-2 font-serif text-[15px] leading-tight font-medium no-underline hover:underline sm:line-clamp-none"
         >
           {title}
         </Link>
         {book.author && (
-          <span className="text-muted-foreground mt-0.5 block text-xs">
+          <span className="text-muted-foreground mt-0.5 block truncate text-xs">
             {book.author}
           </span>
         )}
       </span>
 
-      <StatusChip status={status} />
+      {/* Status + progress: a wrapped meta row on a phone, dissolved back into
+          the grid columns from `sm` up via `sm:contents`. */}
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 sm:contents">
+        <StatusChip status={status} />
 
-      <span
-        role={role === 'working' ? 'status' : undefined}
-        data-connected={role === 'working' ? connected : undefined}
-      >
-        <IngestProgressCell
-          role={role}
-          stage={progress?.stage ?? null}
-          progress={progress?.progress ?? null}
-          pageCount={book.pageCount}
-          chaptersTotal={progress?.chaptersTotal ?? null}
-          failedStage={failedStage}
-        />
-      </span>
+        <span
+          role={role === 'working' ? 'status' : undefined}
+          data-connected={role === 'working' ? connected : undefined}
+        >
+          <IngestProgressCell
+            role={role}
+            stage={progress?.stage ?? null}
+            progress={progress?.progress ?? null}
+            pageCount={book.pageCount}
+            chaptersTotal={progress?.chaptersTotal ?? null}
+            failedStage={failedStage}
+          />
+        </span>
+      </div>
 
-      <span className="flex flex-wrap justify-end gap-1 opacity-0 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100">
+      <span className="flex flex-wrap gap-1 sm:justify-end sm:opacity-0 sm:transition-opacity sm:group-focus-within:opacity-100 sm:group-hover:opacity-100">
         {failed ? (
           <Button
             type="button"
