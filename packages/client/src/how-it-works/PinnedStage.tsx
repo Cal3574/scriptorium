@@ -41,27 +41,36 @@ class SceneBoundary extends Component<
 // re-initialising), and floats the real product component on top at the two
 // payoff stops. The scene sits in a plain sized div - the canonical r3f
 // layout - so three.js measures it reliably.
+//
+// `mode` is a three-way: `detecting` renders an empty slot for the one tick
+// before the effect resolves WebGL support, so a WebGL visitor never sees the
+// flat SVG flash past on the way to the 3-D scene. The flat visual is shown
+// only when it is the real answer (no WebGL / reduced motion), and the
+// Suspense fallback for the three.js chunk is blank for the same reason.
+type SceneMode = 'detecting' | 'webgl' | 'flat';
+
 export function PinnedStage({ step }: { step: number }) {
   const reduce = usePrefersReducedMotion();
-  const [webgl, setWebgl] = useState(false);
+  const [mode, setMode] = useState<SceneMode>('detecting');
 
   useEffect(() => {
-    setWebgl(!reduce && supportsWebGL());
+    setMode(!reduce && supportsWebGL() ? 'webgl' : 'flat');
   }, [reduce]);
 
   const payoff = isPayoffStep(step);
 
   return (
     <div className="relative h-full w-full">
-      {webgl ? (
+      {mode === 'webgl' ? (
         <div className="h-full w-full">
           <SceneBoundary step={step}>
-            <Suspense fallback={<FallbackVisual step={step} />}>
+            <Suspense fallback={<div className="h-full w-full" />}>
               <Scene3D step={step} />
             </Suspense>
           </SceneBoundary>
         </div>
       ) : (
+        mode === 'flat' &&
         !payoff && (
           <div className="absolute inset-0">
             <FallbackVisual step={step} />
