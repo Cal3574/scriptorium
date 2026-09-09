@@ -4,6 +4,7 @@ import { Library } from './books/Library';
 import { BookDetail } from './books/BookDetail';
 import { QueryScreen } from './queries/QueryScreen';
 import { QueryHistory } from './queries/QueryHistory';
+import { ActivityScreen } from './activity/ActivityScreen';
 import { PricingScreen } from './pricing/PricingScreen';
 import { HowItWorks } from './how-it-works/HowItWorks';
 
@@ -32,6 +33,11 @@ export const routes: RouteObject[] = [
         path: 'history',
         element: <QueryHistory />,
         handle: { title: 'History' },
+      },
+      {
+        path: 'activity',
+        element: <ActivityScreen />,
+        handle: { title: 'Activity' },
       },
       {
         path: 'pricing',

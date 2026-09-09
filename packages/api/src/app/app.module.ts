@@ -2,6 +2,7 @@ import { type DynamicModule, Module } from '@nestjs/common';
 import type { ApiConfig } from '@scriptorium/config';
 import { DEFAULT_SSE_HEARTBEAT_MS } from '@scriptorium/contracts';
 import {
+  ActivityRepository,
   BooksRepository,
   DEFAULT_PLAN_LIMITS,
   EntitlementGuard,
@@ -47,6 +48,7 @@ export class AppModule {
       providers: [
         BooksRepository,
         QueriesRepository,
+        ActivityRepository,
         QueryService,
         {
           provide: RAG_CONFIG,

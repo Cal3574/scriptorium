@@ -43,6 +43,13 @@
   --status-ready-soft: #e3f0e8;
   --status-failed-soft: #f6e4e2;
 
+  /* ---- chart series (Recharts / shadcn chart) ---- */
+  --chart-1: #3d5a80; /* == --primary, the default single-series fill */
+  --chart-2: #5b7ba6;
+  --chart-3: #86a0c2;
+  --chart-4: #9a6a1c;
+  --chart-5: #15803d;
+
   /* ---- radius ---- */
   --radius: 0.375rem; /* 6px base */
 
@@ -96,6 +103,12 @@
   --status-ready-soft: #12241a;
   --status-failed-soft: #241615;
 
+  --chart-1: #7d9dc4; /* == --primary (dark) */
+  --chart-2: #9db6d4;
+  --chart-3: #5f7da8;
+  --chart-4: #cf9a45;
+  --chart-5: #5fb07d;
+
   --shadow-xs: 0 1px 2px 0 rgb(0 0 0 / 0.3);
   --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.4), 0 1px 3px 0 rgb(0 0 0 / 0.3);
 
@@ -133,6 +146,12 @@
   --color-status-progress-soft: var(--status-progress-soft);
   --color-status-ready-soft: var(--status-ready-soft);
   --color-status-failed-soft: var(--status-failed-soft);
+
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
 
   --radius-sm: calc(var(--radius) - 4px); /* 2px */
   --radius-md: calc(var(--radius) - 2px); /* 4px - chips, buttons, inputs */

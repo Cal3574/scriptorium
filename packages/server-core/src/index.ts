@@ -107,6 +107,18 @@ export {
   type PlanClaims,
 } from './entitlements/plan-claims.js';
 
+export {
+  ActivityRepository,
+  type ActivityTotals,
+  type TopBookByQuestions,
+  type MonthlyCounts,
+} from './activity/activity.repository.js';
+export {
+  buildMonthlyActivity,
+  trailingTwelveMonths,
+  type MonthlyActivityRow,
+} from './activity/monthly-activity.js';
+
 export { ProblemDetailsFilter } from './http/problem-details.filter.js';
 export { RequestAwareLogger } from './http/request-aware-logger.js';
 export {
