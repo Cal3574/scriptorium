@@ -3,9 +3,12 @@ import type { ApiConfig } from '@scriptorium/config';
 import { DEFAULT_SSE_HEARTBEAT_MS } from '@scriptorium/contracts';
 import {
   BooksRepository,
+  DEFAULT_PLAN_LIMITS,
+  EntitlementGuard,
   HttpCoreModule,
   IngestEventStream,
   INGEST_EVENT_SUBSCRIBER,
+  PLAN_LIMITS,
   ProvidersModule,
   QueriesRepository,
   RedisIngestEventSubscriber,
@@ -58,6 +61,12 @@ export class AppModule {
           },
         },
         { provide: MAX_UPLOAD_BYTES, useValue: config.MAX_UPLOAD_BYTES },
+        { provide: PLAN_LIMITS, useValue: DEFAULT_PLAN_LIMITS },
+        // `@UseGuards(EntitlementGuard)` on the quota-bearing controllers, not
+        // an `APP_GUARD`: Nest runs global guards before controller guards, so
+        // this is a hard ordering guarantee that `ClerkAuthGuard` (global) has
+        // already populated `req.user.plan`.
+        EntitlementGuard,
         {
           provide: SSE_HEARTBEAT_MS,
           useValue: config.SSE_HEARTBEAT_MS ?? DEFAULT_SSE_HEARTBEAT_MS,
@@ -68,6 +77,9 @@ export class AppModule {
         },
         IngestEventStream,
       ],
+      // Exported so the test-app factory's `planLimits` override is visible to
+      // the test-only ProbeController that reads it back.
+      exports: [PLAN_LIMITS],
     };
   }
 }

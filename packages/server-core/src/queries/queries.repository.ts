@@ -2,8 +2,9 @@ import { Inject, Injectable } from '@nestjs/common';
 import type { PersistedCitation } from '@scriptorium/contracts';
 import type { DbClient } from '@scriptorium/database/client';
 import { queries } from '@scriptorium/database/schema';
-import { desc, eq, sql } from 'drizzle-orm';
+import { and, count, desc, eq, gte, sql } from 'drizzle-orm';
 import { DB } from '../database/database.module.js';
+import { currentMonthStartUtc } from '../entitlements/billing-period.js';
 
 // One `queries` row, as read back for the `GET /queries/:id` detail shape.
 // `answer` and `citations` are null until the query completes (or forever, if
@@ -126,6 +127,25 @@ export class QueriesRepository {
       })
       .returning({ id: queries.id });
     return row.id;
+  }
+
+  /**
+   * How many queries the user has made since the start of the current calendar
+   * month in UTC, every row included (a null `answer` still counts - the paid
+   * embedding and retrieval ran). Read by both the `@Quota('queries')` lever
+   * and `GET /me/usage`. Covered by the existing `queries_user_id_created_at_idx`.
+   * The month boundary is a bound parameter, not SQL `date_trunc`, so the
+   * `>=` comparison against the `timestamptz` column needs no session timezone.
+   */
+  async countThisMonth(userId: string): Promise<number> {
+    const monthStart = currentMonthStartUtc();
+    const [row] = await this.db
+      .select({ total: count() })
+      .from(queries)
+      .where(
+        and(eq(queries.userId, userId), gte(queries.createdAt, monthStart)),
+      );
+    return row?.total ?? 0;
   }
 
   /**

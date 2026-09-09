@@ -72,6 +72,10 @@ export interface PdfExtractInput {
   // Original filename, used by the live adapter for the multipart upload part
   // and by both adapters for logging.
   filename: string;
+  // The book being ingested, if known. Carried purely so an adapter can tag a
+  // structured operational event (the Gemini adapter's `extraction.partial`)
+  // with the book it happened on. Never load-bearing for the parse.
+  bookId?: string;
 }
 
 export interface PdfExtractor {

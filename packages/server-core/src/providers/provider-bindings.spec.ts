@@ -5,7 +5,9 @@ import {
   FakeObjectStorage,
   FakePdfExtractor,
   FakeQueue,
+  GeminiPdfExtractor,
   LLM_CLIENT,
+  LlamaParseExtractor,
   OBJECT_STORAGE,
   PDF_EXTRACTOR,
   QUEUE,
@@ -80,7 +82,7 @@ describe('selectProviderBindings', () => {
     const live = selectProviderBindings({
       ...base,
       mode: 'live',
-      llamaparseApiKey: 'llx',
+      geminiApiKey: 'gm',
       openaiApiKey: 'sk-o',
       anthropicApiKey: 'sk-a',
     });
@@ -88,5 +90,62 @@ describe('selectProviderBindings', () => {
       const binding = byToken(live, token) as FactoryProvider;
       expect(() => binding.useFactory()).not.toThrow();
     }
+  });
+
+  describe('PDF_EXTRACTOR selection', () => {
+    const liveBase = {
+      ...base,
+      mode: 'live' as const,
+      geminiApiKey: 'gm',
+      llamaparseApiKey: 'llx',
+      openaiApiKey: 'sk-o',
+      anthropicApiKey: 'sk-a',
+    };
+
+    const extractor = (config: Parameters<typeof selectProviderBindings>[0]) =>
+      (
+        byToken(
+          selectProviderBindings(config),
+          PDF_EXTRACTOR,
+        ) as FactoryProvider
+      ).useFactory();
+
+    it('defaults to the Gemini extractor in live mode', () => {
+      expect(extractor(liveBase)).toBeInstanceOf(GeminiPdfExtractor);
+    });
+
+    it('binds the Gemini extractor when PDF_EXTRACTOR=gemini', () => {
+      expect(extractor({ ...liveBase, pdfExtractor: 'gemini' })).toBeInstanceOf(
+        GeminiPdfExtractor,
+      );
+    });
+
+    it('binds the LlamaParse extractor when PDF_EXTRACTOR=llamaparse', () => {
+      expect(
+        extractor({ ...liveBase, pdfExtractor: 'llamaparse' }),
+      ).toBeInstanceOf(LlamaParseExtractor);
+    });
+
+    it('fails fast when the selected extractor key is missing', () => {
+      const { geminiApiKey, ...noGemini } = liveBase;
+      void geminiApiKey;
+      expect(() => extractor(noGemini)).toThrow(/GEMINI_API_KEY/);
+
+      const { llamaparseApiKey, ...noLlama } = liveBase;
+      void llamaparseApiKey;
+      expect(() =>
+        extractor({ ...noLlama, pdfExtractor: 'llamaparse' }),
+      ).toThrow(/LLAMAPARSE_API_KEY/);
+    });
+
+    it('binds the fake extractor in fake mode regardless of PDF_EXTRACTOR', () => {
+      const bindings = selectProviderBindings({
+        ...base,
+        pdfExtractor: 'llamaparse',
+      });
+      expect((byToken(bindings, PDF_EXTRACTOR) as ClassProvider).useClass).toBe(
+        FakePdfExtractor,
+      );
+    });
   });
 });

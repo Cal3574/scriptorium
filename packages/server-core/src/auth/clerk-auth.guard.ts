@@ -15,7 +15,8 @@ import { UsersRepository } from '../users/users.repository.js';
  *   1. lets `@Public()` routes straight through,
  *   2. verifies the `Authorization: Bearer` token with `@clerk/backend`,
  *   3. JIT-upserts the local `users` row, refreshing `email`,
- *   4. attaches `req.user = { id, clerkUserId, email }` with the local id.
+ *   4. attaches `req.user = { id, clerkUserId, email, plan, features }` with
+ *      the local id and the plan/features parsed from the token claims.
  *
  * There is no bypass branch - the same guard runs in tests, which sign
  * tokens with a locally-minted RSA key.
@@ -60,6 +61,8 @@ export class ClerkAuthGuard implements CanActivate {
       id: user.id,
       clerkUserId: user.clerkUserId,
       email: user.email,
+      plan: verified.plan,
+      features: verified.features,
     };
     return true;
   }

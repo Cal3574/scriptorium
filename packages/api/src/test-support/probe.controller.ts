@@ -5,6 +5,8 @@ import {
   type AuthenticatedUser,
   CurrentUser,
   DB,
+  type PlanLimits,
+  PLAN_LIMITS,
 } from '@scriptorium/server-core';
 import { createZodDto } from 'nestjs-zod';
 import { z } from 'zod';
@@ -19,7 +21,17 @@ class EchoDto extends createZodDto(
 
 @Controller('_probe')
 export class ProbeController {
-  constructor(@Inject(DB) private readonly db: DbClient) {}
+  constructor(
+    @Inject(DB) private readonly db: DbClient,
+    @Inject(PLAN_LIMITS) private readonly planLimits: PlanLimits,
+  ) {}
+
+  // Echoes back the resolved `PLAN_LIMITS` provider so a spec can prove the
+  // test-app factory's `planLimits` option reached the running app.
+  @Get('plan-limits')
+  getPlanLimits(): PlanLimits {
+    return this.planLimits;
+  }
 
   @Get('books/:id')
   async getBook(

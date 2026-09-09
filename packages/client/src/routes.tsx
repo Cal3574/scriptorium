@@ -4,6 +4,7 @@ import { Library } from './books/Library';
 import { BookDetail } from './books/BookDetail';
 import { QueryScreen } from './queries/QueryScreen';
 import { QueryHistory } from './queries/QueryHistory';
+import { PricingScreen } from './pricing/PricingScreen';
 import { HowItWorks } from './how-it-works/HowItWorks';
 
 // One layout route wraps the full-page screens; the index route just
@@ -31,6 +32,11 @@ export const routes: RouteObject[] = [
         path: 'history',
         element: <QueryHistory />,
         handle: { title: 'History' },
+      },
+      {
+        path: 'pricing',
+        element: <PricingScreen />,
+        handle: { title: 'Plans' },
       },
       {
         path: 'how-it-works',

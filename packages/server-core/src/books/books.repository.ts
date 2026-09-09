@@ -111,6 +111,19 @@ export class BooksRepository {
     return row ?? null;
   }
 
+  /**
+   * How many books the user holds, every status included ("a row is a slot").
+   * Backs the `@Quota('books')` check and the usage endpoint (#97); covered by
+   * the existing `books_user_id_idx`.
+   */
+  async countByUser(userId: string): Promise<number> {
+    const [row] = await this.db
+      .select({ total: count() })
+      .from(books)
+      .where(eq(books.userId, userId));
+    return row?.total ?? 0;
+  }
+
   /** The owner's books, newest first. */
   async listByUser(userId: string): Promise<BookRow[]> {
     return this.db

@@ -39,7 +39,11 @@ export const extractStage: Stage = {
     }
 
     const extraction = await withRetry(() =>
-      pdfExtractor.extract({ data: pdf, filename: book.originalFilename }),
+      pdfExtractor.extract({
+        data: pdf,
+        filename: book.originalFilename,
+        bookId: book.id,
+      }),
     );
 
     const markdownKey = extractedMarkdownKey(book);

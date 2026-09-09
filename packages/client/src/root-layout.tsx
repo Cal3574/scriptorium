@@ -3,6 +3,7 @@ import { Component, Suspense, type ReactNode } from 'react';
 import { Outlet } from 'react-router';
 import { hasProviderRemote, lazyProvider } from './mf';
 import { AppShell } from './components/shell/app-shell';
+import { UsageProvider } from './usage/use-usage';
 import { useDocumentTitle } from './use-document-title';
 
 // ProviderBoundary catches the lazy() rejection that fires when a provider's
@@ -47,14 +48,16 @@ const ProviderMyProvider = hasProviderRemote
 // state that used to live here is now the URL.
 function Shell() {
   return (
-    <AppShell>
-      <Outlet />
-      {ProviderMyProvider && (
-        <ProviderBoundary name="my-provider">
-          <ProviderMyProvider />
-        </ProviderBoundary>
-      )}
-    </AppShell>
+    <UsageProvider>
+      <AppShell>
+        <Outlet />
+        {ProviderMyProvider && (
+          <ProviderBoundary name="my-provider">
+            <ProviderMyProvider />
+          </ProviderBoundary>
+        )}
+      </AppShell>
+    </UsageProvider>
   );
 }
 

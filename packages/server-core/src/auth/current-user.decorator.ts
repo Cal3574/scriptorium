@@ -11,6 +11,11 @@ export interface AuthenticatedUser {
   id: string;
   clerkUserId: string;
   email: string;
+  // Read off the session token's `pla` / `fea` claims by the auth guard, scope
+  // prefix stripped. `plan` is absent when the token carries no `pla` claim -
+  // the entitlement guard falls back to `free`. `features` is always a list.
+  plan?: string;
+  features: string[];
 }
 
 /**

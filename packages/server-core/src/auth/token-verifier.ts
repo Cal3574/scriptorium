@@ -1,11 +1,17 @@
 import { verifyToken } from '@clerk/backend';
+import { parsePlanClaims } from '../entitlements/plan-claims.js';
 
 // The identity a verified session token yields. `sub` is the Clerk user id;
 // `email` comes from a Clerk JWT-template claim (the deployment must expose it)
-// and is refreshed onto the local row on every request.
+// and is refreshed onto the local row on every request. `plan` / `features`
+// are parsed from the `pla` / `fea` claims with the scope prefix stripped;
+// `features` is always a list, `plan` is absent when the token carries no
+// `pla` claim (the entitlement guard then falls back to `free`).
 export interface VerifiedToken {
   sub: string;
   email: string;
+  plan?: string;
+  features: string[];
 }
 
 // Seam for token verification so the guard can be unit-tested without minting
@@ -40,6 +46,9 @@ export class ClerkTokenVerifier extends TokenVerifier {
     if (typeof sub !== 'string' || typeof email !== 'string') {
       throw new Error('token is missing the sub or email claim');
     }
-    return { sub, email };
+    const { plan, features } = parsePlanClaims(
+      payload as { pla?: unknown; fea?: unknown },
+    );
+    return { sub, email, plan, features };
   }
 }

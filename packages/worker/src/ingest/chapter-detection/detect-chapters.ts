@@ -62,6 +62,10 @@ const TRAILING_PAGE_NO_RE = /(?:\.{2,}\s*|\s{2,})\d{1,4}\s*$/;
 // page number.
 const TOC_LINE_RE = /\S(?:\s*\.{2,}\s*|\s{2,})\d{1,4}\s*$/;
 const SHORT_LINE_MAX = 60;
+// A `MARKER_RE` hit is a strong enough signal that a longer line is still a
+// chapter opening (some chapter titles run past `SHORT_LINE_MAX`); only a truly
+// paragraph-length line is rejected.
+const MARKER_LINE_MAX = 100;
 
 // The arabic chapter number a marker's second capture group denotes, or null
 // for lettered / roman / appendix / part markers (per the spec, only arabic
@@ -134,7 +138,7 @@ function collectMarkers(
   for (const item of items) {
     if (item.type !== 'heading') continue;
     const text = item.text.trim();
-    if (text.length > SHORT_LINE_MAX) continue;
+    if (text.length > MARKER_LINE_MAX) continue;
     if (tocPages.has(item.page)) continue;
     if (TRAILING_PAGE_NO_RE.test(text)) continue;
     // Only a standalone front-matter heading is excluded here - a real
@@ -157,7 +161,52 @@ function collectMarkers(
       number: arabicNumber(kind, token),
     });
   }
-  return markers.sort((a, b) => a.page - b.page);
+  return dedupeMarkers(trimRecapTail(markers.sort((a, b) => a.page - b.page)));
+}
+
+// A book's real chapters climb monotonically in both number and page. Back
+// matter that recaps them - a "Discussion Questions" section, a per-chapter
+// index - repeats the whole "Chapter 1..N" list while the page keeps rising, so
+// the number resets. Once a numbered marker drops well below the highest number
+// already seen, treat it and everything after it as recap and drop it. The
+// tolerance keeps a lone out-of-order heading (a forward reference parsed as a
+// heading) from truncating a real chapter list.
+const RECAP_NUMBER_DROP = 2;
+
+function trimRecapTail(markers: Marker[]): Marker[] {
+  let maxNumber = 0;
+  for (let i = 0; i < markers.length; i++) {
+    const n = markers[i].number;
+    if (n == null) continue;
+    if (n <= maxNumber - RECAP_NUMBER_DROP) return markers.slice(0, i);
+    maxNumber = Math.max(maxNumber, n);
+  }
+  return markers;
+}
+
+// Drop a marker named the same as one already kept: a chapter opening echoed by
+// a running header, or a part divider both mentioned in chapter 1's roadmap and
+// printed on its own divider page. For numbered markers the earliest page wins
+// (that is the real opening); for unnumbered ones the latest page wins (the
+// divider itself, not the forward reference).
+function dedupeMarkers(markers: Marker[]): Marker[] {
+  const kept: Marker[] = [];
+  for (const marker of markers) {
+    const dupIndex = kept.findIndex(
+      (m) =>
+        (m.number != null && m.number === marker.number) ||
+        ((m.number == null) === (marker.number == null) &&
+          titlesOverlap(m.title, marker.title)),
+    );
+    if (dupIndex === -1) {
+      kept.push(marker);
+      continue;
+    }
+    if (marker.number == null && kept[dupIndex].page < marker.page) {
+      kept[dupIndex] = marker;
+    }
+  }
+  return kept;
 }
 
 function flattenOutline(nodes: PdfOutlineItem[]): PdfOutlineItem[] {
@@ -171,6 +220,11 @@ function flattenOutline(nodes: PdfOutlineItem[]): PdfOutlineItem[] {
 
 // Match a marker to an outline entry by normalised-title containment, and if
 // the outline's page is more than 2 away from the marker's, trust the outline.
+// Only an *unambiguous* match counts: a chapter title like "Chapter 27. The
+// Laws of Software Architecture, Revisited" also contains an unrelated section
+// bookmark ("Laws of Software Architecture"), so when more than one outline
+// entry overlaps we keep the marker's own page rather than jump to the wrong
+// one.
 function corroboratePages(
   markers: Marker[],
   outline: PdfOutlineItem[],
@@ -181,10 +235,11 @@ function corroboratePages(
   if (entries.length === 0) return markers;
 
   return markers.map((marker) => {
-    const hit = entries.find((entry) =>
+    const hits = entries.filter((entry) =>
       titlesOverlap(marker.title, entry.title),
     );
-    if (!hit) return marker;
+    if (hits.length !== 1) return marker;
+    const hit = hits[0];
     return Math.abs(hit.page - marker.page) <= 2
       ? marker
       : { ...marker, page: hit.page };
@@ -234,7 +289,12 @@ function withGapChapters(
   }
 
   const maxNumber = numbered[numbered.length - 1].number;
-  const byNumber = new Map(numbered.map((m) => [m.number, m]));
+  // First (earliest-page) marker wins a repeated chapter number: the real
+  // opening sits ahead of any later echo of it.
+  const byNumber = new Map<number, Marker & { number: number }>();
+  for (const marker of numbered) {
+    if (!byNumber.has(marker.number)) byNumber.set(marker.number, marker);
+  }
   const run: WorkingChapter[] = [];
 
   for (let n = 1; n <= maxNumber; n++) {
@@ -430,14 +490,38 @@ async function fillGapTitles(
     }
 
     const chapterNumber = source.number ?? i + 1;
+    const prevEnd = result[result.length - 1]?.endPage ?? 0;
+    const nextStart = detected[i + 1]?.startPage ?? Number.MAX_SAFE_INTEGER;
 
-    // (a) the outline: nearest entry inside this chapter's page range.
-    const fromOutline = outlineEntries.find(
+    // (a) the outline. Prefer an entry that names this exact chapter number
+    // ("21. Architectural Decisions") sitting anywhere between the previous and
+    // next chapter - the numbered outline nodes are the real chapter list and
+    // the interpolated page can be well off. Otherwise take the first entry
+    // inside the interpolated range.
+    // Lower bound is the previous chapter's *start*, not its end: a one-page
+    // part divider ahead of this gap can carry an end page that runs past where
+    // this chapter's own content (and its outline node) begins.
+    const prevStart = detected[i - 1]?.startPage ?? 0;
+    const numberedRe = new RegExp(`^${chapterNumber}[.:]\\s`);
+    const byNumber = outlineEntries.find(
+      (entry) =>
+        numberedRe.test(entry.title.trim()) &&
+        entry.page > prevStart &&
+        entry.page < nextStart,
+    );
+    const inRange = outlineEntries.find(
       (entry) =>
         entry.page >= chapter.startPage && entry.page <= chapter.endPage,
     );
+    const fromOutline = byNumber ?? inRange;
     if (fromOutline) {
-      result.push({ ...chapter, title: fromOutline.title });
+      // Pull the start back to the numbered outline page when doing so does not
+      // collide with the previous chapter.
+      const startPage =
+        fromOutline.page > prevEnd && fromOutline.page < chapter.startPage
+          ? fromOutline.page
+          : chapter.startPage;
+      result.push({ ...chapter, title: fromOutline.title, startPage });
       continue;
     }
 

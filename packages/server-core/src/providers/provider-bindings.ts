@@ -1,4 +1,4 @@
-import type { Provider } from '@nestjs/common';
+import { Logger, type Provider } from '@nestjs/common';
 import {
   BullMqQueue,
   ClaudeLlmClient,
@@ -8,6 +8,7 @@ import {
   FakeObjectStorage,
   FakePdfExtractor,
   FakeQueue,
+  GeminiPdfExtractor,
   LLM_CLIENT,
   LlamaParseExtractor,
   OBJECT_STORAGE,
@@ -27,6 +28,11 @@ import { requireKey, type ProviderRuntimeConfig } from './provider-config.js';
 // The queue and object storage follow the same switch. Fake mode binds the
 // in-memory `FakeQueue` / `FakeObjectStorage` so the API runs with no network;
 // live mode binds BullMQ on Redis and S3.
+// A structured, queryable record of a partial Gemini extraction. Distinct
+// logger so `extraction.partial` is greppable and can be alerted on without a
+// `books` schema or contract change (spec #109 / #112).
+const extractionLogger = new Logger('GeminiExtraction');
+
 export function selectProviderBindings(
   config: ProviderRuntimeConfig,
 ): Provider[] {
@@ -40,13 +46,24 @@ export function selectProviderBindings(
       : [
           {
             provide: PDF_EXTRACTOR,
+            // The one per-seam override: `PDF_EXTRACTOR` picks the extractor
+            // (default `gemini`). Only the selected adapter's key is required.
             useFactory: () =>
-              new LlamaParseExtractor({
-                apiKey: requireKey(
-                  config.llamaparseApiKey,
-                  'LLAMAPARSE_API_KEY',
-                ),
-              }),
+              (config.pdfExtractor ?? 'gemini') === 'llamaparse'
+                ? new LlamaParseExtractor({
+                    apiKey: requireKey(
+                      config.llamaparseApiKey,
+                      'LLAMAPARSE_API_KEY',
+                    ),
+                  })
+                : new GeminiPdfExtractor({
+                    apiKey: requireKey(config.geminiApiKey, 'GEMINI_API_KEY'),
+                    model: config.geminiModel,
+                    pagesPerBatch: config.geminiPagesPerBatch,
+                    batchConcurrency: config.geminiBatchConcurrency,
+                    emitEvent: (event) =>
+                      extractionLogger.warn(JSON.stringify(event)),
+                  }),
           },
           {
             provide: EMBEDDING_CLIENT,

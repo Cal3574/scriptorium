@@ -3,7 +3,11 @@ import { Module } from '@nestjs/common';
 import type { NestExpressApplication } from '@nestjs/platform-express';
 import { Test } from '@nestjs/testing';
 import { parseApiConfig } from '@scriptorium/config';
-import { RequestAwareLogger } from '@scriptorium/server-core';
+import {
+  type PlanLimits,
+  PLAN_LIMITS,
+  RequestAwareLogger,
+} from '@scriptorium/server-core';
 import { AppModule } from '../app/app.module';
 import { ProbeController } from './probe.controller';
 
@@ -11,6 +15,10 @@ export interface TestAppOptions {
   jwtKey: string;
   databaseUrl: string;
   clientOrigin?: string;
+  // Boots the app with tiny entitlement ceilings so a spec can hit a limit in
+  // a couple of rows instead of dozens. Overrides the hardcoded `PLAN_LIMITS`
+  // provider; omit to run against the shipped numbers.
+  planLimits?: PlanLimits;
 }
 
 /**
@@ -42,9 +50,11 @@ export async function createTestApp(
   })
   class TestAppModule {}
 
-  const moduleRef = await Test.createTestingModule({
-    imports: [TestAppModule],
-  }).compile();
+  const builder = Test.createTestingModule({ imports: [TestAppModule] });
+  if (options.planLimits) {
+    builder.overrideProvider(PLAN_LIMITS).useValue(options.planLimits);
+  }
+  const moduleRef = await builder.compile();
 
   const app = moduleRef.createNestApplication<NestExpressApplication>({
     bufferLogs: true,

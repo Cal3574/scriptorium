@@ -1,8 +1,13 @@
 import type { INestApplication } from '@nestjs/common';
-import { parseQueryEventFrame, type QueryEvent } from '@scriptorium/contracts';
-import { FakeEmbeddingClient } from '@scriptorium/providers';
+import type { QueryEvent } from '@scriptorium/contracts';
 import request from 'supertest';
 import { createTestApp } from './test-support/create-test-app';
+import {
+  askQuery,
+  plantRagLibrary,
+  RAG_QUESTION,
+  ragMatchVectorLiteral,
+} from './test-support/rag-query';
 import {
   createTestAuthority,
   type TestAuthority,
@@ -30,18 +35,14 @@ describe('cross-book RAG query (Seam 1)', () => {
     auth.authHeaderFor({ clerkUserId: 'user_bob', email: 'bob@example.com' });
   const server = () => app.getHttpServer();
 
-  const QUESTION = 'What do these authors say about acting under uncertainty?';
-  // The fake embedding client is deterministic per string, so we can plant
-  // chunks whose stored vector is exactly the question's - similarity 1.0,
-  // comfortably above the 0.25 floor.
+  const QUESTION = RAG_QUESTION;
   let matchVectorLiteral: string;
 
   beforeAll(async () => {
     db = await setupTestDatabase();
     auth = createTestAuthority();
     app = await createTestApp({ jwtKey: auth.jwtKey, databaseUrl: db.url });
-    const [vector] = await new FakeEmbeddingClient().embed([QUESTION]);
-    matchVectorLiteral = `[${vector.join(',')}]`;
+    matchVectorLiteral = await ragMatchVectorLiteral();
   });
 
   afterAll(async () => {
@@ -53,82 +54,23 @@ describe('cross-book RAG query (Seam 1)', () => {
     await db.truncateAll();
   });
 
-  // Plant a user, a book, a chapter and `count` embedded chunks whose vector
-  // matches the question. Returns the book id.
+  // Resolve the caller's user id (the auth guard provisions the row on the
+  // first authenticated call), then plant a matching library under it.
   async function plantLibrary(
     header: { Authorization: string },
     count = 3,
   ): Promise<string> {
-    // The auth guard provisions the user row on the first authenticated call.
     const me = await request(server())
       .get('/api/v1/me')
       .set(header)
       .expect(200);
-    const userId = me.body.id as string;
-
-    const book = await db.pool.query(
-      `INSERT INTO books (user_id, title, original_filename, s3_key, status)
-       VALUES ($1, 'On Uncertainty', 'uncertainty.pdf', $2, 'ready')
-       RETURNING id`,
-      [userId, `books/${userId}/uncertainty.pdf`],
-    );
-    const bookId = book.rows[0].id as string;
-    const chapter = await db.pool.query(
-      `INSERT INTO chapters (book_id, chapter_index, title)
-       VALUES ($1, 0, 'Chapter 1') RETURNING id`,
-      [bookId],
-    );
-    const chapterId = chapter.rows[0].id as string;
-
-    for (let i = 0; i < count; i++) {
-      await db.pool.query(
-        `INSERT INTO chunks
-           (chapter_id, book_id, user_id, chunk_index, chunk_text,
-            book_title, chapter_title, embedding)
-         VALUES ($1, $2, $3, $4, $5, 'On Uncertainty', 'Chapter 1', $6::vector)`,
-        [
-          chapterId,
-          bookId,
-          userId,
-          i,
-          `Passage ${i}: on acting well without complete information.`,
-          matchVectorLiteral,
-        ],
-      );
-    }
-    return bookId;
+    return plantRagLibrary(db, me.body.id as string, matchVectorLiteral, count);
   }
 
-  function parseSse(raw: string): QueryEvent[] {
-    const events: QueryEvent[] = [];
-    for (const block of raw.split('\n\n')) {
-      const event = parseQueryEventFrame(block);
-      if (event) events.push(event);
-    }
-    return events;
-  }
-
-  async function ask(
+  const ask = (
     header: { Authorization: string },
     body: Record<string, unknown>,
-  ): Promise<{ status: number; events: QueryEvent[]; text: string }> {
-    const res = await request(server())
-      .post('/api/v1/queries')
-      .set(header)
-      .set('Accept', 'text/event-stream')
-      .buffer(true)
-      .parse((response, cb) => {
-        let data = '';
-        response.setEncoding('utf8');
-        response.on('data', (chunk: string) => (data += chunk));
-        response.on('end', () => cb(null, data));
-      })
-      .send(body);
-    const text =
-      typeof res.body === 'string' && res.body ? res.body : res.text || '';
-    const events = res.status === 200 && text ? parseSse(text) : [];
-    return { status: res.status, events, text };
-  }
+  ) => askQuery(server, header, body);
 
   it('streams query_started, citations, text_delta+, done in order', async () => {
     await plantLibrary(alice());

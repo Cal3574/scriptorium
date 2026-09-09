@@ -14,6 +14,13 @@ jest.mock('@clerk/react', () => ({
   }),
   SignIn: () => null,
   UserButton: () => <div data-testid="user-button" />,
+  PricingTable: (props: Record<string, unknown>) => (
+    <div
+      data-testid="pricing-table"
+      data-redirect={String(props.newSubscriptionRedirectUrl)}
+      data-highlighted={String(props.highlightedPlan)}
+    />
+  ),
 }));
 
 jest.mock('./env', () => ({
@@ -63,6 +70,16 @@ const QUERY = {
   failed: false,
 };
 
+const USAGE = {
+  plan: 'free',
+  books: { used: 1, limit: 2 },
+  queries: {
+    used: 14,
+    limit: 20,
+    resetsAt: '2099-01-01T00:00:00.000Z',
+  },
+};
+
 function jsonRes(body: unknown, status = 200): Response {
   return {
     ok: status < 400,
@@ -75,6 +92,7 @@ beforeEach(() => {
   mockApi.mockImplementation(async (path: string) => {
     if (path === '/api/v1/me')
       return jsonRes({ id: 'u1', email: 'reader@test' });
+    if (path === '/api/v1/me/usage') return jsonRes(USAGE);
     if (path === '/api/v1/books') return jsonRes([BOOK]);
     if (path === '/api/v1/books/b1') return jsonRes(BOOK);
     if (path === '/api/v1/queries') return jsonRes([QUERY]);
@@ -205,6 +223,68 @@ test('the library renders the Console worklist: toolbar count, status chip, row 
   expect(screen.getByText('ready')).toBeVisible();
   // mono summary count in the toolbar
   expect(screen.getByText('1 book')).toBeVisible();
+});
+
+test('the library toolbar carries the usage meter, linking to /pricing', async () => {
+  renderAt('/library');
+
+  await screen.findByRole('heading', { name: 'Library' });
+  expect(await screen.findByText('Books 1 / 2')).toBeVisible();
+  expect(screen.getByText(/Questions 14 \/ 20 · resets in/)).toBeVisible();
+  const meter = screen.getByRole('link', { name: 'View plans and pricing' });
+  expect(meter).toHaveAttribute('href', '/pricing');
+
+  await userEvent.click(meter);
+  expect(await screen.findByRole('heading', { name: 'Plans' })).toBeVisible();
+});
+
+test('hitting the book limit on upload shows the inline notice with live numbers and an Upgrade link', async () => {
+  const realFetch = globalThis.fetch;
+  globalThis.fetch = jest
+    .fn()
+    .mockResolvedValue({ ok: true, status: 200 } as Response);
+  mockApi.mockImplementation(async (path: string, init?: RequestInit) => {
+    if (path === '/api/v1/me/usage')
+      return jsonRes({ ...USAGE, books: { used: 2, limit: 2 } });
+    if (path === '/api/v1/books' && init?.method === 'POST')
+      return jsonRes({ code: 'book_limit_reached' }, 402);
+    if (path === '/api/v1/books') return jsonRes([BOOK]);
+    if (path === '/api/v1/books/upload-url')
+      return jsonRes({ uploadUrl: 'https://s3.test/put', s3Key: 'k' });
+    return jsonRes({ code: 'not_found' }, 404);
+  });
+
+  try {
+    renderAt('/library');
+    await screen.findByRole('heading', { name: 'Library' });
+
+    await userEvent.upload(
+      document.querySelector('input[type="file"]') as HTMLInputElement,
+      new File(['%PDF-1.4'], 'book.pdf', { type: 'application/pdf' }),
+    );
+
+    expect(await screen.findByText(/reached your book limit/i)).toBeVisible();
+    expect(screen.getByText(/used 2 of 2 books/i)).toBeVisible();
+    expect(
+      screen.getByRole('link', { name: 'Upgrade to Pro' }),
+    ).toHaveAttribute('href', '/pricing');
+  } finally {
+    globalThis.fetch = realFetch;
+  }
+});
+
+test('/pricing renders the Clerk pricing table, returns to /library, and is absent from the nav', async () => {
+  renderAt('/pricing');
+
+  expect(await screen.findByRole('heading', { name: 'Plans' })).toBeVisible();
+  const table = screen.getByTestId('pricing-table');
+  expect(table).toHaveAttribute('data-redirect', '/library');
+  expect(table).toHaveAttribute('data-highlighted', 'pro');
+
+  // Not one of the primary nav links.
+  expect(
+    screen.queryByRole('link', { name: /pricing|plans/i }),
+  ).not.toBeInTheDocument();
 });
 
 test('an empty library shows the empty state, not a flash of nothing', async () => {
