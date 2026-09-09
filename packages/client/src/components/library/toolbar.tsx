@@ -1,9 +1,8 @@
-import type { BookListItemDto, UsageDto } from '@scriptorium/contracts';
+import type { BookListItemDto } from '@scriptorium/contracts';
 
 import { statusRole } from '@/books/status';
 import type { LimitCode } from '@/books/problem';
 import { UploadControl } from './upload-control';
-import { UsageMeter } from './usage-meter';
 import type { useApi } from '@/auth/use-api';
 
 type ApiFetch = ReturnType<typeof useApi>;
@@ -24,17 +23,17 @@ function summarise(books: BookListItemDto[]): string {
   return parts.join(' · ');
 }
 
-// The bar above the list (#54): screen name, a mono summary count, and the
-// primary upload action. Panel background with the one ambient shadow.
+// The bar above the list (#54): screen name, a mono summary of the current
+// list's status, and the primary upload action. Plan-limit standing lives on
+// the `/activity` screen now, not here. Panel background with the one ambient
+// shadow.
 export function Toolbar({
   books,
-  usage,
   api,
   onUploaded,
   onLimitReached,
 }: {
   books: BookListItemDto[];
-  usage: UsageDto | null;
   api: ApiFetch;
   onUploaded: () => void;
   onLimitReached: (code: LimitCode) => void;
@@ -45,7 +44,6 @@ export function Toolbar({
       <span className="text-muted-foreground font-mono text-xs">
         {summarise(books)}
       </span>
-      {usage && <UsageMeter usage={usage} />}
       <div className="ml-auto">
         <UploadControl
           api={api}

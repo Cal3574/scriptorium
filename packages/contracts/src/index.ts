@@ -9,6 +9,7 @@ export * from './primitives.js';
 export * from './problem.js';
 export * from './user.js';
 export * from './usage.js';
+export * from './activity.js';
 export * from './book.js';
 export * from './query.js';
 export * from './ingest.js';

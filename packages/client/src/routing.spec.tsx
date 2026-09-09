@@ -35,6 +35,25 @@ jest.mock('react-markdown', () => ({
 }));
 jest.mock('remark-gfm', () => ({ __esModule: true, default: () => undefined }));
 
+// recharts pulls a heavy ESM d3 stack and needs real layout dimensions;
+// neither survives jsdom. Stub the primitives the Activity charts use.
+jest.mock('recharts', () => {
+  const Pass = ({ children }: { children?: unknown }) => (
+    <div>{children as never}</div>
+  );
+  const Nothing = () => null;
+  return {
+    ResponsiveContainer: Pass,
+    BarChart: Pass,
+    Bar: Nothing,
+    CartesianGrid: Nothing,
+    XAxis: Nothing,
+    YAxis: Nothing,
+    Tooltip: Nothing,
+    Legend: Nothing,
+  };
+});
+
 // The book row / detail live-progress stream: never connect an EventSource.
 jest.mock('./books/use-ingest-events', () => ({
   useIngestEvents: () => ({ progress: null, connected: false, deleted: false }),
@@ -80,6 +99,28 @@ const USAGE = {
   },
 };
 
+const ACTIVITY = {
+  totals: { books: 3, questions: 42, pagesIngested: 1200 },
+  plan: {
+    plan: 'free',
+    questionsUsed: 14,
+    questionsLimit: 20,
+    resetsAt: '2099-01-01T00:00:00.000Z',
+  },
+  monthly: Array.from({ length: 12 }, (_, i) => ({
+    month: `2026-${String(i + 1).padStart(2, '0')}`,
+    books: i === 11 ? 2 : 0,
+    questions: i === 11 ? 9 : 0,
+  })),
+  topBooks: [
+    {
+      bookId: '44444444-4444-4444-8444-444444444444',
+      title: 'Deep Work',
+      questionCount: 9,
+    },
+  ],
+};
+
 function jsonRes(body: unknown, status = 200): Response {
   return {
     ok: status < 400,
@@ -93,6 +134,7 @@ beforeEach(() => {
     if (path === '/api/v1/me')
       return jsonRes({ id: 'u1', email: 'reader@test' });
     if (path === '/api/v1/me/usage') return jsonRes(USAGE);
+    if (path === '/api/v1/me/activity') return jsonRes(ACTIVITY);
     if (path === '/api/v1/books') return jsonRes([BOOK]);
     if (path === '/api/v1/books/b1') return jsonRes(BOOK);
     if (path === '/api/v1/queries') return jsonRes([QUERY]);
@@ -225,17 +267,16 @@ test('the library renders the Console worklist: toolbar count, status chip, row 
   expect(screen.getByText('1 book')).toBeVisible();
 });
 
-test('the library toolbar carries the usage meter, linking to /pricing', async () => {
+test('the library toolbar shows the list summary but no plan-limit meter', async () => {
   renderAt('/library');
 
   await screen.findByRole('heading', { name: 'Library' });
-  expect(await screen.findByText('Books 1 / 2')).toBeVisible();
-  expect(screen.getByText(/Questions 14 \/ 20 · resets in/)).toBeVisible();
-  const meter = screen.getByRole('link', { name: 'View plans and pricing' });
-  expect(meter).toHaveAttribute('href', '/pricing');
-
-  await userEvent.click(meter);
-  expect(await screen.findByRole('heading', { name: 'Plans' })).toBeVisible();
+  expect(await screen.findByText('1 book')).toBeVisible();
+  // Plan-limit standing moved to /activity - no meter, no pricing link here.
+  expect(screen.queryByText(/Books 1 \/ 2/)).not.toBeInTheDocument();
+  expect(
+    screen.queryByRole('link', { name: 'View plans and pricing' }),
+  ).not.toBeInTheDocument();
 });
 
 test('hitting the book limit on upload shows the inline notice with live numbers and an Upgrade link', async () => {
@@ -338,6 +379,23 @@ test('/how-it-works renders the page and owns the active nav link', async () => 
       'aria-current',
     );
   }
+});
+
+test('/activity renders the dashboard and owns the active nav link', async () => {
+  renderAt('/activity');
+
+  // A headline tile and the most-asked-books row from the mocked payload.
+  expect(await screen.findByText('Books uploaded')).toBeVisible();
+  expect(
+    screen.getByRole('heading', { level: 1, name: 'Activity' }),
+  ).toBeVisible();
+  expect(screen.getByRole('link', { name: /Deep Work/ })).toHaveAttribute(
+    'href',
+    `/books/${ACTIVITY.topBooks[0].bookId}`,
+  );
+
+  const link = screen.getByRole('link', { name: 'Activity' });
+  expect(link).toHaveAttribute('aria-current', 'page');
 });
 
 test('history renders the Console worklist: row link + mono summary count', async () => {

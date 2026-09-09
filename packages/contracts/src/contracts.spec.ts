@@ -9,6 +9,7 @@ import {
   UpdateBookFields,
   UpdateBookRequest,
   UsageDto,
+  ActivityDto,
 } from './index.js';
 
 describe('@scriptorium/contracts', () => {
@@ -91,6 +92,68 @@ describe('@scriptorium/contracts', () => {
     ).toThrow();
     expect(() =>
       UsageDto.parse({ ...base, books: { used: 1.5, limit: 50 } }),
+    ).toThrow();
+  });
+
+  const baseActivity = {
+    totals: { books: 3, questions: 42, pagesIngested: 1200 },
+    plan: {
+      plan: 'free' as const,
+      questionsUsed: 14,
+      questionsLimit: 20,
+      resetsAt: '2026-10-01T00:00:00.000Z',
+    },
+    monthly: Array.from({ length: 12 }, (_, i) => ({
+      month: `2026-${String(i + 1).padStart(2, '0')}`,
+      books: 0,
+      questions: 0,
+    })),
+    topBooks: [
+      {
+        bookId: '22222222-2222-4222-8222-222222222222',
+        title: 'Deep Work',
+        questionCount: 9,
+      },
+    ],
+  };
+
+  it('accepts a well-formed ActivityDto', () => {
+    expect(ActivityDto.parse(baseActivity)).toEqual(baseActivity);
+  });
+
+  it('ActivityDto requires exactly 12 monthly entries', () => {
+    expect(() =>
+      ActivityDto.parse({
+        ...baseActivity,
+        monthly: baseActivity.monthly.slice(0, 11),
+      }),
+    ).toThrow();
+  });
+
+  it('ActivityDto caps topBooks at 5 and rejects a zero questionCount', () => {
+    expect(() =>
+      ActivityDto.parse({
+        ...baseActivity,
+        topBooks: Array.from({ length: 6 }, () => baseActivity.topBooks[0]),
+      }),
+    ).toThrow();
+    expect(() =>
+      ActivityDto.parse({
+        ...baseActivity,
+        topBooks: [{ ...baseActivity.topBooks[0], questionCount: 0 }],
+      }),
+    ).toThrow();
+  });
+
+  it('ActivityDto rejects a malformed month key', () => {
+    expect(() =>
+      ActivityDto.parse({
+        ...baseActivity,
+        monthly: [
+          { month: '2026-9', books: 0, questions: 0 },
+          ...baseActivity.monthly.slice(1),
+        ],
+      }),
     ).toThrow();
   });
 

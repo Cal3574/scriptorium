@@ -4,10 +4,12 @@ import {
   Inject,
   InternalServerErrorException,
 } from '@nestjs/common';
-import { UsageDto, UserDto } from '@scriptorium/contracts';
+import { ActivityDto, UsageDto, UserDto } from '@scriptorium/contracts';
 import {
+  ActivityRepository,
   type AuthenticatedUser,
   BooksRepository,
+  buildMonthlyActivity,
   CurrentUser,
   limitsForPlan,
   nextMonthStartUtc,
@@ -18,12 +20,23 @@ import {
   UsersRepository,
 } from '@scriptorium/server-core';
 
+// The question allowance's standing, shared by `GET /me/usage` and
+// `GET /me/activity` so the two never disagree on the month's count, the
+// ceiling, or the reset instant.
+interface QuestionAllowance {
+  plan: 'free' | 'pro';
+  used: number;
+  limit: number;
+  resetsAt: string;
+}
+
 @Controller('me')
 export class MeController {
   constructor(
     private readonly users: UsersRepository,
     private readonly books: BooksRepository,
     private readonly queries: QueriesRepository,
+    private readonly activity: ActivityRepository,
     @Inject(PLAN_LIMITS) private readonly planLimits: PlanLimits,
   ) {}
 
@@ -51,19 +64,68 @@ export class MeController {
   @Get('usage')
   async usage(@CurrentUser() caller: AuthenticatedUser): Promise<UsageDto> {
     const limits = limitsForPlan(this.planLimits, caller.plan);
-    const [books, queries] = await Promise.all([
+    const [books, questions] = await Promise.all([
       this.books.countByUser(caller.id),
-      this.queries.countThisMonth(caller.id),
+      this.questionAllowance(caller),
     ]);
 
     return UsageDto.parse({
-      plan: resolvePlanSlug(caller.plan),
+      plan: questions.plan,
       books: { used: books, limit: limits.books },
       queries: {
-        used: queries,
-        limit: limits.queries,
-        resetsAt: nextMonthStartUtc().toISOString(),
+        used: questions.used,
+        limit: questions.limit,
+        resetsAt: questions.resetsAt,
       },
     });
+  }
+
+  // The `/activity` dashboard: lifetime totals, the current question
+  // allowance, a trailing-12-month upload/question series, and the reader's
+  // most-asked books. Not quota-guarded, same as `/usage`. One fetch per page
+  // visit; every figure derives from the caller's own rows.
+  @Get('activity')
+  async getActivity(
+    @CurrentUser() caller: AuthenticatedUser,
+  ): Promise<ActivityDto> {
+    const now = new Date();
+    // Start of the oldest of the trailing 12 UTC calendar months.
+    const windowStart = new Date(
+      Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 11, 1),
+    );
+
+    const [totals, allowance, monthlyBooks, monthlyQuestions, topBooks] =
+      await Promise.all([
+        this.activity.lifetimeTotals(caller.id),
+        this.questionAllowance(caller),
+        this.activity.monthlyBookUploads(caller.id, windowStart),
+        this.activity.monthlyQuestions(caller.id, windowStart),
+        this.activity.topBooksByQuestions(caller.id, 5),
+      ]);
+
+    return ActivityDto.parse({
+      totals,
+      plan: {
+        plan: allowance.plan,
+        questionsUsed: allowance.used,
+        questionsLimit: allowance.limit,
+        resetsAt: allowance.resetsAt,
+      },
+      monthly: buildMonthlyActivity(monthlyBooks, monthlyQuestions, now),
+      topBooks,
+    });
+  }
+
+  private async questionAllowance(
+    caller: AuthenticatedUser,
+  ): Promise<QuestionAllowance> {
+    const limits = limitsForPlan(this.planLimits, caller.plan);
+    const used = await this.queries.countThisMonth(caller.id);
+    return {
+      plan: resolvePlanSlug(caller.plan),
+      used,
+      limit: limits.queries,
+      resetsAt: nextMonthStartUtc().toISOString(),
+    };
   }
 }
