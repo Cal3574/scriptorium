@@ -157,7 +157,7 @@ export function BookRow({
         </span>
       </div>
 
-      <span className="flex flex-wrap gap-1 sm:justify-end sm:opacity-0 sm:transition-opacity sm:group-focus-within:opacity-100 sm:group-hover:opacity-100">
+      <span className="flex flex-wrap gap-1 sm:justify-end sm:opacity-55 sm:transition-opacity sm:group-focus-within:opacity-100 sm:group-hover:opacity-100">
         {failed ? (
           <Button
             type="button"

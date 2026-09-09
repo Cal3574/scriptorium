@@ -36,7 +36,7 @@ export function HistoryRow({ item }: { item: QueryListItemDto }) {
       <time
         dateTime={item.createdAt}
         title={new Date(item.createdAt).toLocaleString()}
-        className="text-muted-foreground font-mono text-xs"
+        className="text-muted-foreground font-mono text-xs tabular-nums"
       >
         {relativeTime(item.createdAt)}
       </time>

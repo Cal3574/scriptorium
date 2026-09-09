@@ -23,7 +23,7 @@ export function ProcessingStatus({
       data-connected={connected}
       className="border-border bg-card mb-6 rounded-lg border px-4 py-3"
     >
-      <p className="text-muted-foreground m-0 font-mono text-xs">
+      <p className="text-muted-foreground m-0 font-mono text-xs tabular-nums">
         {stageText(progress?.stage ?? null)}
         {counted ? ` · ${counted.done}/${counted.total} ${counted.unit}` : ''}
       </p>

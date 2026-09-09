@@ -3,6 +3,7 @@ import { Component, Suspense, type ReactNode } from 'react';
 import { Outlet } from 'react-router';
 import { hasProviderRemote, lazyProvider } from './mf';
 import { AppShell } from './components/shell/app-shell';
+import { RouteFallback } from './components/shell/route-fallback';
 import { UsageProvider } from './usage/use-usage';
 import { useDocumentTitle } from './use-document-title';
 
@@ -30,7 +31,9 @@ class ProviderBoundary extends Component<
       );
     }
     return (
-      <Suspense fallback={<p>Loading {this.props.name}...</p>}>
+      <Suspense
+        fallback={<RouteFallback inline label={`Loading ${this.props.name}`} />}
+      >
         {this.props.children}
       </Suspense>
     );
@@ -73,7 +76,7 @@ export function RootLayout() {
 
   return (
     <main>
-      {!isLoaded ? <p>Loading...</p> : isSignedIn ? <Shell /> : <SignIn />}
+      {!isLoaded ? <RouteFallback /> : isSignedIn ? <Shell /> : <SignIn />}
     </main>
   );
 }

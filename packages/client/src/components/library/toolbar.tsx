@@ -34,7 +34,7 @@ export function Toolbar({
   return (
     <div className="border-border bg-card mb-4 flex items-center gap-4 rounded-lg border px-4 py-3 shadow-xs">
       <h1 className="text-foreground m-0 text-sm font-semibold">Library</h1>
-      <span className="text-muted-foreground font-mono text-xs">
+      <span className="text-muted-foreground font-mono text-xs tabular-nums">
         {segments.map((segment, i) => (
           <Fragment key={segment.label}>
             {i > 0 && <span className="text-border"> · </span>}
