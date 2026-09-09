@@ -21,7 +21,7 @@ import { LimitReachedNotice } from '../usage/limit-reached-notice';
 // (#63) - only the markup moved to the Console visual direction.
 export function Library() {
   const api = useApi();
-  const { usage, refetch: refetchUsage } = useUsage();
+  const { refetch: refetchUsage } = useUsage();
   const [books, setBooks] = useState<BookListItemDto[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [bookLimit, setBookLimit] = useState<LimitCode | null>(null);
@@ -32,7 +32,8 @@ export function Library() {
     setBooks((await res.json()) as BookListItemDto[]);
   }, [api]);
 
-  // Library-screen mount is one of the four usage-meter refetch triggers.
+  // Keep the ambient usage context (the 402 payment-required handler) current
+  // on library mount, even though the visible meter now lives on `/activity`.
   useEffect(() => {
     void refetchUsage();
   }, [refetchUsage]);
@@ -71,7 +72,6 @@ export function Library() {
     <section>
       <Toolbar
         books={books ?? []}
-        usage={usage}
         api={api}
         onUploaded={onUploaded}
         onLimitReached={onLimitReached}

@@ -5,13 +5,7 @@ import type { ActivityDto } from '@scriptorium/contracts';
 import { Badge } from '@/components/ui/badge';
 import { resetDistance } from '@/usage/reset-distance';
 
-function Tile({
-  label,
-  children,
-}: {
-  label: string;
-  children: ReactNode;
-}) {
+function Tile({ label, children }: { label: string; children: ReactNode }) {
   return (
     <div className="border-border bg-card flex flex-col gap-1 rounded-lg border p-4">
       <span className="text-muted-foreground font-mono text-[10px] font-medium tracking-[0.08em] uppercase">

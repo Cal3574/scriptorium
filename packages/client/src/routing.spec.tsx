@@ -267,17 +267,16 @@ test('the library renders the Console worklist: toolbar count, status chip, row 
   expect(screen.getByText('1 book')).toBeVisible();
 });
 
-test('the library toolbar carries the usage meter, linking to /pricing', async () => {
+test('the library toolbar shows the list summary but no plan-limit meter', async () => {
   renderAt('/library');
 
   await screen.findByRole('heading', { name: 'Library' });
-  expect(await screen.findByText('Books 1 / 2')).toBeVisible();
-  expect(screen.getByText(/Questions 14 \/ 20 · resets in/)).toBeVisible();
-  const meter = screen.getByRole('link', { name: 'View plans and pricing' });
-  expect(meter).toHaveAttribute('href', '/pricing');
-
-  await userEvent.click(meter);
-  expect(await screen.findByRole('heading', { name: 'Plans' })).toBeVisible();
+  expect(await screen.findByText('1 book')).toBeVisible();
+  // Plan-limit standing moved to /activity - no meter, no pricing link here.
+  expect(screen.queryByText(/Books 1 \/ 2/)).not.toBeInTheDocument();
+  expect(
+    screen.queryByRole('link', { name: 'View plans and pricing' }),
+  ).not.toBeInTheDocument();
 });
 
 test('hitting the book limit on upload shows the inline notice with live numbers and an Upgrade link', async () => {

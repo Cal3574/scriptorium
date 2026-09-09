@@ -78,9 +78,7 @@ test('renders the four headline tiles from the payload', async () => {
   renderScreen();
 
   expect(await screen.findByText('Books uploaded')).toBeVisible();
-  expect(
-    screen.getByRole('heading', { name: 'Activity' }),
-  ).toBeVisible();
+  expect(screen.getByRole('heading', { name: 'Activity' })).toBeVisible();
   expect(screen.getByText('5')).toBeVisible();
   expect(screen.getByText('120')).toBeVisible();
   expect(screen.getByText('2,400')).toBeVisible();
@@ -142,12 +140,8 @@ test('an all-zero series shows the tracking hint instead of a chart', async () =
   expect(
     await screen.findByText('No books in the last 12 months'),
   ).toBeVisible();
-  expect(
-    screen.getByText('No questions in the last 12 months'),
-  ).toBeVisible();
-  expect(
-    screen.getByText(/Ask a question about a book/),
-  ).toBeVisible();
+  expect(screen.getByText('No questions in the last 12 months')).toBeVisible();
+  expect(screen.getByText(/Ask a question about a book/)).toBeVisible();
 });
 
 test('a failed load surfaces an alert', async () => {

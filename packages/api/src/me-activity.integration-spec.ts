@@ -116,9 +116,9 @@ describe('activity endpoint', () => {
       pagesIngested: 0,
     });
     expect(activity.monthly).toHaveLength(12);
-    expect(activity.monthly.every((m) => m.books === 0 && m.questions === 0)).toBe(
-      true,
-    );
+    expect(
+      activity.monthly.every((m) => m.books === 0 && m.questions === 0),
+    ).toBe(true);
     expect(activity.topBooks).toEqual([]);
     expect(activity.plan).toMatchObject({
       plan: 'free',
@@ -172,7 +172,10 @@ describe('activity endpoint', () => {
     const header = headerFor('act_top', 'pro');
     const uid = await userId(header);
     const deep = await insertBook(uid, { key: 'deep', title: 'Deep Work' });
-    const atomic = await insertBook(uid, { key: 'atomic', title: 'Atomic Habits' });
+    const atomic = await insertBook(uid, {
+      key: 'atomic',
+      title: 'Atomic Habits',
+    });
     const range = await insertBook(uid, { key: 'range', title: 'Range' });
 
     await insertQuery(uid, { bookId: deep, createdAt: monthsAgo(2) });
@@ -246,7 +249,10 @@ describe('activity endpoint', () => {
     for (let i = 0; i < 25; i++) await insertQuery(uid);
     const res = await getActivity(header);
     expect(res.status).toBe(200);
-    expect(res.body.plan).toMatchObject({ questionsUsed: 25, questionsLimit: 20 });
+    expect(res.body.plan).toMatchObject({
+      questionsUsed: 25,
+      questionsLimit: 20,
+    });
   });
 
   it('scopes every figure to the calling reader', async () => {
