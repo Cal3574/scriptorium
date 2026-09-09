@@ -1,4 +1,7 @@
-import type { BookListItemDto, CreateUploadUrlResponse } from '@scriptorium/contracts';
+import type {
+  BookListItemDto,
+  CreateUploadUrlResponse,
+} from '@scriptorium/contracts';
 
 import { isLimitReached, problemMessage, type LimitCode } from './problem';
 import type { useApi } from '../auth/use-api';
@@ -36,8 +39,7 @@ export function findDuplicate(
 ): BookListItemDto | undefined {
   return books.find(
     (book) =>
-      book.originalFilename === file.name &&
-      book.fileSizeBytes === file.size,
+      book.originalFilename === file.name && book.fileSizeBytes === file.size,
   );
 }
 
@@ -47,8 +49,7 @@ export function findDuplicate(
 export type DropRejection = 'not-a-pdf' | 'too-many-files' | 'file-too-large';
 
 export type DropCheck =
-  | { ok: true; file: File }
-  | { ok: false; reason: DropRejection };
+  { ok: true; file: File } | { ok: false; reason: DropRejection };
 
 // Guard a drag-drop (or multi-select) payload before the deposit slip opens:
 // exactly one PDF, no larger than the upload ceiling. `files` is expected to be
@@ -72,9 +73,7 @@ export function checkDrop(files: readonly [File, ...File[]]): DropCheck {
   return { ok: true, file };
 }
 
-export type DepositResult =
-  | { ok: true }
-  | { ok: false; limitCode: LimitCode };
+export type DepositResult = { ok: true } | { ok: false; limitCode: LimitCode };
 
 // The three-step presigned-PUT handoff, lifted out of the old `UploadControl`
 // so the deposit slip owns it: ask the API for a URL, PUT the bytes straight

@@ -6,6 +6,8 @@
 module.exports = {
   GlobalWorkerOptions: {},
   getDocument() {
-    throw new Error('pdfjs-dist is stubbed under Jest; mock @/books/pdf-preview');
+    throw new Error(
+      'pdfjs-dist is stubbed under Jest; mock @/books/pdf-preview',
+    );
   },
 };

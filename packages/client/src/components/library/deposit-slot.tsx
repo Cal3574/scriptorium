@@ -69,9 +69,7 @@ export function DepositSlot({
   // At the plan's book ceiling the chute shows a spent state and takes no
   // file. A quota spent mid-session is still caught by the 402 path and the
   // shared limit-reached notice.
-  const atBookLimit = usage
-    ? usage.books.used >= usage.books.limit
-    : false;
+  const atBookLimit = usage ? usage.books.used >= usage.books.limit : false;
 
   const inputRef = useRef<HTMLInputElement>(null);
   const [dragging, setDragging] = useState(false);

@@ -42,9 +42,7 @@ function file(name = 'deep-work.pdf', size = 1_000_000): File {
   return f;
 }
 
-function renderSlip(
-  props: Partial<Parameters<typeof DepositSlip>[0]> = {},
-) {
+function renderSlip(props: Partial<Parameters<typeof DepositSlip>[0]> = {}) {
   render(
     <DepositSlip
       file={file()}
@@ -101,9 +99,7 @@ test('a duplicate relabels the confirm to "Upload anyway" but still deposits', a
   await screen.findByText(/12 pages/);
   expect(screen.getByText(/already in your library/)).toBeInTheDocument();
 
-  await userEvent.click(
-    screen.getByRole('button', { name: 'Upload anyway' }),
-  );
+  await userEvent.click(screen.getByRole('button', { name: 'Upload anyway' }));
   await waitFor(() => expect(onDeposited).toHaveBeenCalled());
 });
 
@@ -158,9 +154,7 @@ test('an unreadable PDF blocks the deposit', async () => {
   renderPdfPreview.mockRejectedValue(new Error('InvalidPDFException'));
   renderSlip();
 
-  expect(
-    await screen.findByText(/Couldn't read this PDF/),
-  ).toBeInTheDocument();
+  expect(await screen.findByText(/Couldn't read this PDF/)).toBeInTheDocument();
   expect(screen.getByRole('button', { name: 'Deposit' })).toBeDisabled();
 });
 

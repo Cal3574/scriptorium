@@ -149,9 +149,7 @@ export function DepositSlip({
                 your library.
               </Notice>
             )}
-            {phase.name === 'failed' && (
-              <Notice>{phase.message}</Notice>
-            )}
+            {phase.name === 'failed' && <Notice>{phase.message}</Notice>}
           </div>
         </div>
 

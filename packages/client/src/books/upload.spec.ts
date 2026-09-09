@@ -174,7 +174,11 @@ describe('depositBook', () => {
   it('throws when the S3 PUT fails', async () => {
     fetchMock.mockResolvedValue({ ok: false, status: 503 } as Response);
     const api = jest.fn(async () =>
-      jsonRes({ uploadUrl: 'https://s3.test/put', s3Key: 'k', expiresInSeconds: 300 }),
+      jsonRes({
+        uploadUrl: 'https://s3.test/put',
+        s3Key: 'k',
+        expiresInSeconds: 300,
+      }),
     );
 
     await expect(depositBook(api, pdf('book.pdf', 10))).rejects.toThrow(

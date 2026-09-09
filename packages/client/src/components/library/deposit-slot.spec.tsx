@@ -97,9 +97,7 @@ test('picking a valid PDF opens the deposit slip with its name and page count', 
 
   expect(await screen.findByText('Deposit slip')).toBeInTheDocument();
   expect(screen.getByText('deep-work.pdf')).toBeInTheDocument();
-  await waitFor(() =>
-    expect(screen.getByText(/42 pages/)).toBeInTheDocument(),
-  );
+  await waitFor(() => expect(screen.getByText(/42 pages/)).toBeInTheDocument());
 });
 
 test('a non-PDF drop is rejected at the slot, no slip', () => {
