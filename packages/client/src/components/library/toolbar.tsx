@@ -2,7 +2,7 @@ import type { BookListItemDto } from '@scriptorium/contracts';
 
 import { statusRole } from '@/books/status';
 import type { LimitCode } from '@/books/problem';
-import { UploadControl } from './upload-control';
+import { DepositSlot } from './deposit-slot';
 import type { useApi } from '@/auth/use-api';
 
 type ApiFetch = ReturnType<typeof useApi>;
@@ -30,11 +30,13 @@ function summarise(books: BookListItemDto[]): string {
 export function Toolbar({
   books,
   api,
+  atBookLimit,
   onUploaded,
   onLimitReached,
 }: {
   books: BookListItemDto[];
   api: ApiFetch;
+  atBookLimit: boolean;
   onUploaded: () => void;
   onLimitReached: (code: LimitCode) => void;
 }) {
@@ -45,8 +47,10 @@ export function Toolbar({
         {summarise(books)}
       </span>
       <div className="ml-auto">
-        <UploadControl
+        <DepositSlot
           api={api}
+          books={books}
+          atBookLimit={atBookLimit}
           onUploaded={onUploaded}
           onLimitReached={onLimitReached}
         />

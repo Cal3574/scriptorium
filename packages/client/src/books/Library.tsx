@@ -9,6 +9,7 @@ import {
   LibraryTable,
   LibraryTableSkeleton,
 } from '@/components/library/library-table';
+import { DepositSlot } from '@/components/library/deposit-slot';
 import { useApi } from '../auth/use-api';
 import { useUsage } from '../usage/use-usage';
 import type { LimitCode } from './problem';
@@ -21,7 +22,8 @@ import { LimitReachedNotice } from '../usage/limit-reached-notice';
 // (#63) - only the markup moved to the Console visual direction.
 export function Library() {
   const api = useApi();
-  const { refetch: refetchUsage } = useUsage();
+  const { usage, refetch: refetchUsage } = useUsage();
+  const atBookLimit = usage ? usage.books.used >= usage.books.limit : false;
   const [books, setBooks] = useState<BookListItemDto[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [bookLimit, setBookLimit] = useState<LimitCode | null>(null);
@@ -73,6 +75,7 @@ export function Library() {
       <Toolbar
         books={books ?? []}
         api={api}
+        atBookLimit={atBookLimit}
         onUploaded={onUploaded}
         onLimitReached={onLimitReached}
       />
@@ -92,7 +95,17 @@ export function Library() {
         <EmptyState
           icon={LibraryBigIcon}
           title="No books yet"
-          body="Upload a PDF with the button above and it will appear here as it processes."
+          body="Deposit a PDF and it will appear here as it processes."
+          action={
+            <DepositSlot
+              api={api}
+              books={books}
+              atBookLimit={atBookLimit}
+              onUploaded={onUploaded}
+              onLimitReached={onLimitReached}
+              variant="panel"
+            />
+          }
         />
       ) : (
         <LibraryTable books={books} onSettled={onSettled} />
