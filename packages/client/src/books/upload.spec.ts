@@ -1,5 +1,6 @@
 import type { BookListItemDto } from '@scriptorium/contracts';
 
+import { jsonRes } from '@/test-support/http';
 import {
   checkDrop,
   depositBook,
@@ -74,7 +75,7 @@ describe('checkDrop', () => {
   it('rejects more than one file', () => {
     expect(checkDrop([pdf('a.pdf', 10), pdf('b.pdf', 10)])).toEqual({
       ok: false,
-      reason: 'Drop one PDF at a time',
+      reason: 'too-many-files',
     });
   });
 
@@ -82,7 +83,7 @@ describe('checkDrop', () => {
     const epub = new File(['x'], 'book.epub', {
       type: 'application/epub+zip',
     });
-    expect(checkDrop([epub])).toEqual({ ok: false, reason: 'Only PDFs' });
+    expect(checkDrop([epub])).toEqual({ ok: false, reason: 'not-a-pdf' });
   });
 
   it('accepts a typeless payload that has a .pdf extension', () => {
@@ -91,18 +92,15 @@ describe('checkDrop', () => {
     expect(checkDrop([f]).ok).toBe(true);
   });
 
-  it('rejects an oversize PDF with the limit in the reason', () => {
+  it('rejects an oversize PDF', () => {
     expect(checkDrop([pdf('big.pdf', UPLOAD_MAX_BYTES + 1)])).toEqual({
       ok: false,
-      reason: 'Over 50 MB',
+      reason: 'file-too-large',
     });
   });
 
-  it('rejects an empty file', () => {
-    expect(checkDrop([pdf('empty.pdf', 0)])).toEqual({
-      ok: false,
-      reason: 'That file is empty',
-    });
+  it('leaves a 0-byte PDF for pdf.js and the server to reject', () => {
+    expect(checkDrop([pdf('empty.pdf', 0)]).ok).toBe(true);
   });
 });
 
@@ -116,10 +114,6 @@ describe('depositBook', () => {
   afterEach(() => {
     fetchMock.mockReset();
   });
-
-  function jsonRes(body: unknown, status = 200): Response {
-    return { ok: status < 400, status, json: async () => body } as Response;
-  }
 
   it('walks url -> S3 PUT -> register and resolves ok', async () => {
     const api = jest.fn(async (path: string) => {

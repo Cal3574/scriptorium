@@ -4,26 +4,44 @@ import { Link } from 'react-router';
 import type { BookListItemDto } from '@scriptorium/contracts';
 
 import { cn } from '@/lib/utils';
-import { checkDrop, findDuplicate, PDF_CONTENT_TYPE } from '@/books/upload';
+import {
+  checkDrop,
+  findDuplicate,
+  formatBytes,
+  PDF_CONTENT_TYPE,
+  UPLOAD_MAX_BYTES,
+  type DropRejection,
+} from '@/books/upload';
 import type { LimitCode } from '@/books/problem';
+import { useUsage } from '@/usage/use-usage';
 import type { useApi } from '@/auth/use-api';
 import { DepositSlip } from './deposit-slip';
 
 type ApiFetch = ReturnType<typeof useApi>;
 type Variant = 'compact' | 'panel';
 
-// The chute frame: ruled, dashed, with a solid top "lip". `idle` sits quiet,
-// `over` warms and turns solid on drag, `spent` is the muted book-limit state.
+// The one-line reason shown in place when a dropped file is turned away. The
+// copy lives here, with the control that renders it - `checkDrop` only returns
+// the code.
+const REJECTION_COPY: Record<DropRejection, string> = {
+  'not-a-pdf': 'Only PDFs',
+  'too-many-files': 'Drop one PDF at a time',
+  'file-too-large': `Over ${formatBytes(UPLOAD_MAX_BYTES)}`,
+};
+
+// The chute frame: ruled and dashed, with a solid top "lip". `idle` sits
+// quiet; `over` warms, turns solid, and the lip lifts as the flap opens on
+// drag; `spent` is the muted book-limit state.
 function chuteClass(variant: Variant, state: 'idle' | 'over' | 'spent') {
   return cn(
-    'flex items-center justify-center gap-2 rounded-md border border-dashed border-t-input transition-colors outline-none select-none focus-visible:ring-ring/50 focus-visible:ring-[3px]',
+    'flex items-center justify-center gap-2 rounded-md border border-dashed border-t-2 transition-[colors,transform] outline-none select-none focus-visible:ring-ring/50 focus-visible:ring-[3px]',
     variant === 'compact'
       ? 'h-8 min-w-52 px-3'
       : 'min-h-40 w-full flex-col px-6 py-8',
     state === 'idle' &&
       'border-input bg-muted/40 text-muted-foreground hover:border-primary/50 hover:text-foreground',
     state === 'over' &&
-      'border-primary border-solid bg-primary/5 text-primary',
+      'border-solid border-primary border-t-primary bg-primary/5 text-primary -translate-y-px shadow-[inset_0_2px_0_0_var(--color-primary)]',
     state === 'spent' &&
       'border-border bg-muted/30 text-muted-foreground cursor-not-allowed',
   );
@@ -37,33 +55,42 @@ function chuteClass(variant: Variant, state: 'idle' | 'over' | 'spent') {
 export function DepositSlot({
   api,
   books,
-  atBookLimit,
   onUploaded,
   onLimitReached,
   variant = 'compact',
 }: {
   api: ApiFetch;
   books: readonly BookListItemDto[];
-  // The reader is at their plan's book ceiling: the chute shows a spent state
-  // and takes no file. A quota spent mid-session is still caught by the 402
-  // path and the shared limit-reached notice.
-  atBookLimit: boolean;
   onUploaded: () => void;
   onLimitReached: (code: LimitCode) => void;
   variant?: Variant;
 }) {
+  const { usage } = useUsage();
+  // At the plan's book ceiling the chute shows a spent state and takes no
+  // file. A quota spent mid-session is still caught by the 402 path and the
+  // shared limit-reached notice.
+  const atBookLimit = usage
+    ? usage.books.used >= usage.books.limit
+    : false;
+
   const inputRef = useRef<HTMLInputElement>(null);
   const [dragging, setDragging] = useState(false);
-  const [rejection, setRejection] = useState<string | null>(null);
+  const [rejection, setRejection] = useState<DropRejection | null>(null);
+  // Drives the shake; cleared on `animationend`, and restarted across a rAF so
+  // a second rejection in a row replays it.
+  const [shaking, setShaking] = useState(false);
   const [pending, setPending] = useState<File | null>(null);
 
   function take(files: readonly File[]) {
-    setRejection(null);
-    const check = checkDrop(files);
+    if (files.length === 0) return;
+    const check = checkDrop(files as readonly [File, ...File[]]);
     if (!check.ok) {
       setRejection(check.reason);
+      setShaking(false);
+      requestAnimationFrame(() => setShaking(true));
       return;
     }
+    setRejection(null);
     setPending(check.file);
   }
 
@@ -109,6 +136,7 @@ export function DepositSlot({
         type="button"
         aria-label="Deposit a PDF"
         onClick={() => inputRef.current?.click()}
+        onAnimationEnd={() => setShaking(false)}
         onDragEnter={(e) => {
           e.preventDefault();
           setDragging(true);
@@ -124,19 +152,23 @@ export function DepositSlot({
           setDragging(false);
           take([...e.dataTransfer.files]);
         }}
-        className={chuteClass(variant, dragging ? 'over' : 'idle')}
+        className={cn(
+          chuteClass(variant, dragging ? 'over' : 'idle'),
+          rejection && 'border-status-failed text-status-failed',
+          shaking && 'deposit-slot-nudge',
+        )}
       >
         <ArrowDownToLineIcon
           className={cn(
             'shrink-0 transition-transform',
             variant === 'panel' ? 'size-5' : 'size-4',
-            dragging && '-translate-y-px',
+            dragging && '-translate-y-0.5',
           )}
         />
         {variant === 'panel' ? (
           <span className="flex flex-col items-center">
             <span className="text-foreground text-sm font-medium">
-              Deposit your first title
+              deposit your first title
             </span>
             <span className="text-muted-foreground font-mono text-xs">
               PDF · drag here or browse
@@ -153,7 +185,7 @@ export function DepositSlot({
           className="text-status-failed flex items-center gap-1 text-xs"
         >
           <TriangleAlertIcon className="size-3.5" />
-          {rejection}
+          {REJECTION_COPY[rejection]}
         </span>
       )}
 

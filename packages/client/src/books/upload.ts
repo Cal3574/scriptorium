@@ -16,7 +16,7 @@ export const UPLOAD_MAX_BYTES = 50 * 1024 * 1024;
 
 type ApiFetch = ReturnType<typeof useApi>;
 
-// `2.4 MB`, `912 KB`, `50 MB` (a trailing `.0` is dropped so the size limit
+// `2.4 MB`, `891 KB`, `50 MB` (a trailing `.0` is dropped so the size limit
 // reads cleanly in copy). Bytes below 1 KiB are shown raw.
 export function formatBytes(bytes: number): string {
   if (bytes >= 1024 * 1024) {
@@ -41,17 +41,21 @@ export function findDuplicate(
   );
 }
 
+// Why a dropped payload can't go to the deposit slip. The slot maps each to a
+// one-line message - the copy lives with the component that renders it, not
+// here.
+export type DropRejection = 'not-a-pdf' | 'too-many-files' | 'file-too-large';
+
 export type DropCheck =
   | { ok: true; file: File }
-  | { ok: false; reason: string };
+  | { ok: false; reason: DropRejection };
 
-// Guard a drag-drop (or multi-select) payload before the deposit slip opens.
-// One PDF, of a sane size, or a one-line reason the slot shows in place.
-export function checkDrop(files: readonly File[]): DropCheck {
-  if (files.length === 0) return { ok: false, reason: 'No file found' };
-  if (files.length > 1) {
-    return { ok: false, reason: 'Drop one PDF at a time' };
-  }
+// Guard a drag-drop (or multi-select) payload before the deposit slip opens:
+// exactly one PDF, no larger than the upload ceiling. `files` is expected to be
+// non-empty - the caller ignores an empty payload. Anything past these checks
+// (a 0-byte or malformed PDF) is left to pdf.js and the server.
+export function checkDrop(files: readonly [File, ...File[]]): DropCheck {
+  if (files.length > 1) return { ok: false, reason: 'too-many-files' };
 
   const [file] = files;
   // Drag payloads sometimes arrive with an empty `type`; fall back to the
@@ -59,11 +63,10 @@ export function checkDrop(files: readonly File[]): DropCheck {
   const looksPdf =
     file.type === PDF_CONTENT_TYPE ||
     (file.type === '' && file.name.toLowerCase().endsWith('.pdf'));
-  if (!looksPdf) return { ok: false, reason: 'Only PDFs' };
+  if (!looksPdf) return { ok: false, reason: 'not-a-pdf' };
 
-  if (file.size === 0) return { ok: false, reason: 'That file is empty' };
   if (file.size > UPLOAD_MAX_BYTES) {
-    return { ok: false, reason: `Over ${formatBytes(UPLOAD_MAX_BYTES)}` };
+    return { ok: false, reason: 'file-too-large' };
   }
 
   return { ok: true, file };

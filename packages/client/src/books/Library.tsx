@@ -22,8 +22,7 @@ import { LimitReachedNotice } from '../usage/limit-reached-notice';
 // (#63) - only the markup moved to the Console visual direction.
 export function Library() {
   const api = useApi();
-  const { usage, refetch: refetchUsage } = useUsage();
-  const atBookLimit = usage ? usage.books.used >= usage.books.limit : false;
+  const { refetch: refetchUsage } = useUsage();
   const [books, setBooks] = useState<BookListItemDto[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [bookLimit, setBookLimit] = useState<LimitCode | null>(null);
@@ -75,7 +74,6 @@ export function Library() {
       <Toolbar
         books={books ?? []}
         api={api}
-        atBookLimit={atBookLimit}
         onUploaded={onUploaded}
         onLimitReached={onLimitReached}
       />
@@ -95,12 +93,11 @@ export function Library() {
         <EmptyState
           icon={LibraryBigIcon}
           title="No books yet"
-          body="Deposit a PDF and it will appear here as it processes."
+          body="Your books will appear here as they process."
           action={
             <DepositSlot
               api={api}
               books={books}
-              atBookLimit={atBookLimit}
               onUploaded={onUploaded}
               onLimitReached={onLimitReached}
               variant="panel"

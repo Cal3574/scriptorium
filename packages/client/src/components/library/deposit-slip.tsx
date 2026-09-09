@@ -7,6 +7,7 @@ import {
   Dialog,
   DialogContent,
   DialogDescription,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
@@ -97,7 +98,7 @@ export function DepositSlip({
   }
 
   const confirmLabel = depositing
-    ? 'Depositing…'
+    ? 'Depositing...'
     : duplicateOf
       ? 'Upload anyway'
       : 'Deposit';
@@ -142,10 +143,10 @@ export function DepositSlip({
                 password-protected.
               </Notice>
             )}
-            {duplicateOf && !unreadable && (
+            {duplicateOf && (
               <Notice>
-                &ldquo;{file.name}&rdquo; ({formatBytes(file.size)}) is already
-                in your library.
+                &quot;{file.name}&quot; ({formatBytes(file.size)}) is already in
+                your library.
               </Notice>
             )}
             {phase.name === 'failed' && (
@@ -154,7 +155,7 @@ export function DepositSlip({
           </div>
         </div>
 
-        <div className="border-border flex justify-end gap-2 border-t px-5 py-3">
+        <DialogFooter className="border-border border-t px-5 py-3">
           <Button
             type="button"
             size="sm"
@@ -173,7 +174,7 @@ export function DepositSlip({
             {depositing && <Loader2Icon className="animate-spin" />}
             {phase.name === 'failed' ? 'Try again' : confirmLabel}
           </Button>
-        </div>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   );

@@ -7,7 +7,7 @@ import {
 } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router';
-import type { BookListItemDto } from '@scriptorium/contracts';
+import type { BookListItemDto, UsageDto } from '@scriptorium/contracts';
 
 // pdf.js never runs under jsdom; the slip only needs a page count + a cover.
 jest.mock('@/books/pdf-preview', () => ({
@@ -17,11 +17,20 @@ jest.mock('@/books/pdf-preview', () => ({
   })),
 }));
 
+let usage: UsageDto | null = null;
+jest.mock('@/usage/use-usage', () => ({
+  useUsage: () => ({ usage, refetch: jest.fn() }),
+}));
+
 import { DepositSlot } from './deposit-slot';
 
 const api = jest.fn();
 const onUploaded = jest.fn();
 const onLimitReached = jest.fn();
+
+beforeEach(() => {
+  usage = null;
+});
 
 afterEach(() => {
   cleanup();
@@ -47,13 +56,20 @@ function book(overrides: Partial<BookListItemDto> = {}): BookListItemDto {
   } as BookListItemDto;
 }
 
+function usageAt(used: number, limit: number): UsageDto {
+  return {
+    plan: 'free',
+    books: { used, limit },
+    queries: { used: 0, limit: 20, resetsAt: '2099-01-01T00:00:00.000Z' },
+  };
+}
+
 function renderSlot(props: Partial<Parameters<typeof DepositSlot>[0]> = {}) {
   render(
     <MemoryRouter>
       <DepositSlot
         api={api}
         books={[]}
-        atBookLimit={false}
         onUploaded={onUploaded}
         onLimitReached={onLimitReached}
         {...props}
@@ -127,13 +143,13 @@ test('a matching filename + size shows the duplicate warning and "Upload anyway"
 });
 
 test('at the book limit the slot is spent and takes no file', () => {
-  renderSlot({ atBookLimit: true });
+  usage = usageAt(2, 2);
+  renderSlot();
   expect(screen.getByText(/Book limit reached/)).toBeInTheDocument();
   expect(
     screen.queryByRole('button', { name: 'Deposit a PDF' }),
   ).not.toBeInTheDocument();
-  expect(screen.getByRole('link', { name: 'manage on Activity' })).toHaveAttribute(
-    'href',
-    '/activity',
-  );
+  expect(
+    screen.getByRole('link', { name: 'manage on Activity' }),
+  ).toHaveAttribute('href', '/activity');
 });

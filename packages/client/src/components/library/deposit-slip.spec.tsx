@@ -2,6 +2,8 @@ import { render, screen, cleanup, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type { BookListItemDto } from '@scriptorium/contracts';
 
+import { jsonRes } from '@/test-support/http';
+
 const renderPdfPreview = jest.fn();
 jest.mock('@/books/pdf-preview', () => ({
   renderPdfPreview: (...args: unknown[]) => renderPdfPreview(...args),
@@ -14,10 +16,6 @@ const fetchMock = jest.fn();
 const onDeposited = jest.fn();
 const onLimitReached = jest.fn();
 const onClose = jest.fn();
-
-function jsonRes(body: unknown, status = 200): Response {
-  return { ok: status < 400, status, json: async () => body } as Response;
-}
 
 beforeEach(() => {
   globalThis.fetch = fetchMock as unknown as typeof fetch;
@@ -188,7 +186,7 @@ test('the confirm shows a busy label while the handoff is in flight', async () =
   await screen.findByText(/12 pages/);
   await userEvent.click(screen.getByRole('button', { name: 'Deposit' }));
 
-  expect(await screen.findByText('Depositing…')).toBeInTheDocument();
+  expect(await screen.findByText('Depositing...')).toBeInTheDocument();
   expect(screen.getByRole('button', { name: 'Cancel' })).toBeDisabled();
   release();
 });

@@ -30,13 +30,11 @@ function summarise(books: BookListItemDto[]): string {
 export function Toolbar({
   books,
   api,
-  atBookLimit,
   onUploaded,
   onLimitReached,
 }: {
   books: BookListItemDto[];
   api: ApiFetch;
-  atBookLimit: boolean;
   onUploaded: () => void;
   onLimitReached: (code: LimitCode) => void;
 }) {
@@ -50,7 +48,6 @@ export function Toolbar({
         <DepositSlot
           api={api}
           books={books}
-          atBookLimit={atBookLimit}
           onUploaded={onUploaded}
           onLimitReached={onLimitReached}
         />
