@@ -31,13 +31,13 @@ resources:
 images:
 - name: ghcr.io/cal3574/scriptorium-api
   newName: ghcr.io/cal3574/scriptorium-api
-  newTag: f5e0ae9a072f550fc235659543ac1299e0f70275
+  newTag: 55bfdf547e006f6b478ffa5b44ed2f0b4bf50a08
 - name: ghcr.io/cal3574/scriptorium-client
   newName: ghcr.io/cal3574/scriptorium-client
-  newTag: f5e0ae9a072f550fc235659543ac1299e0f70275
+  newTag: 55bfdf547e006f6b478ffa5b44ed2f0b4bf50a08
 - name: ghcr.io/cal3574/scriptorium-migrator
   newName: ghcr.io/cal3574/scriptorium-migrator
-  newTag: f5e0ae9a072f550fc235659543ac1299e0f70275
+  newTag: 55bfdf547e006f6b478ffa5b44ed2f0b4bf50a08
 - name: ghcr.io/cal3574/scriptorium-worker
   newName: ghcr.io/cal3574/scriptorium-worker
-  newTag: f5e0ae9a072f550fc235659543ac1299e0f70275
+  newTag: 55bfdf547e006f6b478ffa5b44ed2f0b4bf50a08
