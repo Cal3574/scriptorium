@@ -1,11 +1,20 @@
 import type { PdfPage } from '../pdf-extractor.js';
 
 // Each Gemini batch response is plain markdown with an explicit page-break
-// sentinel line between pages: `<!-- page N -->`. The parser splits on those
-// sentinels and validates that the page numbers it found match - exactly, and
-// in order - the range the batch was asked for. A mismatch means the model
-// dropped, merged, or reordered a page (it happens on dense pages), which the
-// adapter treats as a retryable malformed response.
+// sentinel line between pages: `<!-- page K -->`. K is the page's position
+// *within the slice the batch was sent* - 1 for the first page, counting up -
+// never the book's absolute page number and never the folio printed on the
+// page. The slice is a standalone PDF cut out of the book, so the model has no
+// way to know its absolute position; asking it to echo absolute numbers made
+// it transcribe the printed folio instead (an extract of pages 161-170 whose
+// pages are printed "153"..."162" would emit `<!-- page 153 -->`), which the
+// strict parser then rejected outright and failed the whole book.
+//
+// The parser splits on the sentinels, checks they are the slice-local
+// sequence 1, 2, 3, ... in order, and maps each back to an absolute page
+// number by position. A gap in the sequence means the model dropped that page;
+// an out-of-range or out-of-order sentinel means the response is scrambled and
+// is treated as a retryable malformed response.
 
 // A single line that is nothing but a page sentinel. Tolerant of surrounding
 // whitespace and a missing/collapsed comment space, strict about the shape.
@@ -20,8 +29,9 @@ export class SentinelMismatchError extends Error {
 
 /**
  * Parse a batch response into per-page markdown. `expectedPages` is the 1-based
- * page list the batch covers (see {@link pagesInRange}); the sentinels in the
- * response must reproduce it exactly. Throws {@link SentinelMismatchError}
+ * absolute page list the batch covers (see {@link pagesInRange}); the response
+ * must carry a sentinel for every one of them - the slice-local sequence
+ * `1..expectedPages.length`, in order. Throws {@link SentinelMismatchError}
  * otherwise. Content before the first sentinel is discarded (models sometimes
  * open with a stray blank line or a "Here is the transcription:" preamble).
  */
@@ -32,9 +42,8 @@ export function parseSentinelPages(
   const { pages, missing } = parseSentinelPagesLenient(response, expectedPages);
   if (missing.length > 0) {
     throw new SentinelMismatchError(
-      `expected page sentinels [${expectedPages.join(', ')}] but got [${pages
-        .map((p) => p.page)
-        .join(', ')}]`,
+      `expected sentinels for all ${expectedPages.length} page(s) of the ` +
+        `slice but pages [${missing.join(', ')}] were not emitted`,
     );
   }
   return pages;
@@ -42,54 +51,57 @@ export function parseSentinelPages(
 
 /**
  * Like {@link parseSentinelPages}, but tolerates a response that dropped one or
- * more pages: as long as the sentinels it *did* emit are a subset of
- * `expectedPages` in the right order (no extras, no reordering), the parsed
- * pages are returned alongside `missing` - the expected pages with no sentinel.
- * The adapter salvages those one at a time rather than failing the whole book.
- * A genuinely scrambled response (an extra or out-of-order sentinel) still
- * throws {@link SentinelMismatchError}.
+ * more pages: as long as the sentinels it *did* emit are a subsequence of
+ * `1..expectedPages.length` in ascending order (no extras, no repeats, no
+ * reordering), the parsed pages are returned - mapped to their absolute page
+ * numbers - alongside `missing`, the absolute pages whose slice-local sentinel
+ * never appeared. The adapter salvages those one at a time rather than failing
+ * the whole book. A genuinely scrambled response (a sentinel outside
+ * `1..length`, or one that goes backwards) still throws
+ * {@link SentinelMismatchError}.
  */
 export function parseSentinelPagesLenient(
   response: string,
   expectedPages: number[],
 ): { pages: PdfPage[]; missing: number[] } {
+  const count = expectedPages.length;
   const lines = response.split('\n');
-  const found: Array<{ page: number; body: string[] }> = [];
+  const found: Array<{ position: number; body: string[] }> = [];
 
   for (const line of lines) {
     const match = SENTINEL.exec(line);
     if (match) {
-      found.push({ page: Number(match[1]), body: [] });
+      found.push({ position: Number(match[1]), body: [] });
     } else if (found.length > 0) {
       found[found.length - 1].body.push(line);
     }
   }
 
-  const expected = new Set(expectedPages);
-  let cursor = 0;
-  for (const { page } of found) {
-    // Every sentinel must be an expected page, and they must appear in the same
-    // order as `expectedPages` - advance a cursor through it, allowing gaps.
-    if (!expected.has(page)) {
+  let previous = 0;
+  for (const { position } of found) {
+    // Sentinels are slice-local 1-based positions. Anything outside the slice's
+    // page count, or a position that does not advance, is a scrambled response.
+    if (position < 1 || position > count) {
       throw new SentinelMismatchError(
-        `unexpected page sentinel ${page} (expected a subset of [${expectedPages.join(', ')}])`,
+        `unexpected page sentinel ${position} (the slice covers ${count} ` +
+          `page(s), so sentinels must be 1..${count})`,
       );
     }
-    const next = expectedPages.indexOf(page, cursor);
-    if (next === -1) {
+    if (position <= previous) {
       throw new SentinelMismatchError(
-        `page sentinel ${page} is out of order (expected [${expectedPages.join(', ')}])`,
+        `page sentinel ${position} is out of order (expected the ascending ` +
+          `sequence 1..${count})`,
       );
     }
-    cursor = next + 1;
+    previous = position;
   }
 
-  const foundPages = new Set(found.map((p) => p.page));
+  const seen = new Set(found.map((p) => p.position));
   return {
     pages: found.map((p) => ({
-      page: p.page,
+      page: expectedPages[p.position - 1],
       markdown: p.body.join('\n').trim(),
     })),
-    missing: expectedPages.filter((page) => !foundPages.has(page)),
+    missing: expectedPages.filter((_page, index) => !seen.has(index + 1)),
   };
 }
