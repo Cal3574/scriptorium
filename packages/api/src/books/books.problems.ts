@@ -69,6 +69,17 @@ export class BookNotFailedException extends ProblemException {
   }
 }
 
+export class ChapterNotFoundException extends ProblemException {
+  constructor() {
+    super(
+      'chapter_not_found',
+      404,
+      'Chapter not found',
+      'This book has no chapter with that id.',
+    );
+  }
+}
+
 export class FileSizeMismatchException extends ProblemException {
   constructor() {
     super(

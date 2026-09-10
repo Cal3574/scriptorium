@@ -52,7 +52,15 @@ export {
   requireExtractionArtifact,
   type ExtractionArtifact,
 } from './ingest/extraction-artifact.js';
-export { pageRangeMarkdown } from './ingest/page-range-markdown.js';
+export {
+  pageRangeMarkdown,
+  chapterPageRangeMarkdown,
+} from './ingest/page-range-markdown.js';
+export {
+  buildChapterSource,
+  CHAPTER_SOURCE_MAX_BYTES,
+  type ChapterSourceText,
+} from './ingest/chapter-source.js';
 
 export {
   IngestEventSubscriber,

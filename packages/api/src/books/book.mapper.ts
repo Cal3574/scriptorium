@@ -2,8 +2,13 @@ import {
   BookDetailDto,
   BookDto,
   BookListItemDto,
+  ChapterSourceDto,
 } from '@scriptorium/contracts';
-import type { BookRow, ChapterRow } from '@scriptorium/server-core';
+import type {
+  BookRow,
+  ChapterRow,
+  ChapterSourceText,
+} from '@scriptorium/server-core';
 
 // The one place a raw `books` row becomes a wire DTO. Storage-only columns
 // (`s3Key`, `extractedMarkdownKey`, `userId`) are dropped by omission, and the
@@ -57,5 +62,24 @@ export function toBookDetailDto(
     ...toBookShape(row),
     summary: row.summary,
     chapters: chapterRows.map(toChapterShape),
+  });
+}
+
+// `GET /api/v1/books/:id/chapters/:chapterId/source`: the chapter's identity
+// and page range from its `chapters` row, plus the stitched source text (or the
+// unavailable / truncated state) computed by `buildChapterSource`.
+export function toChapterSourceDto(
+  chapter: ChapterRow,
+  source: ChapterSourceText,
+): ChapterSourceDto {
+  return ChapterSourceDto.parse({
+    chapterId: chapter.id,
+    chapterIndex: chapter.chapterIndex,
+    title: chapter.title,
+    pageStart: chapter.pageStart,
+    pageEnd: chapter.pageEnd,
+    available: source.available,
+    text: source.text,
+    truncated: source.truncated,
   });
 }

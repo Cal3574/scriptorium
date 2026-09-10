@@ -160,6 +160,24 @@ export class BooksRepository {
   }
 
   /**
+   * One chapter of a specific book by chapter id, or null. Scoped to the book
+   * so a valid uuid that belongs to another book (or nothing) is a clean
+   * `chapter_not_found` rather than a cross-book read. Backs the chapter
+   * source endpoint.
+   */
+  async findChapterOfBook(
+    bookId: string,
+    chapterId: string,
+  ): Promise<ChapterRow | null> {
+    const [row] = await this.db
+      .select()
+      .from(chapters)
+      .where(and(eq(chapters.id, chapterId), eq(chapters.bookId, bookId)))
+      .limit(1);
+    return row ?? null;
+  }
+
+  /**
    * Apply a `PATCH /books/:id` to the `books` row and return the updated row.
    * Only the keys present in `input` are written; `author: null` is an
    * explicit clear. A user-set `title` is authoritative from here on - the

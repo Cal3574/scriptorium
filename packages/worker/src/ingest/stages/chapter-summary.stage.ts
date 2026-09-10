@@ -1,5 +1,5 @@
 import {
-  pageRangeMarkdown,
+  chapterPageRangeMarkdown,
   requireExtractionArtifact,
 } from '@scriptorium/server-core';
 import { withRetry } from '../retry.js';
@@ -53,9 +53,7 @@ export const chapterSummaryStage: Stage = {
 
     await mapWithConcurrency(pending, CHAPTER_CONCURRENCY, async (chapter) => {
       const title = chapter.title ?? `Chapter ${chapter.chapterIndex + 1}`;
-      const start = chapter.pageStart ?? 1;
-      const end = chapter.pageEnd ?? artifact.pageCount;
-      const body = pageRangeMarkdown(artifact.pages, start, end);
+      const body = chapterPageRangeMarkdown(artifact, chapter);
 
       const summary = await withRetry(() =>
         llm.complete({

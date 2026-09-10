@@ -55,6 +55,25 @@ export const ChapterDto = z.object({
 });
 export type ChapterDto = z.infer<typeof ChapterDto>;
 
+// `GET /api/v1/books/:id/chapters/:chapterId/source`: one chapter's original
+// pages, stitched back into readable GFM markdown by slicing the book's
+// extraction sidecar over the chapter's page range - the same text the
+// chapter-summary stage was written from. `chunks` are never touched.
+// `available` is false (with `text: null`, still HTTP 200) when the page range
+// yields only whitespace or the extraction artifact is missing. `truncated` is
+// true when `text` was capped at the size ceiling on a paragraph boundary.
+export const ChapterSourceDto = z.object({
+  chapterId: uuid,
+  chapterIndex: z.number().int().nonnegative(),
+  title: z.string().nullable(),
+  pageStart: z.number().int().nonnegative().nullable(),
+  pageEnd: z.number().int().nonnegative().nullable(),
+  available: z.boolean(),
+  text: z.string().nullable(),
+  truncated: z.boolean(),
+});
+export type ChapterSourceDto = z.infer<typeof ChapterSourceDto>;
+
 // `GET /api/v1/books/:id`: the full book plus its summary and ordered chapters.
 // `summary` is null until the book-summary stage completes; each
 // `chapters[].summary` is null until that chapter's deep-dive completes.
