@@ -1,0 +1,1578 @@
+<meta charset="utf-8" />
+<title>Scriptorium Read View Directions</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link
+  rel="stylesheet"
+  href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=IBM+Plex+Mono:wght@400;500&display=swap"
+/>
+<style>
+  /* ================================================================
+     Scriptorium - the Read view, three directions.
+     Prototype for wayfinder ticket #117 (map #114). Throwaway: reacted
+     to, not shipped. Switch with the bottom bar or ?variant=A|B|C.
+     Two sample screens per variant: the whole-book Overview landing
+     (/books/:id/read) and one Chapter (/books/:id/read/:index) - flip
+     with the "Overview / Chapter" control in the sub-note.
+     The app shell (wordmark / nav / toggle) is held constant from the
+     redesign spec (#56) and is NOT part of this decision.
+     Tokens below track the #52 resolution (source of truth).
+     ================================================================ */
+
+  :root {
+    /* ---- redesign tokens, light (from #52) ---- */
+    --background: #f8f8f9;
+    --foreground: #1a1c22;
+    --card: #ffffff;
+    --muted: #eef0f2;
+    --muted-foreground: #6a6d78;
+    --primary: #3d5a80;
+    --primary-foreground: #ffffff;
+    --border: #e4e5e9;
+    --accent: #eef1f5;
+    --status-ready: #15803d;
+    --radius: 0.375rem;
+    --container-app: 70rem;
+    --measure: 68ch;
+    --header-height: 3.5rem;
+    --shell-gutter: 1.5rem;
+    color-scheme: light;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme='light']) {
+      --background: #0e0f13;
+      --foreground: #e5e7ec;
+      --card: #16171c;
+      --muted: #1e2027;
+      --muted-foreground: #878b98;
+      --primary: #7d9dc4;
+      --primary-foreground: #0e0f13;
+      --border: #24262e;
+      --accent: #20222a;
+      --status-ready: #5fb07d;
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme='dark'] {
+    --background: #0e0f13;
+    --foreground: #e5e7ec;
+    --card: #16171c;
+    --muted: #1e2027;
+    --muted-foreground: #878b98;
+    --primary: #7d9dc4;
+    --primary-foreground: #0e0f13;
+    --border: #24262e;
+    --accent: #20222a;
+    --status-ready: #5fb07d;
+    color-scheme: dark;
+  }
+
+  * {
+    box-sizing: border-box;
+  }
+  body {
+    margin: 0;
+    background: var(--background);
+    color: var(--foreground);
+    font-family:
+      ui-sans-serif,
+      -apple-system,
+      BlinkMacSystemFont,
+      'Segoe UI',
+      Roboto,
+      Helvetica,
+      Arial,
+      sans-serif;
+    font-size: 13px;
+    -webkit-font-smoothing: antialiased;
+  }
+  a {
+    color: inherit;
+  }
+  button {
+    font: inherit;
+    cursor: pointer;
+  }
+  h1,
+  h2,
+  h3 {
+    font-family: 'Fraunces', Georgia, 'Times New Roman', serif;
+    font-optical-sizing: auto;
+  }
+
+  /* ---------- constant app shell (redesign spec #56, not this decision) ---------- */
+  .shell-head {
+    display: flex;
+    align-items: center;
+    gap: 28px;
+    height: var(--header-height);
+    padding: 0 var(--shell-gutter);
+    border-bottom: 1px solid var(--border);
+    background: var(--card);
+  }
+  .wordmark {
+    font-weight: 600;
+    font-size: 19px;
+    letter-spacing: 0.01em;
+  }
+  .shell-nav {
+    display: flex;
+    gap: 4px;
+  }
+  .shell-nav a {
+    text-decoration: none;
+    font-size: 13px;
+    color: var(--muted-foreground);
+    padding: 6px 10px;
+    border-radius: 4px;
+  }
+  .shell-nav a[aria-current] {
+    color: var(--foreground);
+    font-weight: 500;
+  }
+  .shell-right {
+    margin-left: auto;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .theme-btn {
+    border: 1px solid var(--border);
+    background: transparent;
+    color: var(--muted-foreground);
+    border-radius: 4px;
+    padding: 5px 10px;
+    font-size: 12px;
+  }
+  .avatar {
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #9a8c98, #4a4e69);
+    display: grid;
+    place-items: center;
+    color: #fff;
+    font-size: 11px;
+    font-weight: 600;
+  }
+  .shell-note {
+    padding: 8px var(--shell-gutter);
+    font-size: 11.5px;
+    color: var(--muted-foreground);
+    border-bottom: 1px solid var(--border);
+    background: var(--muted);
+    display: flex;
+    gap: 14px;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+  .shell-note .seg {
+    display: inline-flex;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    overflow: hidden;
+  }
+  .shell-note .seg button {
+    border: none;
+    background: transparent;
+    color: var(--muted-foreground);
+    padding: 3px 10px;
+    font-size: 11px;
+  }
+  .shell-note .seg button[aria-pressed='true'] {
+    background: var(--card);
+    color: var(--foreground);
+    font-weight: 500;
+  }
+
+  #stage {
+    padding: 0;
+  }
+  .crumb {
+    font-size: 12px;
+    color: var(--muted-foreground);
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+  }
+  .crumb:hover {
+    color: var(--foreground);
+  }
+
+  /* mono helper */
+  .mono {
+    font-family:
+      'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* ================================================================
+     DIRECTION A - "Margin"
+     One immersive reading column, wide measure, calm. TOC is a
+     slide-over from the left (hidden by default on desktop too -
+     you open it, pick, it closes). Source REVEAL = inline unfold
+     directly beneath the summary, same column, push-down. Chapter
+     movement = big editorial prev/next at the foot, like a book.
+     Furthest from Console: almost no chrome while reading.
+     ================================================================ */
+  .A {
+    --a-measure: 66ch;
+  }
+  .A .topline {
+    max-width: var(--a-measure);
+    margin: 0 auto;
+    padding: 20px var(--shell-gutter) 0;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .A .contents-btn {
+    border: 1px solid var(--border);
+    background: var(--card);
+    color: var(--foreground);
+    border-radius: 4px;
+    padding: 6px 12px;
+    font-size: 12px;
+    display: inline-flex;
+    gap: 7px;
+    align-items: center;
+  }
+  .A .reader {
+    max-width: var(--a-measure);
+    margin: 0 auto;
+    padding: 34px var(--shell-gutter) 0;
+  }
+  .A .eyebrow {
+    font-size: 11px;
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+    color: var(--muted-foreground);
+    margin-bottom: 12px;
+  }
+  .A h1 {
+    font-weight: 400;
+    font-size: 2rem;
+    line-height: 1.15;
+    margin: 0 0 10px;
+    letter-spacing: -0.01em;
+  }
+  .A .pages {
+    font-size: 12px;
+    color: var(--muted-foreground);
+    margin-bottom: 30px;
+  }
+  .A .prose {
+    font-size: 1rem;
+    line-height: 1.75;
+  }
+  .A .prose p {
+    margin: 0 0 1.15em;
+  }
+  .A .prose h2 {
+    font-weight: 500;
+    font-size: 1.15rem;
+    margin: 1.8em 0 0.6em;
+  }
+  .A .reveal-row {
+    margin: 34px 0 0;
+    padding-top: 22px;
+    border-top: 1px solid var(--border);
+  }
+  .A .reveal-btn {
+    border: none;
+    background: none;
+    padding: 0;
+    color: var(--primary);
+    font-size: 13.5px;
+    text-decoration: underline;
+    text-underline-offset: 3px;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .A .reveal-btn .hint {
+    color: var(--muted-foreground);
+    text-decoration: none;
+    font-size: 12px;
+  }
+  .A .source {
+    margin-top: 22px;
+    padding: 22px 24px;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+  }
+  .A .source .src-head {
+    font-size: 11px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--muted-foreground);
+    margin-bottom: 14px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .A .source .src-head button {
+    border: none;
+    background: none;
+    color: var(--muted-foreground);
+    text-decoration: underline;
+    font-size: 11px;
+  }
+  .A .source .prose {
+    font-size: 0.94rem;
+    line-height: 1.7;
+  }
+  .A .src-missing {
+    margin-top: 22px;
+    padding: 18px 20px;
+    border: 1px dashed var(--border);
+    border-radius: var(--radius);
+    color: var(--muted-foreground);
+    font-size: 12.5px;
+  }
+  .A .pager {
+    max-width: var(--a-measure);
+    margin: 56px auto 0;
+    padding: 0 var(--shell-gutter) 120px;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1px;
+    background: var(--border);
+    border-top: 1px solid var(--border);
+  }
+  .A .pager a {
+    background: var(--background);
+    padding: 22px 4px;
+    text-decoration: none;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .A .pager a.next {
+    text-align: right;
+    align-items: flex-end;
+  }
+  .A .pager .dir {
+    font-size: 11px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--muted-foreground);
+  }
+  .A .pager .ttl {
+    font-family: 'Fraunces', Georgia, serif;
+    font-weight: 500;
+    font-size: 1rem;
+  }
+  .A .pager a.disabled {
+    opacity: 0.35;
+    pointer-events: none;
+  }
+
+  /* A - overview */
+  .A .ov {
+    max-width: var(--a-measure);
+    margin: 0 auto;
+    padding: 40px var(--shell-gutter) 120px;
+  }
+  .A .ov h1 {
+    font-size: 2.4rem;
+    margin-bottom: 6px;
+  }
+  .A .ov .by {
+    color: var(--muted-foreground);
+    font-size: 13px;
+    margin-bottom: 28px;
+  }
+  .A .ov .prose {
+    font-size: 1rem;
+    line-height: 1.75;
+    margin-bottom: 42px;
+  }
+  .A .ov ol {
+    list-style: none;
+    counter-reset: ch;
+    margin: 0;
+    padding: 0;
+    border-top: 1px solid var(--border);
+  }
+  .A .ov li {
+    counter-increment: ch;
+    border-bottom: 1px solid var(--border);
+  }
+  .A .ov li a {
+    display: flex;
+    gap: 16px;
+    padding: 16px 4px;
+    text-decoration: none;
+    align-items: baseline;
+  }
+  .A .ov li a:hover {
+    background: var(--muted);
+  }
+  .A .ov li a::before {
+    content: counter(ch, decimal-leading-zero);
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    color: var(--muted-foreground);
+  }
+  .A .ov li .ct {
+    font-family: 'Fraunces', Georgia, serif;
+    font-weight: 500;
+    font-size: 1.05rem;
+    flex: 1;
+  }
+  .A .ov li .cp {
+    font-size: 11px;
+    color: var(--muted-foreground);
+  }
+
+  /* slide-over TOC (shared look, direction A + C mobile) */
+  .drawer-scrim {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.4);
+    z-index: 80;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.18s;
+  }
+  .drawer-scrim.open {
+    opacity: 1;
+    pointer-events: auto;
+  }
+  .drawer {
+    position: fixed;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    width: 320px;
+    max-width: 84vw;
+    background: var(--card);
+    border-right: 1px solid var(--border);
+    z-index: 81;
+    transform: translateX(-100%);
+    transition: transform 0.2s ease;
+    display: flex;
+    flex-direction: column;
+  }
+  .drawer.open {
+    transform: none;
+  }
+  .drawer header {
+    padding: 16px 18px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .drawer header b {
+    font-family: 'Fraunces', Georgia, serif;
+    font-weight: 500;
+    font-size: 15px;
+  }
+  .drawer header button {
+    border: none;
+    background: none;
+    color: var(--muted-foreground);
+    font-size: 18px;
+  }
+  .drawer nav {
+    overflow-y: auto;
+    padding: 6px 0;
+  }
+  .drawer nav a {
+    display: flex;
+    gap: 12px;
+    padding: 10px 18px;
+    text-decoration: none;
+    font-size: 12.5px;
+    align-items: baseline;
+  }
+  .drawer nav a:hover {
+    background: var(--muted);
+  }
+  .drawer nav a[aria-current] {
+    background: var(--accent);
+    font-weight: 500;
+  }
+  .drawer nav a .n {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10.5px;
+    color: var(--muted-foreground);
+  }
+  .drawer nav a .t {
+    flex: 1;
+  }
+
+  /* ================================================================
+     DIRECTION B - "Console reader"
+     Closest to Direction B / Console. Persistent left TOC sidebar
+     (docs-site style), always visible on desktop. Source REVEAL =
+     full-column swap via a segmented [ Summary | Source ] control
+     pinned at the top of the content column. Chapter movement =
+     compact prev/next + "04 / 11" counter in that same top strip.
+     Dense, operational, machine figures in mono.
+     ================================================================ */
+  .B {
+    display: grid;
+    grid-template-columns: 264px minmax(0, 1fr);
+    min-height: calc(100vh - var(--header-height) - 33px);
+  }
+  .B .side {
+    border-right: 1px solid var(--border);
+    background: var(--card);
+    padding: 14px 0;
+    overflow-y: auto;
+  }
+  .B .side .bk {
+    padding: 4px 16px 14px;
+    margin-bottom: 6px;
+    border-bottom: 1px solid var(--border);
+  }
+  .B .side .bk a {
+    font-size: 11px;
+    color: var(--muted-foreground);
+    text-decoration: none;
+  }
+  .B .side .bk b {
+    display: block;
+    font-family: 'Fraunces', Georgia, serif;
+    font-weight: 500;
+    font-size: 14px;
+    margin-top: 6px;
+    line-height: 1.25;
+  }
+  .B .side ol {
+    list-style: none;
+    counter-reset: b;
+    margin: 0;
+    padding: 0;
+  }
+  .B .side li {
+    counter-increment: b;
+  }
+  .B .side li a {
+    display: grid;
+    grid-template-columns: 22px 1fr auto;
+    gap: 8px;
+    align-items: baseline;
+    padding: 7px 16px;
+    text-decoration: none;
+    font-size: 12px;
+    line-height: 1.35;
+  }
+  .B .side li a::before {
+    content: counter(b, decimal-leading-zero);
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px;
+    color: var(--muted-foreground);
+  }
+  .B .side li a:hover {
+    background: var(--muted);
+  }
+  .B .side li a[aria-current] {
+    background: var(--accent);
+    font-weight: 500;
+    box-shadow: inset 2px 0 0 var(--primary);
+  }
+  .B .side li a .pg {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 9.5px;
+    color: var(--muted-foreground);
+  }
+
+  .B .main {
+    padding: 0 0 120px;
+    min-width: 0;
+  }
+  .B .strip {
+    position: sticky;
+    top: 0;
+    z-index: 5;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 10px 24px;
+    background: var(--background);
+    border-bottom: 1px solid var(--border);
+  }
+  .B .strip .count {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    color: var(--muted-foreground);
+  }
+  .B .strip .nav {
+    display: flex;
+    gap: 4px;
+  }
+  .B .strip .nav button {
+    border: 1px solid var(--border);
+    background: var(--card);
+    color: var(--muted-foreground);
+    border-radius: 4px;
+    padding: 3px 9px;
+    font-size: 12px;
+  }
+  .B .strip .seg {
+    margin-left: auto;
+    display: inline-flex;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    overflow: hidden;
+  }
+  .B .strip .seg button {
+    border: none;
+    background: transparent;
+    color: var(--muted-foreground);
+    padding: 5px 14px;
+    font-size: 11.5px;
+    font-family: 'IBM Plex Mono', monospace;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+  }
+  .B .strip .seg button[aria-pressed='true'] {
+    background: var(--primary);
+    color: var(--primary-foreground);
+  }
+  .B .strip .seg button:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+  }
+
+  .B .body {
+    max-width: var(--measure);
+    margin: 0 auto;
+    padding: 36px 24px 0;
+  }
+  .B .eyebrow {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10.5px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--muted-foreground);
+  }
+  .B h1 {
+    font-weight: 400;
+    font-size: 1.6rem;
+    line-height: 1.2;
+    margin: 10px 0 8px;
+  }
+  .B .pages {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    color: var(--muted-foreground);
+    margin-bottom: 26px;
+  }
+  .B .prose {
+    font-size: 0.9375rem;
+    line-height: 1.7;
+  }
+  .B .prose p {
+    margin: 0 0 1.1em;
+  }
+  .B .prose h2 {
+    font-family: 'Fraunces', Georgia, serif;
+    font-weight: 500;
+    font-size: 1.12rem;
+    margin: 1.7em 0 0.5em;
+  }
+  .B .src-tag {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10.5px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--muted-foreground);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 3px 8px;
+    display: inline-block;
+    margin-bottom: 20px;
+  }
+  .B .src-missing {
+    padding: 40px 24px;
+    text-align: center;
+    color: var(--muted-foreground);
+    font-size: 12.5px;
+    border: 1px dashed var(--border);
+    border-radius: var(--radius);
+  }
+
+  /* ================================================================
+     DIRECTION C - "Facing pages"
+     Two columns while reading: summary holds a comfortable measure on
+     the left, the source opens as a RIGHT-HAND panel that slides in
+     beside it (summary stays put, doesn't reflow). TOC = a chapter
+     dropdown + a horizontal position rail across the top, no sidebar.
+     On mobile the source is a bottom sheet. Middle ground: more
+     structured than Margin, less utilitarian than Console.
+     ================================================================ */
+  .C .railtop {
+    border-bottom: 1px solid var(--border);
+    background: var(--card);
+    padding: 10px var(--shell-gutter);
+    display: flex;
+    align-items: center;
+    gap: 16px;
+  }
+  .C .chsel {
+    position: relative;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    background: var(--background);
+    padding: 6px 12px;
+    font-size: 12px;
+    display: inline-flex;
+    gap: 10px;
+    align-items: center;
+    min-width: 240px;
+  }
+  .C .chsel .mono {
+    font-size: 10.5px;
+    color: var(--muted-foreground);
+  }
+  .C .chsel b {
+    font-family: 'Fraunces', Georgia, serif;
+    font-weight: 500;
+    font-size: 13px;
+    flex: 1;
+  }
+  .C .ticks {
+    flex: 1;
+    display: flex;
+    gap: 3px;
+    align-items: center;
+  }
+  .C .ticks i {
+    height: 4px;
+    flex: 1;
+    background: var(--border);
+    border-radius: 2px;
+  }
+  .C .ticks i.done {
+    background: var(--muted-foreground);
+  }
+  .C .ticks i.here {
+    background: var(--primary);
+    height: 8px;
+  }
+  .C .railtop .mv {
+    display: flex;
+    gap: 4px;
+  }
+  .C .railtop .mv button {
+    border: 1px solid var(--border);
+    background: var(--background);
+    color: var(--muted-foreground);
+    border-radius: 4px;
+    padding: 4px 10px;
+    font-size: 12px;
+  }
+
+  .C .split {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 0fr;
+    transition: grid-template-columns 0.24s ease;
+  }
+  .C .split.open {
+    grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr);
+  }
+  .C .sumcol {
+    padding: 40px clamp(20px, 5vw, 64px) 120px;
+    min-width: 0;
+  }
+  .C .sumcol .inner {
+    max-width: 60ch;
+    margin: 0 auto;
+  }
+  .C .eyebrow {
+    font-size: 11px;
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+    color: var(--muted-foreground);
+  }
+  .C h1 {
+    font-weight: 400;
+    font-size: 1.9rem;
+    line-height: 1.15;
+    margin: 10px 0 8px;
+  }
+  .C .pages {
+    font-size: 12px;
+    color: var(--muted-foreground);
+    margin-bottom: 28px;
+  }
+  .C .prose {
+    font-size: 0.97rem;
+    line-height: 1.72;
+  }
+  .C .prose p {
+    margin: 0 0 1.1em;
+  }
+  .C .prose h2 {
+    font-family: 'Fraunces', Georgia, serif;
+    font-weight: 500;
+    font-size: 1.12rem;
+    margin: 1.7em 0 0.5em;
+  }
+  .C .openbtn {
+    margin-top: 30px;
+    border: 1px solid var(--primary);
+    color: var(--primary);
+    background: transparent;
+    border-radius: 4px;
+    padding: 8px 16px;
+    font-size: 12.5px;
+    display: inline-flex;
+    gap: 8px;
+    align-items: center;
+  }
+  .C .srccol {
+    border-left: 1px solid var(--border);
+    background: var(--card);
+    overflow: hidden;
+    min-width: 0;
+  }
+  .C .srccol .wrap {
+    padding: 40px clamp(20px, 4vw, 48px) 120px;
+    max-width: 62ch;
+  }
+  .C .srccol .sh {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 11px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--muted-foreground);
+    margin-bottom: 18px;
+  }
+  .C .srccol .sh button {
+    border: none;
+    background: none;
+    color: var(--muted-foreground);
+    font-size: 16px;
+  }
+  .C .srccol .prose {
+    font-size: 0.92rem;
+    line-height: 1.68;
+  }
+  .C .src-missing-inline {
+    margin-top: 30px;
+    padding: 16px 18px;
+    border: 1px dashed var(--border);
+    border-radius: var(--radius);
+    color: var(--muted-foreground);
+    font-size: 12.5px;
+    max-width: 60ch;
+  }
+
+  /* C overview */
+  .C .ov {
+    max-width: 64ch;
+    margin: 0 auto;
+    padding: 44px var(--shell-gutter) 120px;
+  }
+  .C .ov h1 {
+    font-size: 2.3rem;
+    margin-bottom: 6px;
+  }
+  .C .ov .by {
+    color: var(--muted-foreground);
+    font-size: 13px;
+    margin-bottom: 26px;
+  }
+  .C .ov .prose {
+    font-size: 0.97rem;
+    line-height: 1.72;
+    margin-bottom: 40px;
+  }
+  .C .ov .grid {
+    display: grid;
+    gap: 10px;
+  }
+  .C .ov .chip-ch {
+    display: grid;
+    grid-template-columns: 26px 1fr auto;
+    gap: 14px;
+    align-items: baseline;
+    padding: 14px 16px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    text-decoration: none;
+    background: var(--card);
+  }
+  .C .ov .chip-ch:hover {
+    border-color: var(--primary);
+  }
+  .C .ov .chip-ch .n {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    color: var(--muted-foreground);
+  }
+  .C .ov .chip-ch .t {
+    font-family: 'Fraunces', Georgia, serif;
+    font-weight: 500;
+    font-size: 1rem;
+  }
+  .C .ov .chip-ch .p {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10.5px;
+    color: var(--muted-foreground);
+  }
+
+  /* bottom sheet (C mobile source) */
+  .sheet-scrim {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.4);
+    z-index: 80;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.18s;
+  }
+  .sheet-scrim.open {
+    opacity: 1;
+    pointer-events: auto;
+  }
+  .sheet {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    max-height: 82vh;
+    z-index: 81;
+    background: var(--card);
+    border-top: 1px solid var(--border);
+    border-radius: 12px 12px 0 0;
+    transform: translateY(100%);
+    transition: transform 0.22s ease;
+    display: flex;
+    flex-direction: column;
+  }
+  .sheet.open {
+    transform: none;
+  }
+  .sheet header {
+    padding: 14px 18px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .sheet header b {
+    font-size: 11px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--muted-foreground);
+  }
+  .sheet header button {
+    border: none;
+    background: none;
+    color: var(--muted-foreground);
+    font-size: 18px;
+  }
+  .sheet .body {
+    overflow-y: auto;
+    padding: 20px 20px 40px;
+  }
+  .sheet .prose {
+    font-size: 0.92rem;
+    line-height: 1.68;
+  }
+
+  /* ---------- shared prose ---------- */
+  .prose p:last-child {
+    margin-bottom: 0;
+  }
+
+  /* ---------- floating variant switcher (prototype only) ---------- */
+  #switch {
+    position: fixed;
+    left: 50%;
+    bottom: 20px;
+    transform: translateX(-50%);
+    display: flex;
+    align-items: stretch;
+    gap: 2px;
+    background: #111214;
+    color: #f4f4f5;
+    border-radius: 12px;
+    padding: 4px;
+    box-shadow: 0 8px 30px -6px rgba(0, 0, 0, 0.45);
+    z-index: 100;
+  }
+  #switch button {
+    background: transparent;
+    border: none;
+    color: #a1a1aa;
+    padding: 8px 12px;
+    border-radius: 9px;
+    font-size: 14px;
+  }
+  #switch button:hover {
+    color: #fff;
+    background: #26272b;
+  }
+  #switch .label {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    padding: 4px 12px;
+    min-width: 150px;
+    text-align: center;
+  }
+  #switch .label b {
+    font-size: 13px;
+  }
+  #switch .label small {
+    font-size: 10.5px;
+    color: #a1a1aa;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+  #switch .keys {
+    display: flex;
+    gap: 2px;
+  }
+  #switch .keys button {
+    min-width: 30px;
+    font-weight: 600;
+  }
+  #switch .keys button[aria-pressed='true'] {
+    color: #fff;
+    background: #3a3b40;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--primary);
+    outline-offset: 2px;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    * {
+      transition: none !important;
+    }
+  }
+
+  /* ---------- narrow / mobile ---------- */
+  @media (max-width: 860px) {
+    .B {
+      grid-template-columns: 1fr;
+    }
+    .B .side {
+      display: none;
+    }
+    .B .strip {
+      flex-wrap: wrap;
+    }
+    .C .split,
+    .C .split.open {
+      grid-template-columns: 1fr;
+    }
+    .C .srccol {
+      display: none;
+    }
+    .A .pager {
+      grid-template-columns: 1fr;
+    }
+  }
+</style>
+
+<header class="shell-head">
+  <span class="wordmark">Scriptorium</span>
+  <nav class="shell-nav">
+    <a href="#">Library</a>
+    <a href="#">Ask</a>
+    <a href="#">History</a>
+  </nav>
+  <div class="shell-right">
+    <button class="theme-btn" id="theme">Dark mode</button>
+    <span class="avatar">CH</span>
+  </div>
+</header>
+<div class="shell-note">
+  <span
+    >Prototype for ticket&nbsp;#117 - the Read view, three directions. Shell
+    held constant (#56).</span
+  >
+  <span class="seg" role="group" aria-label="Which screen">
+    <button data-screen="chapter" aria-pressed="true">Chapter</button>
+    <button data-screen="overview" aria-pressed="false">Overview</button>
+  </span>
+  <span class="mono" style="font-size: 11px"
+    >switch: &larr; &rarr; or 1/2/3</span
+  >
+</div>
+
+<main id="stage"></main>
+
+<!-- direction A / C-mobile: slide-over TOC -->
+<div class="drawer-scrim" id="scrim"></div>
+<aside class="drawer" id="drawer" aria-label="Table of contents">
+  <header>
+    <b id="drawer-book">Seeing Like a State</b
+    ><button id="drawer-x" aria-label="Close">&times;</button>
+  </header>
+  <nav id="drawer-nav"></nav>
+</aside>
+
+<!-- direction C-mobile: source bottom sheet -->
+<div class="sheet-scrim" id="sheet-scrim"></div>
+<section class="sheet" id="sheet" aria-label="Reconstructed source">
+  <header>
+    <b>Reconstructed source</b
+    ><button id="sheet-x" aria-label="Close">&times;</button>
+  </header>
+  <div class="body" id="sheet-body"></div>
+</section>
+
+<nav id="switch" aria-label="Prototype direction switcher">
+  <button id="prev" aria-label="Previous direction">&larr;</button>
+  <div class="label">
+    <b id="vname">Margin</b><small id="vkey">Direction A</small>
+  </div>
+  <div class="keys">
+    <button data-i="0" aria-pressed="true">A</button>
+    <button data-i="1" aria-pressed="false">B</button>
+    <button data-i="2" aria-pressed="false">C</button>
+  </div>
+  <button id="next" aria-label="Next direction">&rarr;</button>
+</nav>
+
+<script>
+  // ---- sample book: one ready book, mid-way through reading ----
+  const BOOK = {
+    title: 'Seeing Like a State',
+    author: 'James C. Scott',
+    summary: [
+      "Scott's thesis is that a recurring family of state-driven catastrophes shares four ingredients: an administrative drive to make society legible, a high-modernist confidence that social order can be engineered, an authoritarian state willing to act on that confidence, and a civil society too weak to resist. None of the four alone is fatal; together they are.",
+      'The book moves from benign early cases - cadastral maps, standard measures, permanent surnames, scientific forestry - to the disasters of compulsory villagization and centrally planned cities. In each, a schematic, legible model of reality is imposed on a messier one, and the local, practical knowledge that made the original system work is destroyed in the process.',
+      'The counter-concept Scott offers is mētis: the situated, improvisational know-how that cannot be written into a plan. His prescription is not anti-state but anti-hubris - take small steps, favour reversibility, plan on surprise, and trust the people doing the work.',
+    ],
+    chapters: [
+      {
+        t: 'Nature and Space',
+        ps: 11,
+        pe: 52,
+        sum: 'Scientific forestry is the opening parable. Prussian and Saxon foresters, needing to read timber yield off a ledger, replaced diverse old-growth forest with even-aged, single-species stands planted in rows. It worked spectacularly for one rotation, then collapsed: the simplified forest had no defence against storms, pests, or soil exhaustion. The lesson generalizes - a state that can only see what it has made legible will remake the world into something it can see, and lose the resilience that came from what it could not.',
+        src: true,
+      },
+      {
+        t: 'Cities, People, and Language',
+        ps: 53,
+        pe: 83,
+        sum: 'The same legibility drive applied to people: the standardization of weights and measures, the freezing of fluid local land tenure into surveyed property, the imposition of permanent patronymic surnames so subjects could be taxed and conscripted individually, and the redesign of street grids so cities could be policed. Each made the population more governable from the centre and less self-organizing at the edge.',
+        src: true,
+      },
+      {
+        t: 'Authoritarian High Modernism',
+        ps: 87,
+        pe: 102,
+        sum: 'Scott names the ideology directly: a supreme, uncritical faith that scientific and technical progress can be used to reorganize every aspect of social life. It is not science but a borrowed aesthetic of order - straight lines, visual regularity, central coordination - and it appealed equally to planners on the left and the right in the first half of the twentieth century.',
+        src: true,
+      },
+      {
+        t: 'The High-Modernist City',
+        ps: 103,
+        pe: 146,
+        sum: "Le Corbusier's Ville Radieuse and the building of Brasilia are the set pieces. A city designed as a totality, from above, for a schematic citizen with schematic needs, turns out to be nearly unliveable: no informal street life, no mixed use, no room for the unplanned encounters that make a neighbourhood. Residents built the missing informal city on the margins.",
+        src: true,
+      },
+      {
+        t: 'The Revolutionary Party',
+        ps: 147,
+        pe: 179,
+        sum: "A short chapter contrasting Lenin's vanguard theory - the party as engineer of revolution - with Luxemburg's and Kollontai's insistence that revolutionary competence is learned by doing and cannot be supplied from outside. The vanguard model is high modernism applied to political organization.",
+        src: false,
+      },
+      {
+        t: 'Soviet Collectivization',
+        ps: 183,
+        pe: 222,
+        sum: 'Forced collectivization is the first full-scale disaster: the state substituted a legible grid of collective farms for a peasant agriculture it neither understood nor controlled, extracted grain by force, and produced famine. The collective farm succeeded as an instrument of appropriation and control while failing as a way to grow food.',
+        src: true,
+      },
+      {
+        t: 'Compulsory Villagization in Tanzania',
+        ps: 223,
+        pe: 261,
+        sum: "Nyerere's ujamaa moved millions into planned villages laid out for the convenience of service delivery and political oversight. Sited by officials reading maps rather than soil, many villages sat on land that could not sustain the population densities imposed, and yields fell.",
+        src: true,
+      },
+    ],
+  };
+
+  const RECON = [
+    'The early modern European state was, above all, a machine for extraction, and extraction required a legible countryside. Officials could not tax what they could not measure, and the local systems of measurement they encountered were, from the centre, maddeningly opaque. A pistche of land in one district was not a pistche in the next; a bushel measured heaped in one market was measured struck in another; the same term for a plot might denote its area in one village and the seed required to sow it in a village ten miles away.',
+    'What made these units serviceable locally was exactly what made them useless centrally. A measure of land defined by the labour needed to work it, or by its yield in an average year, encoded practical agronomic knowledge that a purely areal measure discarded. The peasant who described a field as "three days\' ploughing" was telling you something a surveyor\'s hectare could not.',
+    "The state's response was not to learn the local systems but to replace them. A uniform, national grid of measurement - metric, abstract, and indifferent to local conditions - was imposed from above, and the older units were, over the course of a century, driven out of official use and then out of memory.",
+    'This is the pattern the rest of the book traces. The simplification is real, it is legible, and it genuinely serves the purposes of the centre. But it is a map, not the territory, and when the map is mistaken for the territory - when the plan is imposed with enough force to remake the world in its image - the practical knowledge that the older, messier arrangement contained is lost, and cannot easily be recovered.',
+  ];
+
+  const state = { vi: 0, screen: 'chapter', ch: 3, srcOpen: false };
+
+  const pageLabel = (c) =>
+    c.ps != null && c.pe != null ? `pp. ${c.ps}–${c.pe}` : null;
+  const proseHtml = (arr) => arr.map((p) => `<p>${p}</p>`).join('');
+
+  // ---------------- Direction A - Margin ----------------
+  function renderA() {
+    if (state.screen === 'overview') {
+      return `<section class="A"><div class="ov">
+        <h1>${BOOK.title}</h1>
+        <div class="by">${BOOK.author} · ${BOOK.chapters.length} chapters</div>
+        <div class="prose">${proseHtml(BOOK.summary)}</div>
+        <ol>${BOOK.chapters
+          .map((c, i) => {
+            const pl = pageLabel(c);
+            return `<li><a href="#" data-goch="${i}"><span class="ct">${c.t}</span>${pl ? `<span class="cp mono">${pl}</span>` : ''}</a></li>`;
+          })
+          .join('')}</ol>
+      </div></section>`;
+    }
+    const c = BOOK.chapters[state.ch];
+    const pl = pageLabel(c);
+    const prev = BOOK.chapters[state.ch - 1],
+      next = BOOK.chapters[state.ch + 1];
+    let reveal;
+    if (!c.src) {
+      reveal = `<div class="src-missing">The original passages for this chapter aren’t available - nothing was captured from the source PDF here. The summary above still stands.</div>`;
+    } else if (state.srcOpen) {
+      reveal = `<div class="source">
+        <div class="src-head"><span>From the book · reconstructed${pl ? ' · ' + pl : ''}</span><button data-src="0">Hide</button></div>
+        <div class="prose">${proseHtml(RECON)}</div>
+      </div>`;
+    } else {
+      reveal = `<div class="reveal-row">
+        <button class="reveal-btn" data-src="1">Read the original passages <span class="hint">reconstructed from the source${pl ? ' · ' + pl : ''}</span></button>
+      </div>`;
+    }
+    return `<section class="A">
+      <div class="topline">
+        <button class="contents-btn" data-drawer="1">☰ Contents</button>
+        <span class="mono" style="font-size:11px;color:var(--muted-foreground)">Ch. ${state.ch + 1} / ${BOOK.chapters.length}</span>
+      </div>
+      <div class="reader">
+        <div class="eyebrow">${BOOK.title} — Chapter ${state.ch + 1}</div>
+        <h1>${c.t}</h1>
+        ${pl ? `<div class="pages mono">${pl}</div>` : `<div class="pages" style="margin-bottom:30px"></div>`}
+        <div class="prose"><p>${c.sum}</p></div>
+        ${reveal}
+      </div>
+      <div class="pager">
+        <a class="${prev ? '' : 'disabled'}" href="#" data-goch="${state.ch - 1}"><span class="dir">← Previous</span><span class="ttl">${prev ? prev.t : ''}</span></a>
+        <a class="next ${next ? '' : 'disabled'}" href="#" data-goch="${state.ch + 1}"><span class="dir">Next →</span><span class="ttl">${next ? next.t : ''}</span></a>
+      </div>
+    </section>`;
+  }
+
+  // ---------------- Direction B - Console reader ----------------
+  function renderB() {
+    const sidebar = `<div class="side">
+      <div class="bk"><a href="#">← Back to book</a><b>${BOOK.title}</b></div>
+      <ol>${BOOK.chapters
+        .map((c, i) => {
+          const pl = pageLabel(c);
+          return `<li><a href="#" data-goch="${i}" ${i === state.ch && state.screen === 'chapter' ? 'aria-current="page"' : ''}>
+          <span class="t">${c.t}</span>${pl ? `<span class="pg">${c.ps}–${c.pe}</span>` : ''}</a></li>`;
+        })
+        .join('')}</ol>
+    </div>`;
+
+    if (state.screen === 'overview') {
+      return `<section class="B">${sidebar}<div class="main">
+        <div class="strip"><span class="count">BOOK OVERVIEW</span></div>
+        <div class="body">
+          <div class="eyebrow">${BOOK.author}</div>
+          <h1>${BOOK.title}</h1>
+          <div class="pages">${BOOK.chapters.length} chapters · whole-book summary</div>
+          <div class="prose">${proseHtml(BOOK.summary)}</div>
+        </div>
+      </div></section>`;
+    }
+
+    const c = BOOK.chapters[state.ch];
+    const pl = pageLabel(c);
+    const showingSource = state.srcOpen && c.src;
+    let content;
+    if (showingSource) {
+      content = `<span class="src-tag">Reconstructed from source${pl ? ' · ' + pl : ''}</span>
+        <div class="prose">${proseHtml(RECON)}</div>`;
+    } else {
+      content = `<div class="prose"><p>${c.sum}</p></div>`;
+    }
+    return `<section class="B">${sidebar}<div class="main">
+      <div class="strip">
+        <div class="nav">
+          <button data-goch="${state.ch - 1}" ${state.ch === 0 ? 'disabled' : ''}>←</button>
+          <button data-goch="${state.ch + 1}" ${state.ch === BOOK.chapters.length - 1 ? 'disabled' : ''}>→</button>
+        </div>
+        <span class="count">${String(state.ch + 1).padStart(2, '0')} / ${String(BOOK.chapters.length).padStart(2, '0')}</span>
+        <div class="seg">
+          <button data-src="0" aria-pressed="${!showingSource}">Summary</button>
+          <button data-src="1" aria-pressed="${showingSource}" ${c.src ? '' : 'disabled'}>Source</button>
+        </div>
+      </div>
+      <div class="body">
+        <div class="eyebrow">Chapter ${state.ch + 1}</div>
+        <h1>${c.t}</h1>
+        ${pl ? `<div class="pages">${pl}</div>` : `<div class="pages">page range not recorded</div>`}
+        ${
+          !c.src && state.srcOpen
+            ? `<div class="src-missing">No source passages were captured for this chapter.<br>Showing the summary instead.</div>`
+            : content
+        }
+      </div>
+    </div></section>`;
+  }
+
+  // ---------------- Direction C - Facing pages ----------------
+  function renderC() {
+    if (state.screen === 'overview') {
+      return `<section class="C"><div class="ov">
+        <h1>${BOOK.title}</h1>
+        <div class="by">${BOOK.author}</div>
+        <div class="prose">${proseHtml(BOOK.summary)}</div>
+        <div class="grid">${BOOK.chapters
+          .map((c, i) => {
+            const pl = pageLabel(c);
+            return `<a class="chip-ch" href="#" data-goch="${i}">
+            <span class="n">${String(i + 1).padStart(2, '0')}</span>
+            <span class="t">${c.t}</span>
+            ${pl ? `<span class="p">${pl}</span>` : `<span class="p">–</span>`}</a>`;
+          })
+          .join('')}</div>
+      </div></section>`;
+    }
+    const c = BOOK.chapters[state.ch];
+    const pl = pageLabel(c);
+    const open = state.srcOpen && c.src;
+    const ticks = BOOK.chapters
+      .map(
+        (_, i) =>
+          `<i class="${i < state.ch ? 'done' : ''} ${i === state.ch ? 'here' : ''}"></i>`,
+      )
+      .join('');
+    let openArea;
+    if (!c.src) {
+      openArea = `<div class="src-missing-inline">No original passages available for this chapter - nothing was captured from the source PDF. The summary is unaffected.</div>`;
+    } else {
+      openArea = `<button class="openbtn" data-src="${open ? 0 : 1}">${open ? 'Close source →' : '↔ Open the source beside this'}</button>`;
+    }
+    return `<section class="C">
+      <div class="railtop">
+        <div class="chsel">
+          <span class="mono">CH ${String(state.ch + 1).padStart(2, '0')}</span>
+          <b>${c.t}</b>
+          <span class="mono">▾</span>
+        </div>
+        <div class="ticks">${ticks}</div>
+        <div class="mv">
+          <button data-goch="${state.ch - 1}" ${state.ch === 0 ? 'disabled' : ''}>Prev</button>
+          <button data-goch="${state.ch + 1}" ${state.ch === BOOK.chapters.length - 1 ? 'disabled' : ''}>Next</button>
+        </div>
+      </div>
+      <div class="split ${open ? 'open' : ''}">
+        <div class="sumcol"><div class="inner">
+          <div class="eyebrow">${BOOK.title}</div>
+          <h1>${c.t}</h1>
+          ${pl ? `<div class="pages">${pl}</div>` : `<div class="pages"></div>`}
+          <div class="prose"><p>${c.sum}</p></div>
+          ${openArea}
+        </div></div>
+        <div class="srccol"><div class="wrap">
+          <div class="sh"><span>Reconstructed source${pl ? ' · ' + pl : ''}</span><button data-src="0">&times;</button></div>
+          <div class="prose">${proseHtml(RECON)}</div>
+        </div></div>
+      </div>
+    </section>`;
+  }
+
+  const VARIANTS = [
+    { key: 'A', name: 'Margin', render: renderA },
+    { key: 'B', name: 'Console reader', render: renderB },
+    { key: 'C', name: 'Facing pages', render: renderC },
+  ];
+
+  let vi = (() => {
+    let p = null;
+    try {
+      p = new URLSearchParams(location.search).get('variant');
+    } catch {}
+    const i = VARIANTS.findIndex((v) => v.key === p);
+    return i < 0 ? 0 : i;
+  })();
+
+  const keyBtns = [...document.querySelectorAll('#switch .keys button')];
+  const screenBtns = [...document.querySelectorAll('.shell-note .seg button')];
+
+  function buildDrawer() {
+    const nav = document.getElementById('drawer-nav');
+    nav.innerHTML = BOOK.chapters
+      .map(
+        (c, i) =>
+          `<a href="#" data-goch="${i}" ${i === state.ch ? 'aria-current="page"' : ''}>
+        <span class="n">${String(i + 1).padStart(2, '0')}</span><span class="t">${c.t}</span></a>`,
+      )
+      .join('');
+  }
+
+  function draw() {
+    const v = VARIANTS[vi];
+    document.getElementById('stage').innerHTML = v.render();
+    document.getElementById('vname').textContent = v.name;
+    document.getElementById('vkey').textContent = 'Direction ' + v.key;
+    keyBtns.forEach((b, i) => b.setAttribute('aria-pressed', String(i === vi)));
+    screenBtns.forEach((b) =>
+      b.setAttribute('aria-pressed', String(b.dataset.screen === state.screen)),
+    );
+    buildDrawer();
+    wireStage();
+    window.scrollTo(0, 0);
+  }
+
+  function wireStage() {
+    document.querySelectorAll('#stage [data-goch]').forEach((el) => {
+      el.addEventListener('click', (e) => {
+        e.preventDefault();
+        const i = Number(el.dataset.goch);
+        if (i < 0 || i >= BOOK.chapters.length) return;
+        state.ch = i;
+        state.screen = 'chapter';
+        state.srcOpen = false;
+        closeDrawer();
+        draw();
+      });
+    });
+    document.querySelectorAll('#stage [data-src]').forEach((el) => {
+      el.addEventListener('click', (e) => {
+        e.preventDefault();
+        const want = el.dataset.src === '1';
+        // direction C on a narrow screen: use the bottom sheet
+        if (
+          VARIANTS[vi].key === 'C' &&
+          want &&
+          window.matchMedia('(max-width: 860px)').matches
+        ) {
+          openSheet();
+          return;
+        }
+        state.srcOpen = want;
+        draw();
+      });
+    });
+    const db = document.querySelector('#stage [data-drawer]');
+    if (db) db.addEventListener('click', openDrawer);
+  }
+
+  // drawer (A contents, and C-mobile could reuse)
+  const scrim = document.getElementById('scrim');
+  const drawer = document.getElementById('drawer');
+  function openDrawer() {
+    buildDrawer();
+    scrim.classList.add('open');
+    drawer.classList.add('open');
+  }
+  function closeDrawer() {
+    scrim.classList.remove('open');
+    drawer.classList.remove('open');
+  }
+  scrim.addEventListener('click', closeDrawer);
+  document.getElementById('drawer-x').addEventListener('click', closeDrawer);
+  document.getElementById('drawer-nav').addEventListener('click', (e) => {
+    const a = e.target.closest('[data-goch]');
+    if (!a) return;
+    e.preventDefault();
+    state.ch = Number(a.dataset.goch);
+    state.screen = 'chapter';
+    state.srcOpen = false;
+    closeDrawer();
+    draw();
+  });
+
+  // bottom sheet (C mobile source)
+  const sheetScrim = document.getElementById('sheet-scrim');
+  const sheet = document.getElementById('sheet');
+  function openSheet() {
+    document.getElementById('sheet-body').innerHTML =
+      `<div class="prose">${proseHtml(RECON)}</div>`;
+    sheetScrim.classList.add('open');
+    sheet.classList.add('open');
+  }
+  function closeSheet() {
+    sheetScrim.classList.remove('open');
+    sheet.classList.remove('open');
+  }
+  sheetScrim.addEventListener('click', closeSheet);
+  document.getElementById('sheet-x').addEventListener('click', closeSheet);
+
+  // variant + screen switching
+  function set(i) {
+    vi = (i + VARIANTS.length) % VARIANTS.length;
+    state.srcOpen = false;
+    draw();
+  }
+  document.getElementById('prev').addEventListener('click', () => set(vi - 1));
+  document.getElementById('next').addEventListener('click', () => set(vi + 1));
+  keyBtns.forEach((b) =>
+    b.addEventListener('click', () => set(Number(b.dataset.i))),
+  );
+  screenBtns.forEach((b) =>
+    b.addEventListener('click', () => {
+      state.screen = b.dataset.screen;
+      state.srcOpen = false;
+      draw();
+    }),
+  );
+  addEventListener('keydown', (e) => {
+    const t = e.target;
+    if (
+      t &&
+      (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)
+    )
+      return;
+    if (e.key === 'ArrowLeft') set(vi - 1);
+    else if (e.key === 'ArrowRight') set(vi + 1);
+    else if (e.key === '1') set(0);
+    else if (e.key === '2') set(1);
+    else if (e.key === '3') set(2);
+    else if (e.key === 'Escape') {
+      closeDrawer();
+      closeSheet();
+    }
+  });
+
+  // theme toggle - prototype convenience
+  const root = document.documentElement;
+  const themeBtn = document.getElementById('theme');
+  function isDark() {
+    const a = root.getAttribute('data-theme');
+    if (a === 'dark') return true;
+    if (a === 'light') return false;
+    return matchMedia('(prefers-color-scheme: dark)').matches;
+  }
+  function syncLabel() {
+    themeBtn.textContent = isDark() ? 'Light mode' : 'Dark mode';
+  }
+  let stored = null;
+  try {
+    stored = localStorage.getItem('proto-theme');
+  } catch {}
+  if (stored) root.setAttribute('data-theme', stored);
+  syncLabel();
+  themeBtn.addEventListener('click', () => {
+    const next = isDark() ? 'light' : 'dark';
+    root.setAttribute('data-theme', next);
+    try {
+      localStorage.setItem('proto-theme', next);
+    } catch {}
+    syncLabel();
+  });
+  matchMedia('(prefers-color-scheme: dark)').addEventListener(
+    'change',
+    syncLabel,
+  );
+
+  draw();
+</script>
