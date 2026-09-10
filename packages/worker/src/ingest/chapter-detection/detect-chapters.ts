@@ -4,6 +4,7 @@ import type {
   PdfOutlineItem,
   PdfPage,
 } from '@scriptorium/providers';
+import { pageRangeMarkdown } from '@scriptorium/server-core';
 
 // Pure chapter detection. Given the LlamaParse result (per-page markdown, the
 // `items` heading blocks, the metadata) and the `pdfjs-dist` bookmark outline,
@@ -96,20 +97,6 @@ function titlesOverlap(a: string, b: string): boolean {
   const nb = normaliseTitle(b);
   if (na.length === 0 || nb.length === 0) return false;
   return na.includes(nb) || nb.includes(na);
-}
-
-// The markdown of an inclusive 1-based page range, in page order.
-export function pageRangeMarkdown(
-  pages: PdfPage[],
-  startPage: number,
-  endPage: number,
-): string {
-  return [...pages]
-    .sort((x, y) => x.page - y.page)
-    .filter((p) => p.page >= startPage && p.page <= endPage)
-    .map((p) => p.markdown)
-    .join('\n\n')
-    .trim();
 }
 
 // The 1-based pages that look like a table of contents: inside the leading

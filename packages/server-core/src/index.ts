@@ -44,6 +44,15 @@ export {
   type ChunkInput,
   type WriteChaptersInput,
 } from './ingest/ingest.repository.js';
+export {
+  extractionArtifactKey,
+  toExtractionArtifact,
+  saveExtractionArtifact,
+  loadExtractionArtifact,
+  requireExtractionArtifact,
+  type ExtractionArtifact,
+} from './ingest/extraction-artifact.js';
+export { pageRangeMarkdown } from './ingest/page-range-markdown.js';
 
 export {
   IngestEventSubscriber,

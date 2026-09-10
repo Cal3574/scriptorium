@@ -1,8 +1,11 @@
+import {
+  pageRangeMarkdown,
+  requireExtractionArtifact,
+} from '@scriptorium/server-core';
 import { withRetry } from '../retry.js';
 import { mapWithConcurrency } from '../concurrency.js';
-import { pageRangeMarkdown } from '../chapter-detection/detect-chapters.js';
 import type { Stage } from '../stage.js';
-import { requireExtractionArtifact } from './extraction-artifact.js';
+import { missingSidecarError } from './extraction-artifact-error.js';
 import {
   CHAPTER_SUMMARY_MODEL,
   CHAPTER_SUMMARY_SYSTEM,
@@ -36,7 +39,11 @@ export const chapterSummaryStage: Stage = {
     const pending = await repo.listChaptersMissingSummary(book.id);
     if (pending.length === 0) return;
 
-    const artifact = await requireExtractionArtifact(storage, book);
+    const artifact = await requireExtractionArtifact(
+      storage,
+      book,
+      missingSidecarError,
+    );
 
     const total = await repo.countChapters(book.id);
     let done = total - pending.length;

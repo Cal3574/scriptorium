@@ -1,12 +1,12 @@
-import { withRetry } from '../retry.js';
-import { TerminalIngestError } from '../errors.js';
-import type { Stage } from '../stage.js';
-import type { BookRow } from '@scriptorium/server-core';
 import {
   extractionArtifactKey,
   saveExtractionArtifact,
   toExtractionArtifact,
-} from './extraction-artifact.js';
+  type BookRow,
+} from '@scriptorium/server-core';
+import { withRetry } from '../retry.js';
+import { TerminalIngestError } from '../errors.js';
+import type { Stage } from '../stage.js';
 
 // The permanent markdown blob lives next to the original PDF, same key with a
 // `.md` extension: `books/{userId}/{uuid}.md`. Deleting a book removes both.
