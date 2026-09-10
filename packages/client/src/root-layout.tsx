@@ -1,7 +1,8 @@
-import { SignIn, useAuth } from '@clerk/react';
+import { useAuth } from '@clerk/react';
 import { Component, Suspense, type ReactNode } from 'react';
 import { Outlet } from 'react-router';
 import { hasProviderRemote, lazyProvider } from './mf';
+import { SignInScreen } from './auth/sign-in-screen';
 import { AppShell } from './components/shell/app-shell';
 import { RouteFallback } from './components/shell/route-fallback';
 import { UsageProvider } from './usage/use-usage';
@@ -71,12 +72,18 @@ export function RootLayout() {
   useDocumentTitle();
 
   // Core 3 dropped <SignedIn>/<SignedOut>; gate on the hook instead. An
-  // unauthenticated visitor only ever sees <SignIn />.
+  // unauthenticated visitor only ever sees <SignInScreen />.
   const { isLoaded, isSignedIn } = useAuth();
 
   return (
     <main>
-      {!isLoaded ? <RouteFallback /> : isSignedIn ? <Shell /> : <SignIn />}
+      {!isLoaded ? (
+        <RouteFallback />
+      ) : isSignedIn ? (
+        <Shell />
+      ) : (
+        <SignInScreen />
+      )}
     </main>
   );
 }
