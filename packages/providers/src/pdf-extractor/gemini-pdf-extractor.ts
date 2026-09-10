@@ -51,15 +51,18 @@ const SAFETY_CATEGORIES = [
 // safety filter", as opposed to an API exception. Salvaged page-by-page.
 const SAFETY_FINISH_REASONS = new Set(['SAFETY', 'PROHIBITED_CONTENT']);
 
-const prompt = (pages: number[]): string =>
+const prompt = (pageCount: number): string =>
   [
     'Transcribe every page of this PDF to GitHub-flavored Markdown.',
     'Preserve the reading order and all headings (use `#`..`######` for them).',
     'Do not summarise, comment, translate, or skip anything - transcribe verbatim.',
-    `This slice contains ${pages.length} page(s), numbered ${pages.join(', ')}.`,
+    `This PDF contains ${pageCount} page(s).`,
     "Immediately before each page's content, emit a sentinel line on its own:",
-    '<!-- page N -->',
-    "using that page's real number. Emit exactly one sentinel per page, in order.",
+    '<!-- page K -->',
+    'where K is the position of the page within THIS PDF, counting from 1 for',
+    'its first page. Ignore any page number printed on the page itself - this',
+    'PDF is an extract and its printed folios are not what K means.',
+    `Emit exactly one sentinel per page, in order, from 1 to ${pageCount}.`,
     'Output only the sentinels and the transcription - no preamble.',
   ].join('\n');
 
@@ -147,7 +150,8 @@ function rangeLabel(range: PageRange): string {
  * A PDF text extractor backed by Google Gemini. A local `pdfjs-dist` pass
  * supplies the outline, metadata, and page count; the PDF is then sliced into
  * fixed-size page-range batches (`pdf-lib`), each sent to Gemini as native PDF
- * bytes and transcribed to markdown with `<!-- page N -->` sentinels. Batches
+ * bytes and transcribed to markdown with slice-local `<!-- page K -->`
+ * sentinels that the adapter maps back to absolute page numbers. Batches
  * run concurrently, are retried on transient failures, and safety-blocked
  * batches are salvaged page-by-page. Implements the same {@link PdfExtractor}
  * seam as {@link LlamaParseExtractor}, so everything downstream is unchanged.
@@ -365,7 +369,7 @@ export class GeminiPdfExtractor implements PdfExtractor {
                 data: base64(slice),
               },
             },
-            { text: prompt(expectedPages) },
+            { text: prompt(expectedPages.length) },
           ],
         },
       ],

@@ -26,22 +26,37 @@ const safetyBlock = (): GeminiResponse => ({
   candidates: [{ finishReason: 'SAFETY', content: { parts: [] } }],
 });
 
+// Build a batch response with slice-local sentinels (`<!-- page 1 -->`..), the
+// wire shape the adapter now asks for. `pages` is the absolute page list the
+// batch covers; `drop` names absolute pages the model omitted entirely, leaving
+// a gap in the local sequence exactly where that page sat.
 const sentinelBody = (
   pages: number[],
-  body = (p: number) => `Body of page ${p}.`,
-): string => pages.map((p) => `<!-- page ${p} -->\n${body(p)}`).join('\n');
+  opts: { body?: (p: number) => string; drop?: number[] } = {},
+): string => {
+  const body = opts.body ?? ((p: number) => `Body of page ${p}.`);
+  const drop = new Set(opts.drop ?? []);
+  return pages
+    .map((page, index) => ({ page, position: index + 1 }))
+    .filter(({ page }) => !drop.has(page))
+    .map(({ page, position }) => `<!-- page ${position} -->\n${body(page)}`)
+    .join('\n');
+};
 
-// Pull the 1-based page list out of the adapter's own prompt text.
+// Recover the absolute page list a request covers from the PDF bytes it carries
+// - the fake `slicePdf` encodes the range as `[start, end]`, so the adapter is
+// never told the absolute numbers in the prompt.
 function requestedPages(request: unknown): number[] {
   const parts = (
-    request as { contents: Array<{ parts: Array<{ text?: string }> }> }
+    request as {
+      contents: Array<{ parts: Array<{ inlineData?: { data?: string } }> }>;
+    }
   ).contents[0].parts;
-  const prompt = parts.map((p) => p.text ?? '').join('');
-  const match = /numbered ([\d, ]+)\./.exec(prompt);
-  return (match?.[1] ?? '')
-    .split(',')
-    .map((n) => Number(n.trim()))
-    .filter((n) => Number.isFinite(n));
+  const data = parts.find((p) => p.inlineData)?.inlineData?.data ?? '';
+  const [start, end] = [...Buffer.from(data, 'base64')];
+  const pages: number[] = [];
+  for (let page = start; page <= end; page++) pages.push(page);
+  return pages;
 }
 
 type Handler = (pages: number[], attempt: number) => GeminiResponse;
@@ -110,9 +125,14 @@ describe('GeminiPdfExtractor', () => {
   it('assembles multiple batch responses into one PdfExtraction', async () => {
     const { extractor } = build((pages) =>
       okResponse(
-        sentinelBody(pages, (p) =>
-          p === 1 ? '# Deep Modules' : p === 11 ? '## Chapter 2' : `Body ${p}.`,
-        ),
+        sentinelBody(pages, {
+          body: (p) =>
+            p === 1
+              ? '# Deep Modules'
+              : p === 11
+                ? '## Chapter 2'
+                : `Body ${p}.`,
+        }),
       ),
     );
 
@@ -152,7 +172,8 @@ describe('GeminiPdfExtractor', () => {
   it('retries a batch whose sentinels are malformed', async () => {
     const { extractor, client } = build((pages, attempt) => {
       if (pages[0] === 1 && attempt === 1) {
-        return okResponse('<!-- page 1 -->\nonly one page');
+        // A sentinel past the end of a 10-page slice: a scrambled response.
+        return okResponse('<!-- page 99 -->\nscrambled');
       }
       return okResponse(sentinelBody(pages));
     });
@@ -236,7 +257,7 @@ describe('GeminiPdfExtractor', () => {
       (pages) => {
         // The 11-20 batch always omits page 17; a single-page call gets it.
         if (pages.length > 1 && pages[0] === 11) {
-          return okResponse(sentinelBody(pages.filter((p) => p !== 17)));
+          return okResponse(sentinelBody(pages, { drop: [17] }));
         }
         return okResponse(sentinelBody(pages));
       },
@@ -263,7 +284,7 @@ describe('GeminiPdfExtractor', () => {
     const { extractor } = build(
       (pages) => {
         if (pages.length > 1 && pages[0] === 11) {
-          return okResponse(sentinelBody(pages.filter((p) => p !== 17)));
+          return okResponse(sentinelBody(pages, { drop: [17] }));
         }
         if (pages.length === 1 && pages[0] === 17) {
           return okResponse('nothing usable here');

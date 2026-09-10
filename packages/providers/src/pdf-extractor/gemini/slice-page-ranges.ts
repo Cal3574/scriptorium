@@ -28,8 +28,10 @@ export function slicePageRanges(pageCount: number, size: number): PageRange[] {
   return ranges;
 }
 
-// The pages a range covers, expanded to an explicit 1-based list. Used both to
-// name the pages a batch must return and to validate the sentinels it did.
+// The pages a range covers, expanded to an explicit 1-based list. The batch
+// response carries slice-local sentinels (`<!-- page 1 -->`..); this list is
+// how the parser maps sentinel position K back to an absolute page number, and
+// its length is how many pages the slice should contain.
 export function pagesInRange(range: PageRange): number[] {
   const pages: number[] = [];
   for (let page = range.start; page <= range.end; page++) pages.push(page);

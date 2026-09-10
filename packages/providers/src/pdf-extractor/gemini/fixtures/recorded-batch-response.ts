@@ -1,11 +1,13 @@
 // A recorded Gemini 2.5 Flash-Lite batch response - the raw text returned for a
-// 3-page slice (pages 40-42) of a born-digital non-fiction book, captured with
-// the adapter's own prompt (`temperature: 0`, thinking disabled). Kept verbatim
-// so the parser/assembler is locked against the real wire shape: the leading
-// blank line, the sentinel style, a mid-page heading, a footnote marker, and a
-// hard-wrapped paragraph the model does not re-flow.
+// 3-page slice (absolute pages 40-42) of a born-digital non-fiction book,
+// captured with the adapter's own prompt (`temperature: 0`, thinking disabled).
+// The sentinels are slice-local (`1`..`3`); the adapter maps them back to the
+// absolute pages it asked for. Kept verbatim so the parser/assembler is locked
+// against the real wire shape: the leading blank line, the sentinel style, a
+// mid-page heading, a footnote marker, and a hard-wrapped paragraph the model
+// does not re-flow.
 export const RECORDED_BATCH_RESPONSE = `
-<!-- page 40 -->
+<!-- page 1 -->
 the dependency graph. When a change ripples further than the author expected,
 that is the graph telling you the module boundary is in the wrong place.
 
@@ -18,7 +20,7 @@ nothing - but coupling that follows the design rather than fighting it.[^1]
 [^1]: Parnas, D. L. (1972). "On the Criteria To Be Used in Decomposing
 Systems into Modules."
 
-<!-- page 41 -->
+<!-- page 2 -->
 Cohesion is the other half of the pair: how strongly the responsibilities of a
 single module belong together. A module you can describe in one sentence
 without using the word "and" is usually cohesive.
@@ -28,7 +30,7 @@ emails it. Three reasons to change, three audiences, one class. Splitting it
 into \`ReportFormatter\`, \`ReportWriter\`, and \`ReportMailer\` gives each a
 single reason to change.
 
-<!-- page 42 -->
+<!-- page 3 -->
 ### Exercises
 
 1. Take a class from your current project and list its reasons to change.
