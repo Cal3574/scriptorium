@@ -1,26 +1,10 @@
 import { useAuth } from '@clerk/react';
 import { useEffect, useRef, useState } from 'react';
-import {
-  type BookStatus,
-  IngestEvent,
-  type ProcessingStage,
-} from '@scriptorium/contracts';
+import { IngestEvent } from '@scriptorium/contracts';
 import { env } from '../env';
+import { type IngestProgress, fold, safeJson } from './ingest-fold';
 
-// The live view of a book's ingest, folded from the SSE stream. Seeded by the
-// `snapshot` frame, then advanced by each delta. `stale` events (a `seq` at or
-// below one already applied) are dropped so a reconnect never double-counts.
-export interface IngestProgress {
-  status: BookStatus;
-  stage: ProcessingStage | null;
-  progress: { done: number; total: number; unit: 'chunks' | 'chapters' } | null;
-  chaptersTotal: number;
-  chaptersSummarized: number;
-  title: string | null;
-  author: string | null;
-  failedStage: string | null;
-  failureReason: string | null;
-}
+export type { IngestProgress } from './ingest-fold';
 
 // The SSE `event:` names the server writes (the `type` of every `IngestEvent`
 // variant). Named events do not trigger `EventSource.onmessage`, so each is
@@ -112,67 +96,4 @@ export function useIngestEvents(
   }, [bookId, enabled, getToken]);
 
   return { progress, connected, deleted };
-}
-
-function fold(
-  prev: IngestProgress | null,
-  event: IngestEvent,
-): IngestProgress | null {
-  switch (event.type) {
-    case 'snapshot':
-      return {
-        status: event.status,
-        stage: event.stage,
-        progress: event.progress,
-        chaptersTotal: event.chaptersTotal,
-        chaptersSummarized: event.chaptersSummarized,
-        title: event.title,
-        author: event.author,
-        failedStage: event.failedStage,
-        failureReason: event.failureReason,
-      };
-    case 'stage_entered':
-      return (
-        prev && {
-          ...prev,
-          stage: event.stage,
-          status: event.status,
-          progress: null,
-        }
-      );
-    case 'stage_progress':
-      return (
-        prev && {
-          ...prev,
-          stage: event.stage,
-          progress: { done: event.done, total: event.total, unit: event.unit },
-        }
-      );
-    case 'book_identified':
-      return prev && { ...prev, title: event.title, author: event.author };
-    case 'book_completed':
-      return prev && { ...prev, status: 'ready', stage: null, progress: null };
-    case 'book_failed':
-      return (
-        prev && {
-          ...prev,
-          status: 'failed',
-          stage: null,
-          failedStage: event.failedStage,
-          failureReason: event.failureReason,
-        }
-      );
-    case 'book_deleted':
-      return prev && { ...prev, status: 'deleting' };
-    default:
-      return prev;
-  }
-}
-
-function safeJson(text: string): unknown {
-  try {
-    return JSON.parse(text);
-  } catch {
-    return null;
-  }
 }
