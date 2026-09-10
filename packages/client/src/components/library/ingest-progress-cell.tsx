@@ -43,7 +43,7 @@ export function IngestProgressCell({
     if (pageCount != null) parts.push(`${pageCount}p`);
     if (chaptersTotal != null) parts.push(`${chaptersTotal}ch`);
     return (
-      <span className="text-muted-foreground font-mono text-xs">
+      <span className="text-muted-foreground font-mono text-xs tabular-nums">
         {parts.length ? parts.join(' · ') : '-'}
       </span>
     );
@@ -52,7 +52,7 @@ export function IngestProgressCell({
   if (role === 'working') {
     return (
       <span className="block">
-        <span className="text-muted-foreground font-mono text-xs">
+        <span className="text-muted-foreground font-mono text-xs tabular-nums">
           {stageText(stage)}
           {progress
             ? ` · ${progress.done}/${progress.total} ${progress.unit}`

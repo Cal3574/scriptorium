@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useState } from 'react';
-import { LibraryBigIcon } from 'lucide-react';
 import type { BookListItemDto } from '@scriptorium/contracts';
 
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { EmptyState } from '@/components/empty-state';
+import { EmptyShelf } from '@/components/library/empty-shelf';
 import { Toolbar } from '@/components/library/toolbar';
 import {
   LibraryTable,
@@ -91,7 +91,7 @@ export function Library() {
         <LibraryTableSkeleton />
       ) : books.length === 0 ? (
         <EmptyState
-          icon={LibraryBigIcon}
+          visual={<EmptyShelf />}
           title="No books yet"
           body="Your books will appear here as they process."
           action={

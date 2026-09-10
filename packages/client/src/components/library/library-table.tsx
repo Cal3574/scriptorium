@@ -2,6 +2,7 @@ import type { BookListItemDto } from '@scriptorium/contracts';
 
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
+import { sortBooks } from '@/books/sort-books';
 import { BookRow, GRID_COLS, ROW_GRID } from './book-row';
 
 const MICRO_LABEL =
@@ -17,6 +18,7 @@ const HEADER = cn(
 function Header() {
   return (
     <div className={HEADER}>
+      <span className="sr-only">Cover</span>
       <span className={MICRO_LABEL}>Book</span>
       <span className={MICRO_LABEL}>Status</span>
       <span className={MICRO_LABEL}>Progress</span>
@@ -37,9 +39,9 @@ export function LibraryTable({
 }) {
   return (
     <div className="border-border bg-card overflow-hidden rounded-lg border sm:overflow-x-auto">
-      <div className="sm:min-w-[36rem]">
+      <div className="sm:min-w-[38rem]">
         <Header />
-        {books.map((book) => (
+        {sortBooks(books).map((book) => (
           <BookRow key={book.id} book={book} onSettled={onSettled} />
         ))}
       </div>
@@ -52,7 +54,7 @@ export function LibraryTable({
 export function LibraryTableSkeleton() {
   return (
     <div className="border-border bg-card overflow-hidden rounded-lg border sm:overflow-x-auto">
-      <div className="sm:min-w-[36rem]">
+      <div className="sm:min-w-[38rem]">
         <Header />
         {Array.from({ length: 4 }).map((_, i) => (
           <div
@@ -62,7 +64,10 @@ export function LibraryTableSkeleton() {
               ROW_GRID,
             )}
           >
-            <Skeleton className="h-4 w-2/3" />
+            <div className="flex gap-3 sm:contents">
+              <Skeleton className="aspect-[3/4] w-10 rounded-[3px] sm:w-11" />
+              <Skeleton className="h-4 w-2/3" />
+            </div>
             <div className="flex gap-3 sm:contents">
               <Skeleton className="h-4 w-16" />
               <Skeleton className="h-4 w-24" />

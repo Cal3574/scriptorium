@@ -12,7 +12,7 @@ import { FailedBookBanner } from '@/components/library/failed-book-banner';
 import { ChapterAccordion } from '@/components/book-detail/chapter-accordion';
 import { EditableField } from '@/components/book-detail/editable-field';
 import { NotGeneratedYet } from '@/components/book-detail/not-generated-yet';
-import { ProcessingStatus } from '@/components/book-detail/processing-status';
+import { IngestTimeline } from '@/components/ingest/ingest-timeline';
 import { useApi } from '../auth/use-api';
 import { setDocumentTitle } from '../use-document-title';
 import { problemMessage } from './problem';
@@ -138,7 +138,16 @@ export function BookDetail() {
           onRetry={retry}
         />
       )}
-      {live && <ProcessingStatus progress={progress} connected={connected} />}
+      {live && (
+        <div className="border-border bg-card mb-6 rounded-lg border p-4">
+          <IngestTimeline
+            book={book}
+            progress={progress}
+            connected={connected}
+            onRetry={retry}
+          />
+        </div>
+      )}
 
       <dl className="mb-8 grid grid-cols-[max-content_1fr] gap-x-6 gap-y-2 text-sm">
         <dt className="text-muted-foreground font-mono text-xs tracking-wide uppercase">

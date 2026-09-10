@@ -11,7 +11,7 @@ import { FallbackVisual } from './FallbackVisual';
 import { PayoffCard } from './PayoffCard';
 import { isPayoffStep } from './payoff-samples';
 import { supportsWebGL } from './supports-webgl';
-import { usePrefersReducedMotion } from './use-prefers-reduced-motion';
+import { usePrefersReducedMotion } from '@/lib/use-prefers-reduced-motion';
 
 // The 3-D scene is a large chunk (three.js); keep it out of the main bundle
 // and only fetch it once we know it will actually be used.

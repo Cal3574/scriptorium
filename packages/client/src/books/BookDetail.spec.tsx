@@ -220,8 +220,9 @@ test('a processing book shows its live status line', async () => {
   renderDetail();
 
   const status = await screen.findByRole('status');
-  expect(status).toHaveTextContent(/writing summaries/i);
-  expect(status).toHaveTextContent('2/5 chapters');
+  expect(status).toHaveTextContent(/summarize each chapter/i);
+  expect(status).toHaveTextContent('2 / 5 chapters');
+  expect(status).toHaveTextContent(/live/i);
 });
 
 test('EditableField: an empty title is refused, a real value is PATCHed', async () => {

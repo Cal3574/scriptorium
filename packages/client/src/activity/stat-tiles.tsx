@@ -24,7 +24,7 @@ function Figure({ children }: { children: ReactNode }) {
   );
 }
 
-const SUBLINE = 'text-muted-foreground mt-1 font-mono text-xs';
+const SUBLINE = 'text-muted-foreground mt-1 font-mono text-xs tabular-nums';
 
 // The four headline tiles above the charts: three lifetime totals and the
 // current question allowance. Free shows the plan name and a link to
