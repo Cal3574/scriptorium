@@ -7,6 +7,9 @@ import { QueryHistory } from './queries/QueryHistory';
 import { ActivityScreen } from './activity/ActivityScreen';
 import { PricingScreen } from './pricing/PricingScreen';
 import { HowItWorks } from './how-it-works/HowItWorks';
+import { ReaderLayout } from './reader/ReaderLayout';
+import { ReaderOverview } from './reader/ReaderOverview';
+import { ReaderChapter } from './reader/ReaderChapter';
 
 // One layout route wraps the full-page screens; the index route just
 // redirects `/` to `/library` (a data-mode loader redirect, so it never
@@ -23,6 +26,17 @@ export const routes: RouteObject[] = [
         handle: { title: 'Library' },
       },
       { path: 'books/:bookId', element: <BookDetail /> },
+      {
+        // The reader (#136 / #138): a nested layout so the TOC sidebar and the
+        // single <ScrollRestoration> are shared by the overview and chapter
+        // screens. `:chapterNumber` is 1-based.
+        path: 'books/:bookId/read',
+        element: <ReaderLayout />,
+        children: [
+          { index: true, element: <ReaderOverview /> },
+          { path: ':chapterNumber', element: <ReaderChapter /> },
+        ],
+      },
       { path: 'ask', element: <QueryScreen />, handle: { title: 'Ask' } },
       {
         path: 'ask/:queryId',
