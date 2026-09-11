@@ -1,11 +1,11 @@
 import { FakeLlmClient, FakeObjectStorage } from '@scriptorium/providers';
-import type { BookRow } from '@scriptorium/server-core';
-import { chunkStage } from './chunk.stage.js';
 import {
   extractionArtifactKey,
   saveExtractionArtifact,
+  type BookRow,
   type ExtractionArtifact,
-} from './extraction-artifact.js';
+} from '@scriptorium/server-core';
+import { chunkStage } from './chunk.stage.js';
 import type { StageDeps, StageLogger } from '../stage.js';
 
 const silentLogger: StageLogger = {

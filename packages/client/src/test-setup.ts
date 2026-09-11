@@ -42,6 +42,12 @@ class TestIntersectionObserver {
 globalThis.IntersectionObserver ??=
   TestIntersectionObserver as unknown as typeof IntersectionObserver;
 
+// jsdom has no layout, so `window.scrollTo` throws "Not implemented". The
+// reader's `<ScrollRestoration>` calls it on every navigation; make it a no-op.
+if (typeof window !== 'undefined') {
+  window.scrollTo = (() => undefined) as typeof window.scrollTo;
+}
+
 if (typeof window !== 'undefined' && !window.matchMedia) {
   window.matchMedia = (query: string): MediaQueryList =>
     ({

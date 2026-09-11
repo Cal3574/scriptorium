@@ -153,32 +153,34 @@ test('the book summary renders via SummaryProse; a null summary shows NotGenerat
   expect(await screen.findByText(/no summary generated yet/i)).toBeVisible();
 });
 
-test('ChapterAccordion: heading triggers, multiple open at once, disabled with no summary', async () => {
-  mockBook({
-    chapters: [
-      CHAPTER_READY,
-      { ...CHAPTER_PENDING, summary: 'Shallow work is easy to replace.' },
-    ],
-  });
+test('the chapter index lists every chapter as a link into the reader, never an inline summary', async () => {
   renderDetail();
 
-  const first = await screen.findByRole('button', { name: /Rules of Focus/ });
-  const second = screen.getByRole('button', { name: /Shallow Work/ });
-
-  await userEvent.click(first);
-  await userEvent.click(second);
-
-  // type="multiple" - both panels stay open together
-  expect(screen.getByText('Focus is a skill you train.')).toBeVisible();
-  expect(screen.getByText('Shallow work is easy to replace.')).toBeVisible();
+  const first = await screen.findByRole('link', { name: /Rules of Focus/ });
+  expect(first).toHaveAttribute('href', '/books/b1/read/1');
+  expect(screen.getByRole('link', { name: /Shallow Work/ })).toHaveAttribute(
+    'href',
+    '/books/b1/read/2',
+  );
+  // Book-detail no longer expands a chapter summary in place.
+  expect(
+    screen.queryByText('Focus is a skill you train.'),
+  ).not.toBeInTheDocument();
 });
 
-test('a chapter with no summary has a disabled, marked trigger', async () => {
+test('a ready book shows a "Read" action linking into the reader; a non-ready book does not', async () => {
   renderDetail();
+  const read = await screen.findByRole('link', { name: /^Read$/ });
+  expect(read).toHaveAttribute('href', '/books/b1/read');
 
-  const trigger = await screen.findByRole('button', { name: /Shallow Work/ });
-  expect(trigger).toBeDisabled();
-  expect(trigger).toHaveTextContent(/not generated yet/i);
+  cleanup();
+  api.mockReset();
+  mockBook({ status: 'summarizing' });
+  renderDetail();
+  await screen.findByRole('heading', { name: 'Deep Work' });
+  expect(
+    screen.queryByRole('link', { name: /^Read$/ }),
+  ).not.toBeInTheDocument();
 });
 
 test('a failed book shows the banner headline, raw reason disclosure and retry; finished parts stay visible', async () => {
@@ -194,9 +196,9 @@ test('a failed book shows the banner headline, raw reason disclosure and retry; 
   ).toBeVisible();
   // raw reason present behind the disclosure
   expect(screen.getByText('LLM timeout after 3 retries')).toBeInTheDocument();
-  // the chapter that finished is still readable below the banner
+  // the chapter index still lists the chapters below the banner
   expect(
-    screen.getByRole('button', { name: /Rules of Focus/ }),
+    screen.getByRole('link', { name: /Rules of Focus/ }),
   ).toBeInTheDocument();
 
   await userEvent.click(screen.getByRole('button', { name: /^Retry/ }));

@@ -1,15 +1,17 @@
 import { useCallback, useEffect, useState } from 'react';
-import { useParams } from 'react-router';
+import { Link, useParams } from 'react-router';
+import { BookOpenIcon } from 'lucide-react';
 import type { BookDetailDto, BookDto } from '@scriptorium/contracts';
 
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Separator } from '@/components/ui/separator';
 import { BackLink } from '@/components/back-link';
 import { ScreenHeader } from '@/components/screen-header';
 import { SummaryProse } from '@/components/prose/summary-prose';
 import { FailedBookBanner } from '@/components/library/failed-book-banner';
-import { ChapterAccordion } from '@/components/book-detail/chapter-accordion';
+import { ChapterList } from '@/components/book-detail/chapter-list';
 import { EditableField } from '@/components/book-detail/editable-field';
 import { NotGeneratedYet } from '@/components/book-detail/not-generated-yet';
 import { IngestTimeline } from '@/components/ingest/ingest-timeline';
@@ -20,13 +22,11 @@ import { useIngestEvents } from './use-ingest-events';
 
 const TERMINAL: ReadonlySet<string> = new Set(['ready', 'failed']);
 
-// The Book-detail screen (#64): the whole-book summary as readable prose, every
-// chapter's deep-dive behind an accordion, inline correction of a wrong title
-// or author wired to `PATCH /books/:id`, and the same plain-language failure +
-// retry and live status the library row shows. Only the markup is restyled -
-// every call that touches the network is unchanged from the pre-restyle
-// screen. `bookId` comes from the `/books/:bookId` route; "back" is a link to
-// the library, not a callback.
+// The Book-detail screen (#64, #139): the whole-book summary as readable prose,
+// a plain chapter list linking into the reader, inline correction of a wrong
+// title or author wired to `PATCH /books/:id`, and the same plain-language
+// failure + retry and live status the library row shows. `bookId` comes from
+// the `/books/:bookId` route; "back" is a link to the library, not a callback.
 export function BookDetail() {
   const { bookId = '' } = useParams();
   const api = useApi();
@@ -129,7 +129,16 @@ export function BookDetail() {
   return (
     <section>
       <BackLink to="/library">Back to library</BackLink>
-      <ScreenHeader title={displayTitle} />
+      <ScreenHeader title={displayTitle}>
+        {book.status === 'ready' && (
+          <Button asChild size="sm">
+            <Link to={`/books/${book.id}/read`}>
+              <BookOpenIcon />
+              Read
+            </Link>
+          </Button>
+        )}
+      </ScreenHeader>
 
       {book.status === 'failed' && (
         <FailedBookBanner
@@ -193,7 +202,7 @@ export function BookDetail() {
       {book.chapters.length === 0 ? (
         <NotGeneratedYet what="chapters" />
       ) : (
-        <ChapterAccordion chapters={book.chapters} />
+        <ChapterList bookId={book.id} chapters={book.chapters} />
       )}
     </section>
   );

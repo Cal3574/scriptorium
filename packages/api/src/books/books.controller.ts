@@ -7,14 +7,17 @@ import {
   HttpCode,
   Inject,
   Param,
+  ParseUUIDPipe,
   Patch,
   Post,
+  Res,
   UseGuards,
 } from '@nestjs/common';
 import {
   type BookDetailDto,
   type BookDto,
   type BookListItemDto,
+  type ChapterSourceDto,
   CreateBookRequest,
   CreateUploadUrlRequest,
   type CreateUploadUrlResponse,
@@ -23,8 +26,11 @@ import {
 import {
   assertOwnership,
   type AuthenticatedUser,
+  buildChapterSource,
   CurrentUser,
+  extractionArtifactKey,
   getRequestId,
+  loadExtractionArtifact,
   OBJECT_STORAGE,
   type ObjectStorage,
   QUEUE,
@@ -36,9 +42,15 @@ import {
 } from '@scriptorium/server-core';
 import { createZodDto } from 'nestjs-zod';
 import { MAX_UPLOAD_BYTES } from './books.tokens';
-import { toBookDetailDto, toBookDto, toBookListItemDto } from './book.mapper';
+import {
+  toBookDetailDto,
+  toBookDto,
+  toBookListItemDto,
+  toChapterSourceDto,
+} from './book.mapper';
 import {
   BookNotFailedException,
+  ChapterNotFoundException,
   FileSizeMismatchException,
   FileTooLargeException,
   NoFieldsException,
@@ -49,6 +61,17 @@ import {
 
 const PDF_CONTENT_TYPE = 'application/pdf';
 const UPLOAD_URL_TTL_SECONDS = 300;
+
+// Owned content that never changes once the book is `ready`: cacheable for a
+// day, per-user only (`private`), and safe to skip revalidating (`immutable`).
+const CHAPTER_SOURCE_CACHE_CONTROL = 'private, max-age=86400, immutable';
+
+// The one slice of the Express response the chapter source handler needs,
+// declared locally so the controller does not pull in `@types/express` (kept
+// out of the app packages) - same pattern as the SSE controllers.
+interface CacheableResponse {
+  setHeader(name: string, value: string): void;
+}
 
 class CreateUploadUrlDto extends createZodDto(CreateUploadUrlRequest) {}
 class CreateBookDto extends createZodDto(CreateBookRequest) {}
@@ -154,6 +177,45 @@ export class BooksController {
     const book = assertOwnership(found, caller.id, 'book_not_found');
     const chapters = await this.books.findChapters(book.id);
     return toBookDetailDto(book, chapters);
+  }
+
+  // One chapter's reconstructed source text: the chapter's original pages
+  // stitched back into readable GFM markdown by slicing the book's extraction
+  // sidecar over the `chapters` row's page range - the same text the
+  // chapter-summary stage was written from. `chunks` are never touched.
+  //
+  // `ready` books only, and the no-oracle rule holds throughout: an unknown,
+  // unowned, or not-yet-`ready` book is the same `404 book_not_found` (never a
+  // 409); a `chapterId` that is not a uuid is a `400` (the pipe); a valid uuid
+  // that is not this book's chapter is `404 chapter_not_found`. A page range
+  // that yields only whitespace, or a missing artifact, is a `200` with
+  // `available: false` - the quiet source-unavailable state, not an error.
+  // Ungated (the reader's own already-processed content): no `@Quota`. The
+  // cache header is set by hand on the success path only - a method-level
+  // `@Header` would also stamp it on the 400 / 404 responses, and a 24h
+  // `immutable` cache on a `book_not_found` would strand the client.
+  @Get(':id/chapters/:chapterId/source')
+  async chapterSource(
+    @Param('id') id: string,
+    @Param('chapterId', ParseUUIDPipe) chapterId: string,
+    @CurrentUser() caller: AuthenticatedUser,
+    @Res({ passthrough: true }) res: CacheableResponse,
+  ): Promise<ChapterSourceDto> {
+    const found = await this.books.findById(id);
+    const book = assertOwnership(found, caller.id, 'book_not_found');
+    if (book.status !== 'ready') {
+      throw new ResourceNotFoundException('book_not_found');
+    }
+
+    const chapter = await this.books.findChapterOfBook(book.id, chapterId);
+    if (!chapter) throw new ChapterNotFoundException();
+
+    const artifact = await loadExtractionArtifact(
+      this.storage,
+      extractionArtifactKey(book),
+    );
+    res.setHeader('Cache-Control', CHAPTER_SOURCE_CACHE_CONTROL);
+    return toChapterSourceDto(chapter, buildChapterSource(artifact, chapter));
   }
 
   // Correct a wrong title or author. At least one of `title` / `author` must

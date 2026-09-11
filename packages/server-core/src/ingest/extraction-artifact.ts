@@ -1,4 +1,3 @@
-import { TerminalIngestError } from '../errors.js';
 import type {
   ObjectStorage,
   PdfExtraction,
@@ -7,7 +6,7 @@ import type {
   PdfOutlineItem,
   PdfPage,
 } from '@scriptorium/providers';
-import type { BookRow } from '@scriptorium/server-core';
+import type { BookRow } from '../books/books.repository.js';
 
 // The `extract` stage persists two artifacts next to the original PDF: the
 // human-readable `.md` blob (read by `identifyBook`) and this structured JSON
@@ -62,20 +61,21 @@ export async function loadExtractionArtifact(
   return JSON.parse(Buffer.from(bytes).toString('utf-8')) as ExtractionArtifact;
 }
 
-// The `chunk` and `chapterSummary` stages both need the sidecar and both treat
-// its absence as an unrecoverable pipeline invariant breach.
+// Every reader of the sidecar treats its absence as an unrecoverable invariant
+// breach, but each wants its own error type (the worker a terminal ingest
+// failure, an HTTP caller a problem response), so the caller supplies the
+// factory rather than this module hard-coding one.
 export async function requireExtractionArtifact(
   storage: ObjectStorage,
   book: BookRow,
+  onMissing: (book: BookRow) => Error,
 ): Promise<ExtractionArtifact> {
   const artifact = await loadExtractionArtifact(
     storage,
     extractionArtifactKey(book),
   );
   if (!artifact) {
-    throw new TerminalIngestError(
-      `extraction sidecar is missing for book ${book.id}`,
-    );
+    throw onMissing(book);
   }
   return artifact;
 }

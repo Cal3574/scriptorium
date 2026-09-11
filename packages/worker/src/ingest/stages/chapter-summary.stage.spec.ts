@@ -1,16 +1,16 @@
 import { FakeLlmClient, FakeObjectStorage } from '@scriptorium/providers';
-import type { BookRow } from '@scriptorium/server-core';
+import {
+  extractionArtifactKey,
+  saveExtractionArtifact,
+  type BookRow,
+  type ExtractionArtifact,
+} from '@scriptorium/server-core';
 import { chapterSummaryStage } from './chapter-summary.stage.js';
 import { TerminalIngestError } from '../errors.js';
 import {
   CHAPTER_SUMMARY_MODEL,
   CHAPTER_SUMMARY_SYSTEM,
 } from './summary-prompts.js';
-import {
-  extractionArtifactKey,
-  saveExtractionArtifact,
-  type ExtractionArtifact,
-} from './extraction-artifact.js';
 import type { StageDeps, StageLogger } from '../stage.js';
 
 const silentLogger: StageLogger = {
