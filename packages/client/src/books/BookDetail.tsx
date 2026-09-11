@@ -22,13 +22,11 @@ import { useIngestEvents } from './use-ingest-events';
 
 const TERMINAL: ReadonlySet<string> = new Set(['ready', 'failed']);
 
-// The Book-detail screen (#64): the whole-book summary as readable prose, every
-// chapter's deep-dive behind an accordion, inline correction of a wrong title
-// or author wired to `PATCH /books/:id`, and the same plain-language failure +
-// retry and live status the library row shows. Only the markup is restyled -
-// every call that touches the network is unchanged from the pre-restyle
-// screen. `bookId` comes from the `/books/:bookId` route; "back" is a link to
-// the library, not a callback.
+// The Book-detail screen (#64, #139): the whole-book summary as readable prose,
+// a plain chapter list linking into the reader, inline correction of a wrong
+// title or author wired to `PATCH /books/:id`, and the same plain-language
+// failure + retry and live status the library row shows. `bookId` comes from
+// the `/books/:bookId` route; "back" is a link to the library, not a callback.
 export function BookDetail() {
   const { bookId = '' } = useParams();
   const api = useApi();
