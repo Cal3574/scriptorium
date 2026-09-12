@@ -14,10 +14,28 @@ interface PollResponse {
   task_status: TaskStatus;
 }
 
+type DocumentStatus = 'success' | 'partial_success' | 'skipped' | 'failure';
+type ResultError = { message?: string } | string;
+
+interface DoclingArtifact {
+  artifact_type: string;
+  uri: string;
+}
+
+// With artifact storage enabled (`DOCLING_SERVE_ARTIFACT_STORAGE_ENABLED` on
+// the Railway deployment), the result is not returned inline: `documents[]`
+// carries a presigned `uri` per artifact instead of `json_content` directly.
+// Without artifact storage, docling-serve returns the older inline shape.
+// Support both rather than assume the deployment's configuration.
 interface ResultResponse {
   document?: { json_content?: DoclingDocument };
-  status?: 'success' | 'partial_success' | 'skipped' | 'failure';
-  errors?: Array<{ message?: string } | string>;
+  status?: DocumentStatus;
+  errors?: ResultError[];
+  documents?: Array<{
+    status?: DocumentStatus;
+    errors?: ResultError[];
+    artifacts?: DoclingArtifact[];
+  }>;
 }
 
 export interface DoclingClientOptions {
@@ -70,8 +88,8 @@ async function errorBody(response: Response): Promise<string> {
   }
 }
 
-function resultErrorMessage(result: ResultResponse): string {
-  const messages = (result.errors ?? []).map((error) =>
+function resultErrorMessage(errors: ResultError[] | undefined): string {
+  const messages = (errors ?? []).map((error) =>
     typeof error === 'string' ? error : (error.message ?? JSON.stringify(error)),
   );
   return messages.length > 0 ? messages.join('; ') : 'docling reported a failure with no error detail';
@@ -156,22 +174,56 @@ export class DoclingClient {
       `${this.baseUrl}/v1/result/${taskId}`,
     );
     const body = (await response.json()) as ResultResponse;
-    if (body.status === 'failure' || !body.document?.json_content) {
-      throw new PdfExtractionError(
-        `docling conversion failed: ${resultErrorMessage(body)}`,
-        false,
-      );
+
+    // Inline shape (no artifact storage): the document is right there.
+    if (body.document?.json_content) {
+      return body.document.json_content;
     }
-    return body.document.json_content;
+
+    // Artifact-storage shape: `documents[0].artifacts` points at a presigned
+    // URL for the JSON output instead of carrying it inline.
+    const doc = body.documents?.[0];
+    if (doc) {
+      if (doc.status === 'failure') {
+        throw new PdfExtractionError(
+          `docling conversion failed: ${resultErrorMessage(doc.errors)}`,
+          false,
+        );
+      }
+      const artifact = doc.artifacts?.find((a) => a.artifact_type === 'json');
+      if (!artifact) {
+        throw new PdfExtractionError(
+          'docling result carried no json artifact',
+          false,
+        );
+      }
+      // The artifact lives on separate, presigned-URL storage (not
+      // docling-serve itself) - fetch it without the docling `X-Api-Key`.
+      const artifactResponse = await this.request(artifact.uri, undefined, {
+        attachApiKey: false,
+      });
+      return (await artifactResponse.json()) as DoclingDocument;
+    }
+
+    // Neither shape matched - the legacy inline failure path, or a response
+    // we don't otherwise understand.
+    throw new PdfExtractionError(
+      `docling conversion failed: ${resultErrorMessage(body.errors)}`,
+      false,
+    );
   }
 
   // Every docling-serve call goes through here so network errors and non-2xx
   // responses are classified into the same retryable/non-retryable split, and
   // a transient failure is retried in place rather than bubbling straight up
   // to `convert()` - see `REQUEST_ATTEMPTS`.
-  private async request(url: string, init?: RequestInit): Promise<Response> {
+  private async request(
+    url: string,
+    init?: RequestInit,
+    { attachApiKey = true }: { attachApiKey?: boolean } = {},
+  ): Promise<Response> {
     const headers = new Headers(init?.headers);
-    if (this.apiKey) headers.set('X-Api-Key', this.apiKey);
+    if (attachApiKey && this.apiKey) headers.set('X-Api-Key', this.apiKey);
 
     let lastError: PdfExtractionError | undefined;
     for (let attempt = 1; attempt <= REQUEST_ATTEMPTS; attempt++) {

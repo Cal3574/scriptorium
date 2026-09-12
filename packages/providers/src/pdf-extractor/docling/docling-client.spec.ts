@@ -53,6 +53,83 @@ describe('DoclingClient', () => {
     expect(result).toEqual(document);
   });
 
+  it('fetches the artifact-storage shape (documents[].artifacts[].uri) without the docling API key', async () => {
+    const capturedHeaders: Record<string, Headers> = {};
+    const fetchImpl = (async (
+      input: Parameters<typeof fetch>[0],
+      init?: RequestInit,
+    ) => {
+      const url = String(input);
+      capturedHeaders[url] = new Headers(init?.headers);
+      if (url.includes('/v1/convert/file/async')) {
+        return jsonResponse({ task_id: 't1' });
+      }
+      if (url.includes('/v1/status/poll/t1')) {
+        return jsonResponse({ task_status: 'success' });
+      }
+      if (url.includes('/v1/result/t1')) {
+        return jsonResponse({
+          num_succeeded: 1,
+          documents: [
+            {
+              status: 'success',
+              artifacts: [
+                { artifact_type: 'json', uri: 'https://storage.example/artifact.json' },
+              ],
+            },
+          ],
+        });
+      }
+      if (url === 'https://storage.example/artifact.json') {
+        return jsonResponse(document);
+      }
+      throw new Error(`unexpected fetch to ${url}`);
+    }) as typeof fetch;
+
+    const client = new DoclingClient({
+      baseUrl: 'http://docling.local',
+      apiKey: 'dk-test',
+      fetchImpl,
+      sleep: async () => undefined,
+    });
+
+    const result = await client.convert(new Uint8Array([1]), 'book.pdf');
+    expect(result).toEqual(document);
+    expect(
+      capturedHeaders['https://storage.example/artifact.json'].has(
+        'X-Api-Key',
+      ),
+    ).toBe(false);
+    expect(capturedHeaders['http://docling.local/v1/result/t1'].get('X-Api-Key')).toBe(
+      'dk-test',
+    );
+  });
+
+  it('throws non-retryable for an artifact-storage document status of failure', async () => {
+    const fetchImpl = makeFetch({
+      '/v1/convert/file/async': jsonResponse({ task_id: 't1' }),
+      '/v1/status/poll/t1': jsonResponse({ task_status: 'success' }),
+      '/v1/result/t1': jsonResponse({
+        documents: [
+          { status: 'failure', errors: [{ message: 'corrupt PDF' }] },
+        ],
+      }),
+    });
+
+    const client = new DoclingClient({
+      baseUrl: 'http://docling.local',
+      fetchImpl,
+      sleep: async () => undefined,
+    });
+
+    await expect(
+      client.convert(new Uint8Array([1]), 'book.pdf'),
+    ).rejects.toMatchObject({
+      retryable: false,
+      message: expect.stringContaining('corrupt PDF'),
+    });
+  });
+
   it('throws non-retryable when docling reports a task failure', async () => {
     const fetchImpl = makeFetch({
       '/v1/convert/file/async': jsonResponse({ task_id: 't1' }),
