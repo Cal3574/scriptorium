@@ -16,7 +16,12 @@ describe('renderDocument', () => {
   it('renders a title and section headers at the right heading level', () => {
     const d = doc({
       texts: [
-        { self_ref: '#/texts/0', label: 'title', text: 'My Book', prov: [{ page_no: 1 }] },
+        {
+          self_ref: '#/texts/0',
+          label: 'title',
+          text: 'My Book',
+          prov: [{ page_no: 1 }],
+        },
         {
           self_ref: '#/texts/1',
           label: 'section_header',
@@ -56,8 +61,18 @@ describe('renderDocument', () => {
   it('renders plain text and list items without a heading prefix', () => {
     const d = doc({
       texts: [
-        { self_ref: '#/texts/0', label: 'text', text: 'Once upon a time.', prov: [{ page_no: 1 }] },
-        { self_ref: '#/texts/1', label: 'list_item', text: 'First', prov: [{ page_no: 1 }] },
+        {
+          self_ref: '#/texts/0',
+          label: 'text',
+          text: 'Once upon a time.',
+          prov: [{ page_no: 1 }],
+        },
+        {
+          self_ref: '#/texts/1',
+          label: 'list_item',
+          text: 'First',
+          prov: [{ page_no: 1 }],
+        },
       ],
       body: {
         self_ref: '#/body',
@@ -74,7 +89,12 @@ describe('renderDocument', () => {
   it('walks nested groups in reading order', () => {
     const d = doc({
       texts: [
-        { self_ref: '#/texts/0', label: 'text', text: 'Inside a group', prov: [{ page_no: 1 }] },
+        {
+          self_ref: '#/texts/0',
+          label: 'text',
+          text: 'Inside a group',
+          prov: [{ page_no: 1 }],
+        },
       ],
       groups: [{ self_ref: '#/groups/0', children: [{ $ref: '#/texts/0' }] }],
       body: {
@@ -110,18 +130,36 @@ describe('renderDocument', () => {
     });
 
     const { pages } = renderDocument(d, 1);
-    expect(pages[0].markdown).toBe(
-      '| A | B |\n| --- | --- |\n| 1 | 2 |',
-    );
+    expect(pages[0].markdown).toBe('| A | B |\n| --- | --- |\n| 1 | 2 |');
   });
 
   it('skips page headers, footers, footnotes and pictures', () => {
     const d = doc({
       texts: [
-        { self_ref: '#/texts/0', label: 'page_header', text: 'Running head', prov: [{ page_no: 1 }] },
-        { self_ref: '#/texts/1', label: 'text', text: 'Real content', prov: [{ page_no: 1 }] },
-        { self_ref: '#/texts/2', label: 'page_footer', text: '12', prov: [{ page_no: 1 }] },
-        { self_ref: '#/texts/3', label: 'footnote', text: 'See note 1', prov: [{ page_no: 1 }] },
+        {
+          self_ref: '#/texts/0',
+          label: 'page_header',
+          text: 'Running head',
+          prov: [{ page_no: 1 }],
+        },
+        {
+          self_ref: '#/texts/1',
+          label: 'text',
+          text: 'Real content',
+          prov: [{ page_no: 1 }],
+        },
+        {
+          self_ref: '#/texts/2',
+          label: 'page_footer',
+          text: '12',
+          prov: [{ page_no: 1 }],
+        },
+        {
+          self_ref: '#/texts/3',
+          label: 'footnote',
+          text: 'See note 1',
+          prov: [{ page_no: 1 }],
+        },
       ],
       pictures: [{ self_ref: '#/pictures/0' }],
       body: {
@@ -143,7 +181,12 @@ describe('renderDocument', () => {
   it('carries forward the last known page for an item with no provenance', () => {
     const d = doc({
       texts: [
-        { self_ref: '#/texts/0', label: 'text', text: 'On page 2', prov: [{ page_no: 2 }] },
+        {
+          self_ref: '#/texts/0',
+          label: 'text',
+          text: 'On page 2',
+          prov: [{ page_no: 2 }],
+        },
         { self_ref: '#/texts/1', label: 'text', text: 'No prov, stays on 2' },
       ],
       body: {
@@ -162,8 +205,18 @@ describe('renderDocument', () => {
   it('clamps a page number outside the known page range instead of dropping the content', () => {
     const d = doc({
       texts: [
-        { self_ref: '#/texts/0', label: 'text', text: 'Reported as page 0', prov: [{ page_no: 0 }] },
-        { self_ref: '#/texts/1', label: 'text', text: 'Reported past the end', prov: [{ page_no: 99 }] },
+        {
+          self_ref: '#/texts/0',
+          label: 'text',
+          text: 'Reported as page 0',
+          prov: [{ page_no: 0 }],
+        },
+        {
+          self_ref: '#/texts/1',
+          label: 'text',
+          text: 'Reported past the end',
+          prov: [{ page_no: 99 }],
+        },
       ],
       body: {
         self_ref: '#/body',

@@ -128,9 +128,9 @@ describe('selectProviderBindings', () => {
 
     it('binds the fake extractor in fake mode', () => {
       const bindings = selectProviderBindings(base);
-      expect(
-        (byToken(bindings, PDF_EXTRACTOR) as ClassProvider).useClass,
-      ).toBe(FakePdfExtractor);
+      expect((byToken(bindings, PDF_EXTRACTOR) as ClassProvider).useClass).toBe(
+        FakePdfExtractor,
+      );
     });
   });
 });

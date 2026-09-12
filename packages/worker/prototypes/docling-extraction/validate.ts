@@ -90,9 +90,7 @@ function extractionArtifactKeyFor(s3Key: string): string {
   return key === s3Key ? `${s3Key}.extraction.json` : key;
 }
 
-async function loadBaseline(
-  s3Key: string,
-): Promise<ExtractionArtifact | null> {
+async function loadBaseline(s3Key: string): Promise<ExtractionArtifact | null> {
   return loadExtractionArtifact(storage, extractionArtifactKeyFor(s3Key));
 }
 

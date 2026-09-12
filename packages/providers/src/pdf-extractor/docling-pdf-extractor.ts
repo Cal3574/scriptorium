@@ -6,7 +6,10 @@ import {
   type PdfExtractor,
 } from './pdf-extractor.js';
 import { extractPdfStructure, type PdfStructure } from './pdfjs-outline.js';
-import { DoclingClient, type DoclingClientOptions } from './docling/docling-client.js';
+import {
+  DoclingClient,
+  type DoclingClientOptions,
+} from './docling/docling-client.js';
 import { renderDocument } from './docling/render-document.js';
 
 export interface DoclingPdfExtractorOptions extends DoclingClientOptions {

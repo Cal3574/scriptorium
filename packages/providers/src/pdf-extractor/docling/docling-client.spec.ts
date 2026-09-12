@@ -27,7 +27,13 @@ function makeFetch(
   }) as typeof fetch;
 }
 
-const document = { texts: [], groups: [], tables: [], pictures: [], body: { self_ref: '#/body', children: [] } };
+const document = {
+  texts: [],
+  groups: [],
+  tables: [],
+  pictures: [],
+  body: { self_ref: '#/body', children: [] },
+};
 
 describe('DoclingClient', () => {
   it('submits, polls to success, and fetches the result', async () => {
@@ -74,7 +80,10 @@ describe('DoclingClient', () => {
             {
               status: 'success',
               artifacts: [
-                { artifact_type: 'json', uri: 'https://storage.example/artifact.json' },
+                {
+                  artifact_type: 'json',
+                  uri: 'https://storage.example/artifact.json',
+                },
               ],
             },
           ],
@@ -96,13 +105,11 @@ describe('DoclingClient', () => {
     const result = await client.convert(new Uint8Array([1]), 'book.pdf');
     expect(result).toEqual(document);
     expect(
-      capturedHeaders['https://storage.example/artifact.json'].has(
-        'X-Api-Key',
-      ),
+      capturedHeaders['https://storage.example/artifact.json'].has('X-Api-Key'),
     ).toBe(false);
-    expect(capturedHeaders['http://docling.local/v1/result/t1'].get('X-Api-Key')).toBe(
-      'dk-test',
-    );
+    expect(
+      capturedHeaders['http://docling.local/v1/result/t1'].get('X-Api-Key'),
+    ).toBe('dk-test');
   });
 
   it('throws non-retryable for an artifact-storage document status of failure', async () => {

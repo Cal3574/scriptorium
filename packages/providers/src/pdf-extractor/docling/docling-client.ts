@@ -77,7 +77,10 @@ function isRetryableStatus(status: number): boolean {
 }
 
 function backoffMs(attempt: number): number {
-  return Math.min(REQUEST_BACKOFF_MAX_MS, REQUEST_BACKOFF_BASE_MS * 2 ** (attempt - 1));
+  return Math.min(
+    REQUEST_BACKOFF_MAX_MS,
+    REQUEST_BACKOFF_BASE_MS * 2 ** (attempt - 1),
+  );
 }
 
 async function errorBody(response: Response): Promise<string> {
@@ -90,9 +93,13 @@ async function errorBody(response: Response): Promise<string> {
 
 function resultErrorMessage(errors: ResultError[] | undefined): string {
   const messages = (errors ?? []).map((error) =>
-    typeof error === 'string' ? error : (error.message ?? JSON.stringify(error)),
+    typeof error === 'string'
+      ? error
+      : (error.message ?? JSON.stringify(error)),
   );
-  return messages.length > 0 ? messages.join('; ') : 'docling reported a failure with no error detail';
+  return messages.length > 0
+    ? messages.join('; ')
+    : 'docling reported a failure with no error detail';
 }
 
 /**
@@ -170,9 +177,7 @@ export class DoclingClient {
   }
 
   private async fetchResult(taskId: string): Promise<DoclingDocument> {
-    const response = await this.request(
-      `${this.baseUrl}/v1/result/${taskId}`,
-    );
+    const response = await this.request(`${this.baseUrl}/v1/result/${taskId}`);
     const body = (await response.json()) as ResultResponse;
 
     // Inline shape (no artifact storage): the document is right there.
