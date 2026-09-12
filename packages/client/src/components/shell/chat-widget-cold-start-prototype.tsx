@@ -26,13 +26,20 @@ import {
 // Three cold-start SCENARIOS to react to (not layout variants of one
 // screen — three genuinely different empty states the widget can be in).
 // Cycle with the floating bar's arrows or ←/→.
-type Scenario = 'ask-empty' | 'agent-no-book' | 'agent-no-thread-reader' | 'agent-no-thread-elsewhere';
+type Scenario =
+  | 'ask-empty'
+  | 'agent-no-book'
+  | 'agent-no-thread-reader'
+  | 'agent-no-thread-elsewhere';
 
 const SCENARIOS: { key: Scenario; label: string }[] = [
   { key: 'ask-empty', label: 'Ask library — first open' },
   { key: 'agent-no-book', label: 'Agent — no book in context' },
   { key: 'agent-no-thread-reader', label: 'Agent — on reader, no thread yet' },
-  { key: 'agent-no-thread-elsewhere', label: 'Agent — off reader, book in context, no thread' },
+  {
+    key: 'agent-no-thread-elsewhere',
+    label: 'Agent — off reader, book in context, no thread',
+  },
 ];
 
 const MOCK_BOOK = 'Thinking, Fast and Slow';
@@ -168,8 +175,8 @@ function AgentNoBookState() {
       </div>
       <h3 className="font-serif text-lg">Nothing to discuss yet</h3>
       <p className="text-muted-foreground mt-2 mb-5 max-w-[26ch] text-sm">
-        Agent conversations start from something you highlight while
-        reading. Open a book and select a passage to begin.
+        Agent conversations start from something you highlight while reading.
+        Open a book and select a passage to begin.
       </p>
       <Button variant="outline" size="sm">
         <BookOpenIcon className="size-4" />
@@ -188,8 +195,8 @@ function AgentNoThreadState({ onReader }: { onReader: boolean }) {
       <h3 className="font-serif text-lg">{MOCK_BOOK}</h3>
       {onReader ? (
         <p className="text-muted-foreground mt-2 max-w-[28ch] text-sm">
-          Select a passage on this page and choose &ldquo;Discuss with
-          AI&rdquo; to start talking about it.
+          Select a passage on this page and choose &ldquo;Discuss with AI&rdquo;
+          to start talking about it.
         </p>
       ) : (
         <>
