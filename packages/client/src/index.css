@@ -190,17 +190,6 @@
   line-height: 1.6;
 }
 
-/* Reading-oriented override for the reconstructed Source panel only
- * (`<SourcePanel>`) - long-form book text reads better with a book-like
- * serif, a larger size and looser leading than the shared .prose scale
- * (tuned for shorter summaries/deep-dives). Applied alongside `.prose`, so
- * it must come after it in source order to win at equal specificity. */
-.prose--reading {
-  font-family: var(--font-serif);
-  font-size: 1rem; /* 16px, up from .prose's 14px */
-  line-height: 1.75;
-}
-
 .prose > :first-child {
   margin-top: 0;
 }
@@ -237,6 +226,26 @@
 .prose pre,
 .prose table {
   margin: 0.75em 0;
+}
+
+/* Reading-oriented override for the reconstructed Source panel only
+ * (`<SourcePanel>`) - long-form book text reads better with a book-like
+ * serif, a narrower measure, a larger size, looser leading, more paragraph
+ * breathing room, a slightly softened contrast, and hyphenation for the
+ * narrow mobile column - than the shared .prose scale (tuned for shorter
+ * summaries/deep-dives). Applied alongside `.prose`, so each rule here must
+ * come after its `.prose` counterpart in source order to win at equal
+ * specificity. */
+.prose--reading {
+  max-width: 60ch; /* narrower than .prose's 68ch - a book-page measure */
+  font-family: var(--font-serif);
+  font-size: 1rem; /* 16px, up from .prose's 14px */
+  line-height: 1.75;
+  color: color-mix(in srgb, var(--foreground) 88%, var(--background));
+  hyphens: auto;
+}
+.prose--reading p {
+  margin: 0 0 1.4em;
 }
 
 .prose ul,
