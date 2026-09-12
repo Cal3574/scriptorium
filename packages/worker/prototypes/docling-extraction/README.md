@@ -41,6 +41,7 @@ does.
 
 ```sh
 export DOCLING_URL=...                       # your docling-serve base URL
+export DOCLING_API_KEY=...                    # its X-Api-Key
 export S3_BUCKET=... S3_REGION=...
 export AWS_ACCESS_KEY_ID=... AWS_SECRET_ACCESS_KEY=...
 # optional: DOCLING_DOCUMENT_TIMEOUT_SECONDS

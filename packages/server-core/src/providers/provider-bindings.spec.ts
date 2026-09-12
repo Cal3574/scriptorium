@@ -82,6 +82,7 @@ describe('selectProviderBindings', () => {
       ...base,
       mode: 'live',
       doclingUrl: 'http://docling.local',
+      doclingApiKey: 'dk-test',
       openaiApiKey: 'sk-o',
       anthropicApiKey: 'sk-a',
     });
@@ -97,6 +98,7 @@ describe('selectProviderBindings', () => {
         ...base,
         mode: 'live',
         doclingUrl: 'http://docling.local',
+        doclingApiKey: 'dk-test',
         openaiApiKey: 'sk-o',
         anthropicApiKey: 'sk-a',
       });
@@ -105,9 +107,23 @@ describe('selectProviderBindings', () => {
     });
 
     it('fails fast in live mode when DOCLING_URL is missing', () => {
-      const live = selectProviderBindings({ ...base, mode: 'live' });
+      const live = selectProviderBindings({
+        ...base,
+        mode: 'live',
+        doclingApiKey: 'dk-test',
+      });
       const extractor = byToken(live, PDF_EXTRACTOR) as FactoryProvider;
       expect(() => extractor.useFactory()).toThrow(/DOCLING_URL/);
+    });
+
+    it('fails fast in live mode when DOCLING_API_KEY is missing', () => {
+      const live = selectProviderBindings({
+        ...base,
+        mode: 'live',
+        doclingUrl: 'http://docling.local',
+      });
+      const extractor = byToken(live, PDF_EXTRACTOR) as FactoryProvider;
+      expect(() => extractor.useFactory()).toThrow(/DOCLING_API_KEY/);
     });
 
     it('binds the fake extractor in fake mode', () => {

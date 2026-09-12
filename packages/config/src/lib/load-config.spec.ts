@@ -6,6 +6,7 @@ import {
 
 const liveProviderKeys = {
   DOCLING_URL: 'http://docling.local',
+  DOCLING_API_KEY: 'dk-test',
   OPENAI_API_KEY: 'sk-openai',
   ANTHROPIC_API_KEY: 'sk-ant-test',
 };
@@ -140,10 +141,15 @@ describe('parseWorkerConfig', () => {
 });
 
 describe('PROVIDER_MODE', () => {
-  it('requires DOCLING_URL, OpenAI and Anthropic when live', () => {
-    const { DOCLING_URL, OPENAI_API_KEY, ANTHROPIC_API_KEY, ...rest } =
-      validApiEnv;
-    void [DOCLING_URL, OPENAI_API_KEY, ANTHROPIC_API_KEY];
+  it('requires DOCLING_URL, DOCLING_API_KEY, OpenAI and Anthropic when live', () => {
+    const {
+      DOCLING_URL,
+      DOCLING_API_KEY,
+      OPENAI_API_KEY,
+      ANTHROPIC_API_KEY,
+      ...rest
+    } = validApiEnv;
+    void [DOCLING_URL, DOCLING_API_KEY, OPENAI_API_KEY, ANTHROPIC_API_KEY];
     try {
       parseApiConfig({ ...rest, PROVIDER_MODE: 'live' });
       fail('expected ConfigError');
@@ -151,6 +157,7 @@ describe('PROVIDER_MODE', () => {
       expect((error as ConfigError).keys).toEqual(
         expect.arrayContaining([
           'DOCLING_URL',
+          'DOCLING_API_KEY',
           'OPENAI_API_KEY',
           'ANTHROPIC_API_KEY',
         ]),
@@ -159,9 +166,14 @@ describe('PROVIDER_MODE', () => {
   });
 
   it('does not require the provider keys when fake', () => {
-    const { DOCLING_URL, OPENAI_API_KEY, ANTHROPIC_API_KEY, ...rest } =
-      validWorkerEnv;
-    void [DOCLING_URL, OPENAI_API_KEY, ANTHROPIC_API_KEY];
+    const {
+      DOCLING_URL,
+      DOCLING_API_KEY,
+      OPENAI_API_KEY,
+      ANTHROPIC_API_KEY,
+      ...rest
+    } = validWorkerEnv;
+    void [DOCLING_URL, DOCLING_API_KEY, OPENAI_API_KEY, ANTHROPIC_API_KEY];
     const config = parseWorkerConfig({ ...rest, PROVIDER_MODE: 'fake' });
     expect(config.PROVIDER_MODE).toBe('fake');
     expect(config.OPENAI_API_KEY).toBeUndefined();
@@ -172,6 +184,7 @@ describe('PROVIDER_MODE', () => {
       ...validWorkerEnv,
       PROVIDER_MODE: 'fake',
       DOCLING_URL: '',
+      DOCLING_API_KEY: '',
       OPENAI_API_KEY: '',
       ANTHROPIC_API_KEY: '',
     });
@@ -251,5 +264,16 @@ describe('DOCLING_URL', () => {
     expect(() =>
       parseWorkerConfig({ ...validWorkerEnv, DOCLING_URL: 'not-a-url' }),
     ).toThrow(/DOCLING_URL/);
+  });
+
+  it('requires DOCLING_API_KEY when live', () => {
+    const { DOCLING_API_KEY, ...rest } = validWorkerEnv;
+    void DOCLING_API_KEY;
+    try {
+      parseWorkerConfig({ ...rest, PROVIDER_MODE: 'live' });
+      fail('expected ConfigError');
+    } catch (error) {
+      expect((error as ConfigError).keys).toContain('DOCLING_API_KEY');
+    }
   });
 });

@@ -14,6 +14,7 @@ export interface EnvProviderConfig {
   API_URL?: string;
   // The self-hosted docling-serve instance the live PDF extractor talks to.
   DOCLING_URL?: string;
+  DOCLING_API_KEY?: string;
   DOCLING_DOCUMENT_TIMEOUT_SECONDS?: number;
   OPENAI_API_KEY?: string;
   ANTHROPIC_API_KEY?: string;
@@ -29,6 +30,7 @@ export interface ProviderRuntimeConfig {
   redisUrl: string;
   apiUrl?: string;
   doclingUrl?: string;
+  doclingApiKey?: string;
   doclingDocumentTimeoutSeconds?: number;
   openaiApiKey?: string;
   anthropicApiKey?: string;
@@ -47,6 +49,7 @@ export function toProviderRuntimeConfig(
     redisUrl: env.REDIS_URL,
     apiUrl: env.API_URL,
     doclingUrl: env.DOCLING_URL,
+    doclingApiKey: env.DOCLING_API_KEY,
     doclingDocumentTimeoutSeconds: env.DOCLING_DOCUMENT_TIMEOUT_SECONDS,
     openaiApiKey: env.OPENAI_API_KEY,
     anthropicApiKey: env.ANTHROPIC_API_KEY,

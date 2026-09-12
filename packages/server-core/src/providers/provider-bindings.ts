@@ -42,6 +42,7 @@ export function selectProviderBindings(
             useFactory: () =>
               new DoclingPdfExtractor({
                 baseUrl: requireKey(config.doclingUrl, 'DOCLING_URL'),
+                apiKey: requireKey(config.doclingApiKey, 'DOCLING_API_KEY'),
                 documentTimeoutSeconds: config.doclingDocumentTimeoutSeconds,
               }),
           },

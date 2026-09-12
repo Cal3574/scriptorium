@@ -12,8 +12,9 @@ data:
   # a real deployment, so it is never `fake`. `live` also makes the provider
   # keys and the S3 keys in shared/secret.yaml required at startup.
   PROVIDER_MODE: live
-  # Base URL of the self-hosted docling-serve instance (a separate VPS, not
-  # in this cluster). No auth - the instance is not exposed beyond it.
+  # Base URL of the self-hosted docling-serve instance (a separate Railway
+  # deployment, not in this cluster). Auth is DOCLING_API_KEY in
+  # shared/secret.yaml.
   DOCLING_URL: https://docling-serve-production-cd18.up.railway.app
   # Production Clerk instance (clerk.scriptorium-ai.com). Safe to expose - it
   # ships in the browser bundle, and is the value the

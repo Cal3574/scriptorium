@@ -22,6 +22,9 @@ interface ResultResponse {
 
 export interface DoclingClientOptions {
   baseUrl: string;
+  // `X-Api-Key`, when docling-serve has auth enabled (`DOCLING_SERVE_API_KEY`
+  // on the Railway deployment). Omit for an instance with auth disabled.
+  apiKey?: string;
   documentTimeoutSeconds?: number;
   pollIntervalMs?: number;
   pollTimeoutMs?: number;
@@ -82,6 +85,7 @@ function resultErrorMessage(result: ResultResponse): string {
  */
 export class DoclingClient {
   private readonly baseUrl: string;
+  private readonly apiKey: string | undefined;
   private readonly documentTimeoutSeconds: number;
   private readonly pollIntervalMs: number;
   private readonly pollTimeoutMs: number;
@@ -90,6 +94,7 @@ export class DoclingClient {
 
   constructor(options: DoclingClientOptions) {
     this.baseUrl = options.baseUrl.replace(/\/+$/, '');
+    this.apiKey = options.apiKey;
     this.documentTimeoutSeconds =
       options.documentTimeoutSeconds ?? DEFAULT_DOCUMENT_TIMEOUT_SECONDS;
     this.pollIntervalMs = options.pollIntervalMs ?? DEFAULT_POLL_INTERVAL_MS;
@@ -165,10 +170,13 @@ export class DoclingClient {
   // a transient failure is retried in place rather than bubbling straight up
   // to `convert()` - see `REQUEST_ATTEMPTS`.
   private async request(url: string, init?: RequestInit): Promise<Response> {
+    const headers = new Headers(init?.headers);
+    if (this.apiKey) headers.set('X-Api-Key', this.apiKey);
+
     let lastError: PdfExtractionError | undefined;
     for (let attempt = 1; attempt <= REQUEST_ATTEMPTS; attempt++) {
       try {
-        const response = await this.fetchImpl(url, init);
+        const response = await this.fetchImpl(url, { ...init, headers });
         if (response.ok) return response;
         const body = await errorBody(response);
         lastError = new PdfExtractionError(

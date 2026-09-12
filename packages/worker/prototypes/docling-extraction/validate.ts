@@ -29,6 +29,7 @@ function requiredEnv(name: string): string {
 }
 
 const doclingUrl = requiredEnv('DOCLING_URL');
+const doclingApiKey = requiredEnv('DOCLING_API_KEY');
 const s3Bucket = requiredEnv('S3_BUCKET');
 const s3Region = requiredEnv('S3_REGION');
 const awsAccessKeyId = requiredEnv('AWS_ACCESS_KEY_ID');
@@ -67,6 +68,7 @@ const manifest = await loadManifest();
 
 const extractor = new DoclingPdfExtractor({
   baseUrl: doclingUrl,
+  apiKey: doclingApiKey,
   documentTimeoutSeconds: numberEnv('DOCLING_DOCUMENT_TIMEOUT_SECONDS'),
 });
 

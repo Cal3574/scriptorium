@@ -147,12 +147,14 @@ describe('DoclingClient', () => {
     });
   });
 
-  it('sends the expected form fields and options', async () => {
+  it('sends the expected form fields, options, and API key header', async () => {
     let capturedForm: FormData | undefined;
+    const capturedHeaders: Headers[] = [];
     const fetchImpl = (async (
       input: Parameters<typeof fetch>[0],
       init?: RequestInit,
     ) => {
+      capturedHeaders.push(new Headers(init?.headers));
       const url = String(input);
       if (url.includes('/v1/convert/file/async')) {
         capturedForm = init?.body as FormData;
@@ -169,6 +171,7 @@ describe('DoclingClient', () => {
 
     const client = new DoclingClient({
       baseUrl: 'http://docling.local/',
+      apiKey: 'dk-test',
       fetchImpl,
       sleep: async () => undefined,
       documentTimeoutSeconds: 120,
@@ -180,6 +183,34 @@ describe('DoclingClient', () => {
     expect(capturedForm?.get('do_ocr')).toBe('true');
     expect(capturedForm?.get('table_mode')).toBe('accurate');
     expect(capturedForm?.get('document_timeout')).toBe('120');
+    for (const headers of capturedHeaders) {
+      expect(headers.get('X-Api-Key')).toBe('dk-test');
+    }
+  });
+
+  it('omits the X-Api-Key header when no apiKey is configured', async () => {
+    let capturedHeaders: Headers | undefined;
+    const fetchImpl = (async (
+      _input: Parameters<typeof fetch>[0],
+      init?: RequestInit,
+    ) => {
+      capturedHeaders = new Headers(init?.headers);
+      return jsonResponse({ task_id: 't1' });
+    }) as typeof fetch;
+
+    const client = new DoclingClient({
+      baseUrl: 'http://docling.local',
+      fetchImpl,
+      sleep: async () => undefined,
+      pollTimeoutMs: 0,
+    });
+
+    // pollTimeoutMs: 0 bails out of pollUntilDone on its first check - the
+    // submit request that already ran is enough to assert on.
+    await expect(
+      client.convert(new Uint8Array([1]), 'book.pdf'),
+    ).rejects.toMatchObject({ retryable: false });
+    expect(capturedHeaders?.has('X-Api-Key')).toBe(false);
   });
 
   it('does not client-side time out before a longer configured document timeout elapses', async () => {

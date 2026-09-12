@@ -12,6 +12,7 @@ import { z } from 'zod';
 // and ignored otherwise.
 const alwaysLiveKeys = [
   'DOCLING_URL',
+  'DOCLING_API_KEY',
   'OPENAI_API_KEY',
   'ANTHROPIC_API_KEY',
 ] as const;
@@ -25,6 +26,7 @@ const sharedShape = {
   PROVIDER_MODE: z.enum(['live', 'fake']).default('live'),
   // The self-hosted docling-serve instance the live PDF extractor talks to.
   DOCLING_URL: z.string().url().optional(),
+  DOCLING_API_KEY: z.string().min(1).optional(),
   // Server-side conversion timeout docling-serve enforces per book, seconds.
   DOCLING_DOCUMENT_TIMEOUT_SECONDS: z.coerce
     .number()
@@ -41,6 +43,7 @@ const sharedShape = {
 type MaybeProviderConfig = {
   PROVIDER_MODE?: string;
   DOCLING_URL?: string;
+  DOCLING_API_KEY?: string;
   OPENAI_API_KEY?: string;
   ANTHROPIC_API_KEY?: string;
 };
