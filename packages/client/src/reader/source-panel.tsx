@@ -59,7 +59,7 @@ export function SourcePanel({
       <p className="text-muted-foreground border-border m-0 mb-5 inline-block rounded border px-2 py-1 font-mono text-[10.5px] tracking-[0.06em] uppercase">
         Reconstructed from source{range ? ` · pp. ${range}` : ''}
       </p>
-      <SummaryProse markdown={source.text} />
+      <SummaryProse markdown={source.text} className="prose--reading" />
       {source.truncated && (
         <p className="text-muted-foreground mt-6 text-xs italic">
           This chapter&apos;s source text is long and has been trimmed here.
