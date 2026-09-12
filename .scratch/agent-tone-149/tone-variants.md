@@ -1,4 +1,5 @@
 # PROTOTYPE - throwaway, wipe me
+
 # Agent-mode tone/system-prompt variants for #149
 
 Two system prompt drafts, each followed by the SAME two sample exchanges
