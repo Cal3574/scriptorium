@@ -7,6 +7,7 @@ import { AppShell } from './components/shell/app-shell';
 import { RouteFallback } from './components/shell/route-fallback';
 import { UsageProvider } from './usage/use-usage';
 import { useDocumentTitle } from './use-document-title';
+import { ChatWidgetColdStartPrototype } from './components/shell/chat-widget-cold-start-prototype';
 
 // ProviderBoundary catches the lazy() rejection that fires when a provider's
 // remoteEntry.js can't be fetched (provider not running, network error,
@@ -59,6 +60,10 @@ function Shell() {
           <ProviderBoundary name="my-provider">
             <ProviderMyProvider />
           </ProviderBoundary>
+        )}
+        {/* PROTOTYPE (#150) — drop before merging past prototype/cold-start-150 */}
+        {new URLSearchParams(window.location.search).has('proto150') && (
+          <ChatWidgetColdStartPrototype />
         )}
       </AppShell>
     </UsageProvider>
