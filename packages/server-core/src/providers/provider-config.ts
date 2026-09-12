@@ -4,7 +4,6 @@
 // straight into `toProviderRuntimeConfig`.
 
 export type ProviderMode = 'live' | 'fake';
-export type PdfExtractorChoice = 'gemini' | 'llamaparse';
 
 export interface EnvProviderConfig {
   PROVIDER_MODE: ProviderMode;
@@ -13,13 +12,9 @@ export interface EnvProviderConfig {
   // storage uses it to build a presigned-PUT URL that points back at the
   // in-process dev upload route.
   API_URL?: string;
-  // Which PDF text extractor the live bindings use. Defaults to `gemini`.
-  PDF_EXTRACTOR?: PdfExtractorChoice;
-  LLAMAPARSE_API_KEY?: string;
-  GEMINI_API_KEY?: string;
-  GEMINI_MODEL?: string;
-  GEMINI_PAGES_PER_BATCH?: number;
-  GEMINI_BATCH_CONCURRENCY?: number;
+  // The self-hosted docling-serve instance the live PDF extractor talks to.
+  DOCLING_URL?: string;
+  DOCLING_DOCUMENT_TIMEOUT_SECONDS?: number;
   OPENAI_API_KEY?: string;
   ANTHROPIC_API_KEY?: string;
   S3_BUCKET?: string;
@@ -33,12 +28,8 @@ export interface ProviderRuntimeConfig {
   mode: ProviderMode;
   redisUrl: string;
   apiUrl?: string;
-  pdfExtractor?: PdfExtractorChoice;
-  llamaparseApiKey?: string;
-  geminiApiKey?: string;
-  geminiModel?: string;
-  geminiPagesPerBatch?: number;
-  geminiBatchConcurrency?: number;
+  doclingUrl?: string;
+  doclingDocumentTimeoutSeconds?: number;
   openaiApiKey?: string;
   anthropicApiKey?: string;
   s3Bucket?: string;
@@ -55,12 +46,8 @@ export function toProviderRuntimeConfig(
     mode: env.PROVIDER_MODE,
     redisUrl: env.REDIS_URL,
     apiUrl: env.API_URL,
-    pdfExtractor: env.PDF_EXTRACTOR,
-    llamaparseApiKey: env.LLAMAPARSE_API_KEY,
-    geminiApiKey: env.GEMINI_API_KEY,
-    geminiModel: env.GEMINI_MODEL,
-    geminiPagesPerBatch: env.GEMINI_PAGES_PER_BATCH,
-    geminiBatchConcurrency: env.GEMINI_BATCH_CONCURRENCY,
+    doclingUrl: env.DOCLING_URL,
+    doclingDocumentTimeoutSeconds: env.DOCLING_DOCUMENT_TIMEOUT_SECONDS,
     openaiApiKey: env.OPENAI_API_KEY,
     anthropicApiKey: env.ANTHROPIC_API_KEY,
     s3Bucket: env.S3_BUCKET,

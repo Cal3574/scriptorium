@@ -1,4 +1,4 @@
-import type { PdfHeadingItem, PdfPage } from '../pdf-extractor.js';
+import type { PdfHeadingItem, PdfPage } from './pdf-extractor.js';
 
 // Derive the `items` heading blocks from per-page markdown by pulling every
 // ATX heading line (`# ` .. `###### `) out of each page. This matches the

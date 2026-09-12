@@ -1,13 +1,12 @@
 import {
+  DoclingPdfExtractor,
   EMBEDDING_CLIENT,
   FakeEmbeddingClient,
   FakeLlmClient,
   FakeObjectStorage,
   FakePdfExtractor,
   FakeQueue,
-  GeminiPdfExtractor,
   LLM_CLIENT,
-  LlamaParseExtractor,
   OBJECT_STORAGE,
   PDF_EXTRACTOR,
   QUEUE,
@@ -82,7 +81,7 @@ describe('selectProviderBindings', () => {
     const live = selectProviderBindings({
       ...base,
       mode: 'live',
-      geminiApiKey: 'gm',
+      doclingUrl: 'http://docling.local',
       openaiApiKey: 'sk-o',
       anthropicApiKey: 'sk-a',
     });
@@ -92,60 +91,30 @@ describe('selectProviderBindings', () => {
     }
   });
 
-  describe('PDF_EXTRACTOR selection', () => {
-    const liveBase = {
-      ...base,
-      mode: 'live' as const,
-      geminiApiKey: 'gm',
-      llamaparseApiKey: 'llx',
-      openaiApiKey: 'sk-o',
-      anthropicApiKey: 'sk-a',
-    };
-
-    const extractor = (config: Parameters<typeof selectProviderBindings>[0]) =>
-      (
-        byToken(
-          selectProviderBindings(config),
-          PDF_EXTRACTOR,
-        ) as FactoryProvider
-      ).useFactory();
-
-    it('defaults to the Gemini extractor in live mode', () => {
-      expect(extractor(liveBase)).toBeInstanceOf(GeminiPdfExtractor);
-    });
-
-    it('binds the Gemini extractor when PDF_EXTRACTOR=gemini', () => {
-      expect(extractor({ ...liveBase, pdfExtractor: 'gemini' })).toBeInstanceOf(
-        GeminiPdfExtractor,
-      );
-    });
-
-    it('binds the LlamaParse extractor when PDF_EXTRACTOR=llamaparse', () => {
-      expect(
-        extractor({ ...liveBase, pdfExtractor: 'llamaparse' }),
-      ).toBeInstanceOf(LlamaParseExtractor);
-    });
-
-    it('fails fast when the selected extractor key is missing', () => {
-      const { geminiApiKey, ...noGemini } = liveBase;
-      void geminiApiKey;
-      expect(() => extractor(noGemini)).toThrow(/GEMINI_API_KEY/);
-
-      const { llamaparseApiKey, ...noLlama } = liveBase;
-      void llamaparseApiKey;
-      expect(() =>
-        extractor({ ...noLlama, pdfExtractor: 'llamaparse' }),
-      ).toThrow(/LLAMAPARSE_API_KEY/);
-    });
-
-    it('binds the fake extractor in fake mode regardless of PDF_EXTRACTOR', () => {
-      const bindings = selectProviderBindings({
+  describe('PDF extractor binding', () => {
+    it('binds the docling extractor in live mode', () => {
+      const live = selectProviderBindings({
         ...base,
-        pdfExtractor: 'llamaparse',
+        mode: 'live',
+        doclingUrl: 'http://docling.local',
+        openaiApiKey: 'sk-o',
+        anthropicApiKey: 'sk-a',
       });
-      expect((byToken(bindings, PDF_EXTRACTOR) as ClassProvider).useClass).toBe(
-        FakePdfExtractor,
-      );
+      const extractor = byToken(live, PDF_EXTRACTOR) as FactoryProvider;
+      expect(extractor.useFactory()).toBeInstanceOf(DoclingPdfExtractor);
+    });
+
+    it('fails fast in live mode when DOCLING_URL is missing', () => {
+      const live = selectProviderBindings({ ...base, mode: 'live' });
+      const extractor = byToken(live, PDF_EXTRACTOR) as FactoryProvider;
+      expect(() => extractor.useFactory()).toThrow(/DOCLING_URL/);
+    });
+
+    it('binds the fake extractor in fake mode', () => {
+      const bindings = selectProviderBindings(base);
+      expect(
+        (byToken(bindings, PDF_EXTRACTOR) as ClassProvider).useClass,
+      ).toBe(FakePdfExtractor);
     });
   });
 });

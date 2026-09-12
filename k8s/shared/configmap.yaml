@@ -8,15 +8,13 @@ metadata:
   namespace: scriptorium
 data:
   NODE_ENV: production
-  # live = real Gemini / OpenAI / Claude adapters and real S3. This is a
-  # real deployment, so it is never `fake`. `live` also makes the provider
+  # live = real docling-serve / OpenAI / Claude adapters and real S3. This is
+  # a real deployment, so it is never `fake`. `live` also makes the provider
   # keys and the S3 keys in shared/secret.yaml required at startup.
   PROVIDER_MODE: live
-  # PDF text extractor for the live bindings: `gemini` (default) or
-  # `llamaparse`. Only the selected extractor's key in shared/secret.yaml is
-  # required. Left unset here to take the `gemini` default; set it explicitly
-  # only to switch.
-  # PDF_EXTRACTOR: gemini
+  # Base URL of the self-hosted docling-serve instance (a separate VPS, not
+  # in this cluster). No auth - the instance is not exposed beyond it.
+  DOCLING_URL: https://docling-serve-production-cd18.up.railway.app
   # Production Clerk instance (clerk.scriptorium-ai.com). Safe to expose - it
   # ships in the browser bundle, and is the value the
   # VITE_CLERK_PUBLISHABLE_KEY build arg bakes into the client. The matching

@@ -6,19 +6,15 @@ import { z } from 'zod';
 // there is no "run with a broken config" path.
 
 // `PROVIDER_MODE` selects, all-or-nothing, whether the app binds the live
-// external adapters (Gemini/LlamaParse / OpenAI / Claude) or the offline fakes.
+// external adapters (docling-serve / OpenAI / Claude) or the offline fakes.
 // It defaults to `live` - the only value used outside local dev, where `.env`
 // sets `fake` explicitly. The provider keys are required only in `live` mode,
 // and ignored otherwise.
-//
-// `PDF_EXTRACTOR` is a deliberate exception to the "no per-provider override"
-// convention that governs `PROVIDER_MODE`: the extractor sits upstream of RAG,
-// so a live extractor with fake embeddings is not the incoherent mix that rule
-// exists to forbid. In `live` mode only the *selected* extractor's key is
-// required - `gemini` needs `GEMINI_API_KEY`, `llamaparse` needs
-// `LLAMAPARSE_API_KEY`. `OPENAI_API_KEY` / `ANTHROPIC_API_KEY` stay
-// unconditionally required in `live`.
-const alwaysLiveKeys = ['OPENAI_API_KEY', 'ANTHROPIC_API_KEY'] as const;
+const alwaysLiveKeys = [
+  'DOCLING_URL',
+  'OPENAI_API_KEY',
+  'ANTHROPIC_API_KEY',
+] as const;
 
 const sharedShape = {
   NODE_ENV: z
@@ -27,14 +23,14 @@ const sharedShape = {
   DATABASE_URL: z.string().url(),
   REDIS_URL: z.string().url(),
   PROVIDER_MODE: z.enum(['live', 'fake']).default('live'),
-  // `docling` (self-hosted) is a planned third value.
-  PDF_EXTRACTOR: z.enum(['gemini', 'llamaparse']).default('gemini'),
-  LLAMAPARSE_API_KEY: z.string().min(1).optional(),
-  GEMINI_API_KEY: z.string().min(1).optional(),
-  // Optional Gemini tuning, cost/latency/reliability knobs with spec defaults.
-  GEMINI_MODEL: z.string().min(1).default('gemini-3.5-flash-lite'),
-  GEMINI_PAGES_PER_BATCH: z.coerce.number().int().positive().default(10),
-  GEMINI_BATCH_CONCURRENCY: z.coerce.number().int().positive().default(5),
+  // The self-hosted docling-serve instance the live PDF extractor talks to.
+  DOCLING_URL: z.string().url().optional(),
+  // Server-side conversion timeout docling-serve enforces per book, seconds.
+  DOCLING_DOCUMENT_TIMEOUT_SECONDS: z.coerce
+    .number()
+    .int()
+    .positive()
+    .default(1200),
   OPENAI_API_KEY: z.string().min(1).optional(),
   ANTHROPIC_API_KEY: z.string().min(1).optional(),
 };
@@ -44,9 +40,7 @@ const sharedShape = {
 // offending-keys list stays precise.
 type MaybeProviderConfig = {
   PROVIDER_MODE?: string;
-  PDF_EXTRACTOR?: string;
-  LLAMAPARSE_API_KEY?: string;
-  GEMINI_API_KEY?: string;
+  DOCLING_URL?: string;
   OPENAI_API_KEY?: string;
   ANTHROPIC_API_KEY?: string;
 };
@@ -64,16 +58,6 @@ function requireProviderKeysWhenLive(
         message: `${key} is required when PROVIDER_MODE=live`,
       });
     }
-  }
-  const extractor = cfg.PDF_EXTRACTOR ?? 'gemini';
-  const extractorKey =
-    extractor === 'llamaparse' ? 'LLAMAPARSE_API_KEY' : 'GEMINI_API_KEY';
-  if (!cfg[extractorKey]) {
-    ctx.addIssue({
-      code: z.ZodIssueCode.custom,
-      path: [extractorKey],
-      message: `${extractorKey} is required when PROVIDER_MODE=live and PDF_EXTRACTOR=${extractor}`,
-    });
   }
 }
 
@@ -187,8 +171,8 @@ export class ConfigError extends Error {
 }
 
 // A shell that sources `.env` exports every listed key, so an unfilled line
-// like `LLAMAPARSE_API_KEY=` arrives as `''` rather than absent. Treat an
-// empty string as unset so `.optional()` and `.default()` behave the way the
+// like `DOCLING_URL=` arrives as `''` rather than absent. Treat an empty
+// string as unset so `.optional()` and `.default()` behave the way the
 // `.env.example` comments promise.
 function stripEmpty(env: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
   const out: NodeJS.ProcessEnv = {};
