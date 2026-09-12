@@ -13,6 +13,7 @@ import { chapterHeading, pageRange } from '@/books/chapter-display';
 import { useReaderBook } from './reader-context';
 import { chapterIndexFromParam } from './chapter-number';
 import { useArrowNav } from './use-arrow-nav';
+import { useSwipeNav } from './use-swipe-nav';
 import { useChapterSource } from './use-chapter-source';
 import { ReaderStrip } from './reader-strip';
 import { SourcePanel } from './source-panel';
@@ -32,9 +33,16 @@ export function ReaderChapter() {
   const index = chapterIndexFromParam(chapterNumber, total);
   const revealed = searchParams.get('view') === 'source';
 
-  const chapterPath = useCallback(
+  const basePath = useCallback(
     (n: number) => `/books/${book.id}/read/${n}`,
     [book.id],
+  );
+
+  // Prev/next and the arrow keys carry the current view forward, so Source
+  // stays open as you move between chapters instead of resetting to Summary.
+  const chapterPath = useCallback(
+    (n: number) => `${basePath(n)}${revealed ? '?view=source' : ''}`,
+    [basePath, revealed],
   );
 
   // Prev/next as push navigations. `index` is 0-based, so the previous
@@ -50,6 +58,10 @@ export function ReaderChapter() {
   const hasPrev = index != null && index > 0;
   const hasNext = index != null && index < total - 1;
   useArrowNav(hasPrev ? goPrev : noop, hasNext ? goNext : noop);
+  const swipeRef = useSwipeNav<HTMLElement>(
+    hasPrev ? goPrev : noop,
+    hasNext ? goNext : noop,
+  );
 
   const chapterId = index != null ? book.chapters[index].id : '';
   const sourceState = useChapterSource(book.id, chapterId, revealed);
@@ -78,11 +90,11 @@ export function ReaderChapter() {
         revealed={revealed}
         // Summary replaces the `?view=source` entry so the browser back button
         // returns straight to the previous chapter, never to a stale Source.
-        onShowSummary={() => navigate(chapterPath(number), { replace: true })}
-        onShowSource={() => navigate(`${chapterPath(number)}?view=source`)}
+        onShowSummary={() => navigate(basePath(number), { replace: true })}
+        onShowSource={() => navigate(`${basePath(number)}?view=source`)}
       />
 
-      <article className="mx-auto max-w-[68ch] pt-9 pb-24">
+      <article ref={swipeRef} className="mx-auto max-w-[68ch] pt-9 pb-24">
         <p className="text-muted-foreground m-0 font-mono text-[10.5px] tracking-[0.08em] uppercase">
           Chapter {number}
         </p>

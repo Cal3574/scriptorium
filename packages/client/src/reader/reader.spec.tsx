@@ -204,6 +204,53 @@ test('prev/next and the arrow keys walk chapters with no wrap', async () => {
   expect(router.state.location.pathname).toBe('/books/b1/read/3');
 });
 
+test('prev/next and the arrow keys carry the current view forward, so Source stays open across chapters', async () => {
+  mockApiWith(
+    baseHandlers({
+      '/api/v1/books/b1/chapters/c2/source': () =>
+        jsonRes({ ...SOURCE, chapterId: 'c2', chapterIndex: 1 }),
+    }),
+  );
+  const router = renderAt('/books/b1/read/1?view=source');
+  await screen.findByText('The reconstructed source prose of chapter one.');
+
+  await userEvent.click(screen.getByRole('button', { name: 'Next chapter' }));
+  expect(router.state.location.pathname).toBe('/books/b1/read/2');
+  expect(router.state.location.search).toBe('?view=source');
+  expect(
+    screen.getByRole('button', { name: 'Source' }),
+  ).toHaveAttribute('aria-pressed', 'true');
+
+  await act(async () => {
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowLeft' }));
+  });
+  expect(router.state.location.pathname).toBe('/books/b1/read/1');
+  expect(router.state.location.search).toBe('?view=source');
+});
+
+test('a leftward swipe on the chapter column moves to the next chapter', async () => {
+  const router = renderAt('/books/b1/read/1');
+  const article = await screen.findByRole('heading', {
+    name: 'Chapter 1 Title',
+  });
+  const column = article.closest('article') as Element;
+
+  await act(async () => {
+    column.dispatchEvent(
+      new TouchEvent('touchstart', {
+        touches: [{ clientX: 200, clientY: 100 } as Touch],
+      }),
+    );
+    column.dispatchEvent(
+      new TouchEvent('touchend', {
+        changedTouches: [{ clientX: 100, clientY: 100 } as Touch],
+      }),
+    );
+  });
+
+  expect(router.state.location.pathname).toBe('/books/b1/read/2');
+});
+
 test('the TOC marks the current chapter', async () => {
   renderAt('/books/b1/read/2');
 
@@ -249,9 +296,11 @@ test('Source reveals the reconstructed text lazily; the browser back button retu
 
   await userEvent.click(screen.getByRole('button', { name: 'Source' }));
 
-  expect(
-    await screen.findByText('The reconstructed source prose of chapter one.'),
-  ).toBeVisible();
+  const sourceText = await screen.findByText(
+    'The reconstructed source prose of chapter one.',
+  );
+  expect(sourceText).toBeVisible();
+  expect(sourceText.closest('.prose')).toHaveClass('prose--reading');
   expect(
     screen.getByText(/Reconstructed from source · pp\. 1–10/),
   ).toBeVisible();

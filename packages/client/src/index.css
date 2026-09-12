@@ -190,6 +190,17 @@
   line-height: 1.6;
 }
 
+/* Reading-oriented override for the reconstructed Source panel only
+ * (`<SourcePanel>`) - long-form book text reads better with a book-like
+ * serif, a larger size and looser leading than the shared .prose scale
+ * (tuned for shorter summaries/deep-dives). Applied alongside `.prose`, so
+ * it must come after it in source order to win at equal specificity. */
+.prose--reading {
+  font-family: var(--font-serif);
+  font-size: 1rem; /* 16px, up from .prose's 14px */
+  line-height: 1.75;
+}
+
 .prose > :first-child {
   margin-top: 0;
 }
