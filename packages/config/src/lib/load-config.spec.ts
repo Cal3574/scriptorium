@@ -5,8 +5,8 @@ import {
 } from './load-config.js';
 
 const liveProviderKeys = {
-  GEMINI_API_KEY: 'gm-test',
-  LLAMAPARSE_API_KEY: 'llx-test',
+  DOCLING_URL: 'http://docling.local',
+  DOCLING_API_KEY: 'dk-test',
   OPENAI_API_KEY: 'sk-openai',
   ANTHROPIC_API_KEY: 'sk-ant-test',
 };
@@ -141,50 +141,39 @@ describe('parseWorkerConfig', () => {
 });
 
 describe('PROVIDER_MODE', () => {
-  it('requires OpenAI, Anthropic and the selected extractor key when live', () => {
+  it('requires DOCLING_URL, DOCLING_API_KEY, OpenAI and Anthropic when live', () => {
     const {
-      GEMINI_API_KEY,
-      LLAMAPARSE_API_KEY,
+      DOCLING_URL,
+      DOCLING_API_KEY,
       OPENAI_API_KEY,
       ANTHROPIC_API_KEY,
       ...rest
     } = validApiEnv;
-    void [
-      GEMINI_API_KEY,
-      LLAMAPARSE_API_KEY,
-      OPENAI_API_KEY,
-      ANTHROPIC_API_KEY,
-    ];
+    void [DOCLING_URL, DOCLING_API_KEY, OPENAI_API_KEY, ANTHROPIC_API_KEY];
     try {
       parseApiConfig({ ...rest, PROVIDER_MODE: 'live' });
       fail('expected ConfigError');
     } catch (error) {
       expect((error as ConfigError).keys).toEqual(
         expect.arrayContaining([
-          'GEMINI_API_KEY',
+          'DOCLING_URL',
+          'DOCLING_API_KEY',
           'OPENAI_API_KEY',
           'ANTHROPIC_API_KEY',
         ]),
       );
-      // LlamaParse is not the default extractor - its key is not required.
-      expect((error as ConfigError).keys).not.toContain('LLAMAPARSE_API_KEY');
     }
   });
 
   it('does not require the provider keys when fake', () => {
     const {
-      GEMINI_API_KEY,
-      LLAMAPARSE_API_KEY,
+      DOCLING_URL,
+      DOCLING_API_KEY,
       OPENAI_API_KEY,
       ANTHROPIC_API_KEY,
       ...rest
     } = validWorkerEnv;
-    void [
-      GEMINI_API_KEY,
-      LLAMAPARSE_API_KEY,
-      OPENAI_API_KEY,
-      ANTHROPIC_API_KEY,
-    ];
+    void [DOCLING_URL, DOCLING_API_KEY, OPENAI_API_KEY, ANTHROPIC_API_KEY];
     const config = parseWorkerConfig({ ...rest, PROVIDER_MODE: 'fake' });
     expect(config.PROVIDER_MODE).toBe('fake');
     expect(config.OPENAI_API_KEY).toBeUndefined();
@@ -194,7 +183,8 @@ describe('PROVIDER_MODE', () => {
     const config = parseWorkerConfig({
       ...validWorkerEnv,
       PROVIDER_MODE: 'fake',
-      LLAMAPARSE_API_KEY: '',
+      DOCLING_URL: '',
+      DOCLING_API_KEY: '',
       OPENAI_API_KEY: '',
       ANTHROPIC_API_KEY: '',
     });
@@ -245,68 +235,45 @@ describe('PROVIDER_MODE', () => {
   });
 });
 
-describe('PDF_EXTRACTOR', () => {
-  it('defaults to gemini with the spec Gemini tuning defaults', () => {
+describe('DOCLING_URL', () => {
+  it('defaults DOCLING_DOCUMENT_TIMEOUT_SECONDS to 1200', () => {
     const config = parseWorkerConfig({ ...validWorkerEnv });
-    expect(config.PDF_EXTRACTOR).toBe('gemini');
-    expect(config.GEMINI_MODEL).toBe('gemini-3.5-flash-lite');
-    expect(config.GEMINI_PAGES_PER_BATCH).toBe(10);
-    expect(config.GEMINI_BATCH_CONCURRENCY).toBe(5);
+    expect(config.DOCLING_DOCUMENT_TIMEOUT_SECONDS).toBe(1200);
   });
 
-  it('coerces the Gemini tuning numbers from strings', () => {
+  it('coerces DOCLING_DOCUMENT_TIMEOUT_SECONDS from a string', () => {
     const config = parseWorkerConfig({
       ...validWorkerEnv,
-      GEMINI_PAGES_PER_BATCH: '6',
-      GEMINI_BATCH_CONCURRENCY: '2',
+      DOCLING_DOCUMENT_TIMEOUT_SECONDS: '600',
     });
-    expect(config.GEMINI_PAGES_PER_BATCH).toBe(6);
-    expect(config.GEMINI_BATCH_CONCURRENCY).toBe(2);
+    expect(config.DOCLING_DOCUMENT_TIMEOUT_SECONDS).toBe(600);
   });
 
-  it('requires GEMINI_API_KEY and not LLAMAPARSE_API_KEY when live + gemini', () => {
-    const { GEMINI_API_KEY, LLAMAPARSE_API_KEY, ...rest } = validWorkerEnv;
-    void [GEMINI_API_KEY, LLAMAPARSE_API_KEY];
+  it('requires DOCLING_URL when live', () => {
+    const { DOCLING_URL, ...rest } = validWorkerEnv;
+    void DOCLING_URL;
     try {
       parseWorkerConfig({ ...rest, PROVIDER_MODE: 'live' });
       fail('expected ConfigError');
     } catch (error) {
-      expect((error as ConfigError).keys).toContain('GEMINI_API_KEY');
-      expect((error as ConfigError).keys).not.toContain('LLAMAPARSE_API_KEY');
+      expect((error as ConfigError).keys).toContain('DOCLING_URL');
     }
   });
 
-  it('requires LLAMAPARSE_API_KEY and not GEMINI_API_KEY when live + llamaparse', () => {
-    const { GEMINI_API_KEY, LLAMAPARSE_API_KEY, ...rest } = validWorkerEnv;
-    void [GEMINI_API_KEY, LLAMAPARSE_API_KEY];
+  it('rejects a malformed DOCLING_URL', () => {
+    expect(() =>
+      parseWorkerConfig({ ...validWorkerEnv, DOCLING_URL: 'not-a-url' }),
+    ).toThrow(/DOCLING_URL/);
+  });
+
+  it('requires DOCLING_API_KEY when live', () => {
+    const { DOCLING_API_KEY, ...rest } = validWorkerEnv;
+    void DOCLING_API_KEY;
     try {
-      parseWorkerConfig({
-        ...rest,
-        PROVIDER_MODE: 'live',
-        PDF_EXTRACTOR: 'llamaparse',
-      });
+      parseWorkerConfig({ ...rest, PROVIDER_MODE: 'live' });
       fail('expected ConfigError');
     } catch (error) {
-      expect((error as ConfigError).keys).toContain('LLAMAPARSE_API_KEY');
-      expect((error as ConfigError).keys).not.toContain('GEMINI_API_KEY');
+      expect((error as ConfigError).keys).toContain('DOCLING_API_KEY');
     }
-  });
-
-  it('accepts live + llamaparse with only the LlamaParse key', () => {
-    const { GEMINI_API_KEY, ...rest } = validWorkerEnv;
-    void GEMINI_API_KEY;
-    expect(() =>
-      parseWorkerConfig({
-        ...rest,
-        PROVIDER_MODE: 'live',
-        PDF_EXTRACTOR: 'llamaparse',
-      }),
-    ).not.toThrow();
-  });
-
-  it('rejects an unknown PDF_EXTRACTOR value naming that key', () => {
-    expect(() =>
-      parseWorkerConfig({ ...validWorkerEnv, PDF_EXTRACTOR: 'docling' }),
-    ).toThrow(/PDF_EXTRACTOR/);
   });
 });

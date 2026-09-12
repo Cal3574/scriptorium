@@ -1,10 +1,10 @@
 // The seam between the ingest pipeline and PDF text extraction. The live
-// adapter drives LlamaParse's async v2 REST API (plus a `pdfjs-dist` pass over
-// the same bytes for the bookmark outline); the fake returns a committed book.
-// Everything chapter detection and chunking need is on `PdfExtraction`: the
-// concatenated markdown, the per-page markdown, the `items` heading blocks, the
-// PDF bookmark `outline`, and the document `metadata` (see the
-// chapter-detection spec).
+// adapter sends the whole PDF to a self-hosted docling-serve instance (plus a
+// `pdfjs-dist` pass over the same bytes for the bookmark outline); the fake
+// returns a committed book. Everything chapter detection and chunking need is
+// on `PdfExtraction`: the concatenated markdown, the per-page markdown, the
+// `items` heading blocks, the PDF bookmark `outline`, and the document
+// `metadata` (see the chapter-detection spec).
 
 // One structured block from the parse. The pipeline only consumes heading
 // blocks, so that is all the fake synthesises and all this type models; the
@@ -72,9 +72,9 @@ export interface PdfExtractInput {
   // Original filename, used by the live adapter for the multipart upload part
   // and by both adapters for logging.
   filename: string;
-  // The book being ingested, if known. Carried purely so an adapter can tag a
-  // structured operational event (the Gemini adapter's `extraction.partial`)
-  // with the book it happened on. Never load-bearing for the parse.
+  // The book being ingested, if known. Carried purely so an adapter can tag
+  // its own operational logging with the book it happened on. Never
+  // load-bearing for the parse.
   bookId?: string;
 }
 

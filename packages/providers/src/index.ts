@@ -1,5 +1,5 @@
 // @scriptorium/providers is the seam between the app and the external services
-// it depends on: PDF extraction (LlamaParse), embeddings (OpenAI), chat
+// it depends on: PDF extraction (docling-serve), embeddings (OpenAI), chat
 // completion (Claude), and the job queue (BullMQ / Redis). Each dependency is
 // declared as an interface plus a DI token, with a live adapter and an offline
 // fake. All SDK and HTTP code lives inside the adapters; nothing here imports
@@ -27,15 +27,9 @@ export {
   cleanExtractedMarkdown,
 } from './pdf-extractor/clean-text.js';
 export {
-  LlamaParseExtractor,
-  type LlamaParseExtractorOptions,
-} from './pdf-extractor/llamaparse-pdf-extractor.js';
-export {
-  GeminiPdfExtractor,
-  type GeminiPdfExtractorOptions,
-  type GeminiContentClient,
-  type ExtractionPartialEvent,
-} from './pdf-extractor/gemini-pdf-extractor.js';
+  DoclingPdfExtractor,
+  type DoclingPdfExtractorOptions,
+} from './pdf-extractor/docling-pdf-extractor.js';
 
 export type { EmbeddingClient } from './embedding-client/embedding-client.js';
 export {
