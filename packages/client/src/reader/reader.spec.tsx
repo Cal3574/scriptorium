@@ -217,9 +217,10 @@ test('prev/next and the arrow keys carry the current view forward, so Source sta
   await userEvent.click(screen.getByRole('button', { name: 'Next chapter' }));
   expect(router.state.location.pathname).toBe('/books/b1/read/2');
   expect(router.state.location.search).toBe('?view=source');
-  expect(
-    screen.getByRole('button', { name: 'Source' }),
-  ).toHaveAttribute('aria-pressed', 'true');
+  expect(screen.getByRole('button', { name: 'Source' })).toHaveAttribute(
+    'aria-pressed',
+    'true',
+  );
 
   await act(async () => {
     window.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowLeft' }));
