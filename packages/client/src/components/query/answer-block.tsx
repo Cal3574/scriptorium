@@ -1,10 +1,12 @@
+import { cn } from '@/lib/utils';
 import { SummaryProse } from '@/components/prose/summary-prose';
 
 // The streamed answer (#54 inventory; user stories 46-48). The markdown so far
 // goes through the shared `SummaryProse` treatment so a half-written answer
 // reads exactly like a finished one. While `streaming` is true a thin caret
-// blinks at the end of the text as the "still being written" cue; it is gone
-// the moment the `done` event lands. The caret respects reduced-motion.
+// blinks at the end of the text as the "still being written" cue, and a
+// gradient sheen (`ai-stream-shimmer`, index.css) sweeps the block; both are
+// gone the moment the `done` event lands. Both respect reduced-motion.
 export function AnswerBlock({
   markdown,
   streaming,
@@ -13,7 +15,11 @@ export function AnswerBlock({
   streaming: boolean;
 }) {
   return (
-    <div data-answer data-streaming={streaming || undefined}>
+    <div
+      data-answer
+      data-streaming={streaming || undefined}
+      className={cn(streaming && 'ai-stream-shimmer')}
+    >
       <SummaryProse markdown={markdown} />
       {streaming && (
         <span

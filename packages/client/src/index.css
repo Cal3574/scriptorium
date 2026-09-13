@@ -412,6 +412,128 @@
   }
 }
 
+/* The chat widget's "AI" visual language (#166): a soft gradient glow behind
+ * the launcher and around the open panel, a gradient sweep over text still
+ * streaming in, and pulsing dots while a reply is being generated. Built
+ * only from the #52 gradient already implied by --primary/--chart-2/
+ * --chart-3 (the same blue at three tints) - never a new colour. All motion
+ * here is opt-in; reduced-motion readers get the same states with no
+ * movement, just a static soft glow / gradient border. */
+
+@keyframes ai-launcher-pulse {
+  0% {
+    transform: scale(0.85);
+    opacity: 0.55;
+  }
+  70%,
+  100% {
+    transform: scale(1.35);
+    opacity: 0;
+  }
+}
+.ai-launcher-glow {
+  position: fixed;
+}
+.ai-launcher-glow::before {
+  content: '';
+  position: absolute;
+  inset: -6px;
+  z-index: -1;
+  border-radius: inherit;
+  background: radial-gradient(
+    circle,
+    color-mix(in srgb, var(--chart-3) 65%, transparent) 0%,
+    transparent 70%
+  );
+}
+@media (prefers-reduced-motion: no-preference) {
+  .ai-launcher-glow::before {
+    animation: ai-launcher-pulse 2.4s ease-out infinite;
+  }
+}
+
+@keyframes ai-border-drift {
+  0%,
+  100% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+}
+.ai-panel-glow {
+  background-image: linear-gradient(
+    135deg,
+    var(--chart-3),
+    var(--primary),
+    var(--chart-2)
+  );
+  background-size: 220% 220%;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .ai-panel-glow {
+    animation: ai-border-drift 8s ease-in-out infinite;
+  }
+  .ai-panel-glow[data-active] {
+    animation-duration: 2.2s;
+  }
+}
+
+@keyframes ai-shimmer-sweep {
+  0% {
+    background-position: 160% 0;
+  }
+  100% {
+    background-position: -60% 0;
+  }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .ai-stream-shimmer {
+    background-image: linear-gradient(
+      100deg,
+      transparent 30%,
+      color-mix(in srgb, var(--primary) 30%, transparent) 50%,
+      transparent 70%
+    );
+    background-size: 220% 100%;
+    animation: ai-shimmer-sweep 2s ease-in-out infinite;
+  }
+}
+
+@keyframes ai-thinking-bounce {
+  0%,
+  80%,
+  100% {
+    transform: scale(0.6);
+    opacity: 0.45;
+  }
+  40% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+.ai-thinking-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 9999px;
+  background-image: linear-gradient(135deg, var(--chart-3), var(--primary));
+}
+@media (prefers-reduced-motion: no-preference) {
+  .ai-thinking-dot {
+    animation: ai-thinking-bounce 1s ease-in-out infinite;
+  }
+}
+
+/* The highlighted-passage quote (#161): a gradient left border instead of
+ * the flat `--primary` one, tying it visually to the rest of the AI
+ * language above. */
+.ai-highlight-quote {
+  border-left-width: 2px;
+  border-left-style: solid;
+  border-image-slice: 1;
+  border-image-source: linear-gradient(180deg, var(--chart-3), var(--primary));
+}
+
 @media (prefers-reduced-motion: no-preference) {
   .ingest-spine-flow {
     background-image: linear-gradient(

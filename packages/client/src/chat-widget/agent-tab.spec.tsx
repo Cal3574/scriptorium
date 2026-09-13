@@ -147,6 +147,12 @@ function renderAtWithSeeder(path: string, passage: string) {
 }
 
 const fetchMock = jest.fn();
+const scrollIntoViewMock = jest.fn();
+
+beforeAll(() => {
+  // jsdom has no layout engine and doesn't implement scrollIntoView at all.
+  Element.prototype.scrollIntoView = scrollIntoViewMock;
+});
 
 beforeEach(() => {
   globalThis.fetch = fetchMock as unknown as typeof fetch;
@@ -156,6 +162,7 @@ afterEach(() => {
   cleanup();
   fetchMock.mockReset();
   usageRefetch.mockReset();
+  scrollIntoViewMock.mockReset();
 });
 
 test('off a reader route with no last book, there is nothing to load and no request is made', () => {
@@ -275,6 +282,58 @@ test('an existing thread renders its history and a distinct quoted passage, and 
     expect(screen.queryByTestId('agent-reply-caret')).not.toBeInTheDocument(),
   );
   expect(usageRefetch).toHaveBeenCalled();
+});
+
+test('the message list autoscrolls to the newest content as a reply streams in', async () => {
+  fetchMock.mockResolvedValueOnce(
+    jsonRes({
+      id: THREAD_A,
+      bookId: BOOK_A,
+      createdAt: '2026-01-01T00:00:00Z',
+      messages: [
+        {
+          id: USER_MSG,
+          role: 'user',
+          message: 'Seed',
+          highlightedPassage: 'A seed passage.',
+          createdAt: '2026-01-01T00:00:00Z',
+        },
+      ],
+    }),
+  );
+  renderAt(`/books/${BOOK_A}/read`);
+  await screen.findByText('A seed passage.');
+  scrollIntoViewMock.mockClear();
+
+  const stream = deferredStream();
+  fetchMock.mockResolvedValueOnce(stream.response);
+
+  await userEvent.type(screen.getByLabelText('agent message'), 'A rebel.');
+  await userEvent.click(screen.getByRole('button', { name: 'Send' }));
+
+  stream.push({
+    type: 'agent_turn_started',
+    threadId: THREAD_A,
+    userMessageId: NEW_USER_MSG,
+  });
+  expect(await screen.findByText('A rebel.')).toBeVisible();
+  expect(scrollIntoViewMock).toHaveBeenCalled();
+
+  scrollIntoViewMock.mockClear();
+  stream.push({ type: 'agent_text_delta', text: 'Say more.' });
+  expect(await screen.findByText('Say more.')).toBeVisible();
+  expect(scrollIntoViewMock).toHaveBeenCalled();
+
+  stream.push({
+    type: 'agent_done',
+    messageId: NEW_ASSISTANT_MSG,
+    message: 'Say more.',
+  });
+  stream.finish();
+
+  await waitFor(() =>
+    expect(screen.queryByTestId('agent-reply-caret')).not.toBeInTheDocument(),
+  );
 });
 
 test('a mid-turn agent_error leaves the user message unanswered and shows an alert', async () => {

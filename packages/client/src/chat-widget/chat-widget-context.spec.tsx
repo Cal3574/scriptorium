@@ -20,6 +20,8 @@ function Probe() {
     pendingHighlight,
     seedHighlight,
     clearPendingHighlight,
+    isStreaming,
+    setIsStreaming,
   } = useChatWidget();
   return (
     <div>
@@ -28,6 +30,7 @@ function Probe() {
       <span data-testid="draft">{askDraft}</span>
       <span data-testid="last-book-id">{lastBookId ?? 'none'}</span>
       <span data-testid="pending-highlight">{pendingHighlight ?? 'none'}</span>
+      <span data-testid="is-streaming">{String(isStreaming)}</span>
       <button onClick={open}>open</button>
       <button onClick={close}>close</button>
       <button onClick={toggle}>toggle</button>
@@ -37,6 +40,8 @@ function Probe() {
         seed highlight
       </button>
       <button onClick={clearPendingHighlight}>clear pending highlight</button>
+      <button onClick={() => setIsStreaming(true)}>start streaming</button>
+      <button onClick={() => setIsStreaming(false)}>stop streaming</button>
     </div>
   );
 }
@@ -79,6 +84,18 @@ test('defaults to closed, the ask-library tab, an empty draft, and no last book'
   expect(screen.getByTestId('active-tab')).toHaveTextContent('ask-library');
   expect(screen.getByTestId('draft')).toHaveTextContent('');
   expect(screen.getByTestId('last-book-id')).toHaveTextContent('none');
+  expect(screen.getByTestId('is-streaming')).toHaveTextContent('false');
+});
+
+test('setIsStreaming toggles the shared streaming flag', async () => {
+  renderAt('/library');
+  const user = userEvent.setup();
+
+  await user.click(screen.getByText('start streaming'));
+  expect(screen.getByTestId('is-streaming')).toHaveTextContent('true');
+
+  await user.click(screen.getByText('stop streaming'));
+  expect(screen.getByTestId('is-streaming')).toHaveTextContent('false');
 });
 
 test('open/close/toggle drive isOpen', async () => {

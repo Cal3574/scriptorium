@@ -33,6 +33,11 @@ interface ChatWidgetContextValue {
   pendingHighlight: string | null;
   seedHighlight: (passage: string) => void;
   clearPendingHighlight: () => void;
+  // Whichever tab is mid-reply sets this so the panel's ambient gradient
+  // border (the "AI" visual language) can animate faster/brighter - purely
+  // cosmetic, not read by either tab's own logic.
+  isStreaming: boolean;
+  setIsStreaming: (value: boolean) => void;
 }
 
 const ChatWidgetContext = createContext<ChatWidgetContextValue | null>(null);
@@ -48,6 +53,7 @@ export function ChatWidgetProvider({ children }: { children: ReactNode }) {
   const [askDraft, setAskDraft] = useState('');
   const [lastBookId, setLastBookId] = useState<string | null>(null);
   const [pendingHighlight, setPendingHighlight] = useState<string | null>(null);
+  const [isStreaming, setIsStreaming] = useState(false);
 
   // The reader route tree (`routes.tsx`) marks itself via `handle`, so a book
   // id is picked up here from the matched route params rather than
@@ -87,6 +93,8 @@ export function ChatWidgetProvider({ children }: { children: ReactNode }) {
       pendingHighlight,
       seedHighlight,
       clearPendingHighlight,
+      isStreaming,
+      setIsStreaming,
     }),
     [
       isOpen,
@@ -99,6 +107,7 @@ export function ChatWidgetProvider({ children }: { children: ReactNode }) {
       pendingHighlight,
       seedHighlight,
       clearPendingHighlight,
+      isStreaming,
     ],
   );
 

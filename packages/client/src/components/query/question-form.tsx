@@ -1,5 +1,6 @@
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
+import { ThinkingDots } from '@/components/ai/thinking-dots';
 
 // The Ask screen's question box (#54 inventory; user story 45): one Fraunces
 // prompt, a shadcn `Textarea`, and a single Ask `Button`. The button reads
@@ -38,7 +39,14 @@ export function QuestionForm({
         className="mt-3"
         disabled={busy || !question.trim()}
       >
-        {busy ? 'Thinking...' : 'Ask'}
+        {busy ? (
+          <span className="inline-flex items-center gap-1.5">
+            Thinking
+            <ThinkingDots />
+          </span>
+        ) : (
+          'Ask'
+        )}
       </Button>
     </form>
   );

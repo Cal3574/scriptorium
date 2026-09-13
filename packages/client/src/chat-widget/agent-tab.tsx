@@ -11,6 +11,7 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { SummaryProse } from '@/components/prose/summary-prose';
+import { ThinkingDots } from '@/components/ai/thinking-dots';
 import { cn } from '@/lib/utils';
 import { env } from '../env';
 import {
@@ -38,7 +39,7 @@ function MessageBubble({ message }: { message: AgentMessageDto }) {
       className={isUser ? 'text-right' : 'text-left'}
     >
       {message.highlightedPassage && (
-        <blockquote className="border-primary bg-muted text-muted-foreground mb-1 inline-block border-l-2 px-3 py-2 text-left text-sm italic">
+        <blockquote className="ai-highlight-quote bg-muted text-muted-foreground mb-1 inline-block px-3 py-2 text-left text-sm italic">
           {message.highlightedPassage}
         </blockquote>
       )}
@@ -70,7 +71,8 @@ export function AgentTab() {
   const api = useApi();
   const { refetch: refetchUsage } = useUsage();
   const bookId = useAgentBookId();
-  const { pendingHighlight, clearPendingHighlight } = useChatWidget();
+  const { pendingHighlight, clearPendingHighlight, setIsStreaming } =
+    useChatWidget();
 
   const [phase, setPhase] = useState<Phase>('idle');
   const [messages, setMessages] = useState<AgentMessageDto[]>([]);
@@ -80,6 +82,15 @@ export function AgentTab() {
   const [limit, setLimit] = useState<LimitCode | null>(null);
   const [seededHighlight, setSeededHighlight] = useState<string | null>(null);
   const abortRef = useRef<AbortController | null>(null);
+  const bottomRef = useRef<HTMLDivElement>(null);
+
+  // Keeps the newest text in view as a reply streams in - the panel's own
+  // scroll container (`ChatWidget`) is an ancestor of this tab, not
+  // something this component owns, so `scrollIntoView` on a trailing
+  // sentinel reaches it regardless.
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView?.({ block: 'end' });
+  }, [messages, streamingReply]);
 
   useEffect(() => {
     if (pendingHighlight == null) return;
@@ -241,6 +252,12 @@ export function AgentTab() {
   const busy = phase === 'streaming';
   const hasThread = messages.length > 0;
 
+  // Purely cosmetic: lets the widget's ambient gradient border (index.css)
+  // animate faster/brighter while this tab is mid-reply.
+  useEffect(() => {
+    setIsStreaming(busy);
+  }, [busy, setIsStreaming]);
+
   return (
     <div>
       {!bookId && (
@@ -261,7 +278,7 @@ export function AgentTab() {
             ))}
             {streamingReply !== null && (
               <div data-message data-role="assistant" className="text-left">
-                <div className="inline-block rounded-lg px-3 py-2 text-left text-sm">
+                <div className="ai-stream-shimmer inline-block rounded-lg px-3 py-2 text-left text-sm">
                   <SummaryProse markdown={streamingReply} className="text-sm" />
                   <span
                     data-testid="agent-reply-caret"
@@ -271,6 +288,7 @@ export function AgentTab() {
                 </div>
               </div>
             )}
+            <div ref={bottomRef} />
           </div>
 
           {!hasThread && !seededHighlight && (
@@ -316,7 +334,7 @@ export function AgentTab() {
               }}
             >
               {seededHighlight && (
-                <blockquote className="border-primary bg-muted text-muted-foreground mb-3 block border-l-2 px-3 py-2 text-sm italic">
+                <blockquote className="ai-highlight-quote bg-muted text-muted-foreground mb-3 block px-3 py-2 text-sm italic">
                   {seededHighlight}
                 </blockquote>
               )}
@@ -335,7 +353,14 @@ export function AgentTab() {
                 className="mt-3"
                 disabled={busy || !draft.trim()}
               >
-                {busy ? 'Thinking...' : 'Send'}
+                {busy ? (
+                  <span className="inline-flex items-center gap-1.5">
+                    Thinking
+                    <ThinkingDots />
+                  </span>
+                ) : (
+                  'Send'
+                )}
               </Button>
             </form>
           )}
