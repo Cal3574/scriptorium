@@ -141,6 +141,34 @@ test('an empty thread shows the highlight nudge, not a freeform composer', async
   expect(screen.queryByLabelText('agent message')).not.toBeInTheDocument();
 });
 
+test('off a reader route, the Agent tab shows the thread for lastBookId', async () => {
+  fetchMock.mockResolvedValueOnce(
+    jsonRes({
+      id: THREAD_A,
+      bookId: BOOK_A,
+      createdAt: '2026-01-01T00:00:00Z',
+      messages: [
+        {
+          id: USER_MSG,
+          role: 'user',
+          message: 'About book A',
+          highlightedPassage: 'Passage A',
+          createdAt: '2026-01-01T00:00:00Z',
+        },
+      ],
+    }),
+  );
+  const router = renderAt(`/books/${BOOK_A}/read`);
+  expect(await screen.findByText('About book A')).toBeVisible();
+
+  await act(async () => {
+    await router.navigate('/library');
+  });
+
+  expect(screen.getByText('About book A')).toBeVisible();
+  expect(fetchMock).toHaveBeenCalledTimes(1);
+});
+
 test('an existing thread renders its history and a distinct quoted passage, and the composer works', async () => {
   fetchMock.mockResolvedValueOnce(
     jsonRes({
