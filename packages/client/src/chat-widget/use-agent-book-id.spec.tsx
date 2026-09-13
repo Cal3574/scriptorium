@@ -66,7 +66,7 @@ test('navigating off a reader route falls back to lastBookId', async () => {
   expect(screen.getByTestId('agent-book-id')).toHaveTextContent('book-3');
 });
 
-test('navigating live between two books\' readers follows the current one', async () => {
+test("navigating live between two books' readers follows the current one", async () => {
   const router = renderAt('/books/book-4/read');
   expect(screen.getByTestId('agent-book-id')).toHaveTextContent('book-4');
 

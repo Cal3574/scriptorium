@@ -12,6 +12,7 @@ export type ReaderHandle = { isReaderRoute?: boolean };
 export function readerBookIdFromMatches(
   matches: UIMatch[],
 ): string | undefined {
-  return matches.find((m) => (m.handle as ReaderHandle | undefined)?.isReaderRoute)
-    ?.params.bookId;
+  return matches.find(
+    (m) => (m.handle as ReaderHandle | undefined)?.isReaderRoute,
+  )?.params.bookId;
 }

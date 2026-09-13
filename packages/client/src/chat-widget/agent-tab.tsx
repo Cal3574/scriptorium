@@ -150,9 +150,7 @@ export function AgentTab() {
             void refetchUsage();
             return;
           }
-          setError(
-            (await problemMessage(res)) ?? `send failed: ${res.status}`,
-          );
+          setError((await problemMessage(res)) ?? `send failed: ${res.status}`);
           setPhase('idle');
           setStreamingReply(null);
           return;

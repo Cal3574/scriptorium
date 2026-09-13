@@ -11,7 +11,11 @@ jest.mock('@clerk/react', () => ({
 }));
 
 jest.mock('../env', () => ({
-  env: { apiUrl: 'http://api.test', clerkPublishableKey: 'pk_test_x', isDev: true },
+  env: {
+    apiUrl: 'http://api.test',
+    clerkPublishableKey: 'pk_test_x',
+    isDev: true,
+  },
 }));
 
 jest.mock('react-markdown', () => ({
@@ -126,7 +130,9 @@ test('off a reader route with no last book, there is nothing to load and no requ
 });
 
 test('an empty thread shows the highlight nudge, not a freeform composer', async () => {
-  fetchMock.mockResolvedValue(jsonRes({ id: null, bookId: BOOK_A, createdAt: null, messages: [] }));
+  fetchMock.mockResolvedValue(
+    jsonRes({ id: null, bookId: BOOK_A, createdAt: null, messages: [] }),
+  );
   renderAt(`/books/${BOOK_A}/read`);
 
   expect(
@@ -161,13 +167,9 @@ test('an existing thread renders its history and a distinct quoted passage, and 
   );
   renderAt(`/books/${BOOK_A}/read`);
 
-  const quote = await screen.findByText(
-    'To be great is to be misunderstood.',
-  );
+  const quote = await screen.findByText('To be great is to be misunderstood.');
   expect(quote.tagName).toBe('BLOCKQUOTE');
-  expect(
-    screen.getByText('What do you make of this?'),
-  ).toBeVisible();
+  expect(screen.getByText('What do you make of this?')).toBeVisible();
   expect(
     screen.getByText('Misunderstood by whom, do you think?'),
   ).toBeVisible();
@@ -285,7 +287,9 @@ test('a 402 shows the limit-reached notice and refetches usage', async () => {
   renderAt(`/books/${BOOK_A}/read`);
   await screen.findByText('A seed passage.');
 
-  fetchMock.mockResolvedValueOnce(jsonRes({ code: 'query_limit_reached' }, 402));
+  fetchMock.mockResolvedValueOnce(
+    jsonRes({ code: 'query_limit_reached' }, 402),
+  );
 
   await userEvent.type(screen.getByLabelText('agent message'), 'one more?');
   await userEvent.click(screen.getByRole('button', { name: 'Send' }));
@@ -294,7 +298,7 @@ test('a 402 shows the limit-reached notice and refetches usage', async () => {
   expect(usageRefetch).toHaveBeenCalled();
 });
 
-test('switching from one book\'s reader to another\'s live-switches the shown thread', async () => {
+test("switching from one book's reader to another's live-switches the shown thread", async () => {
   const BOOK_B = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
   fetchMock.mockResolvedValueOnce(
     jsonRes({
