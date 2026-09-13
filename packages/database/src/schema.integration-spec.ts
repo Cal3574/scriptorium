@@ -1,6 +1,14 @@
 import pg from 'pg';
 import { createDbClient } from './client.js';
-import { books, chapters, chunks, queries, users } from './schema/index.js';
+import {
+  agentMessages,
+  agentThreads,
+  books,
+  chapters,
+  chunks,
+  queries,
+  users,
+} from './schema/index.js';
 import { eq } from 'drizzle-orm';
 
 // Integration test: requires a live Postgres reachable via DATABASE_URL with
@@ -40,12 +48,33 @@ describe('@scriptorium/database schema', () => {
        WHERE table_schema = 'public' ORDER BY table_name`,
     );
     expect(rows.map((r) => r.table_name)).toEqual([
+      'agent_messages',
+      'agent_threads',
       'books',
       'chapters',
       'chunks',
       'queries',
       'users',
     ]);
+  });
+
+  it('defines agent_message_role as a native enum with user and assistant', async () => {
+    const { rows } = await raw.query(
+      `SELECT e.enumlabel FROM pg_enum e
+       JOIN pg_type t ON t.oid = e.enumtypid
+       WHERE t.typname = 'agent_message_role' ORDER BY e.enumsortorder`,
+    );
+    expect(rows.map((r) => r.enumlabel)).toEqual(['user', 'assistant']);
+  });
+
+  it('has no citations column on agent_messages - Agent mode has no retrieval', async () => {
+    const { rows } = await raw.query(
+      `SELECT column_name FROM information_schema.columns
+       WHERE table_name = 'agent_messages' ORDER BY column_name`,
+    );
+    const columns = rows.map((r) => r.column_name);
+    expect(columns).toContain('highlighted_passage');
+    expect(columns).not.toContain('citations');
   });
 
   it('defines book_status as a native enum with the eight values', async () => {
@@ -127,6 +156,49 @@ describe('@scriptorium/database schema', () => {
       .from(queries)
       .where(eq(queries.id, query.id));
     expect(reloaded.bookId).toBeNull();
+
+    await db.delete(users).where(eq(users.id, user.id));
+  });
+
+  it('enforces one agent thread per (user, book) and cascades its messages', async () => {
+    const [user] = await db
+      .insert(users)
+      .values({
+        clerkUserId: `test_thread_${Date.now()}`,
+        email: 'thread@example.com',
+      })
+      .returning();
+    const [book] = await db
+      .insert(books)
+      .values({
+        userId: user.id,
+        originalFilename: 'y.pdf',
+        s3Key: `books/${user.id}/y.pdf`,
+      })
+      .returning();
+    const [thread] = await db
+      .insert(agentThreads)
+      .values({ userId: user.id, bookId: book.id })
+      .returning();
+    await db.insert(agentMessages).values({
+      threadId: thread.id,
+      role: 'user',
+      message: 'why does this land so hard?',
+      highlightedPassage: 'the passage',
+    });
+
+    await expect(
+      db.insert(agentThreads).values({ userId: user.id, bookId: book.id }),
+    ).rejects.toThrow();
+
+    await db.delete(books).where(eq(books.id, book.id));
+
+    expect(
+      await db
+        .select()
+        .from(agentMessages)
+        .where(eq(agentMessages.threadId, thread.id)),
+    ).toHaveLength(0);
 
     await db.delete(users).where(eq(users.id, user.id));
   });

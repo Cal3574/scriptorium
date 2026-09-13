@@ -12,4 +12,5 @@ export * from './usage.js';
 export * from './activity.js';
 export * from './book.js';
 export * from './query.js';
+export * from './agent.js';
 export * from './ingest.js';

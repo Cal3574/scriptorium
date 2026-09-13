@@ -7,6 +7,7 @@ import {
 import { ActivityDto, UsageDto, UserDto } from '@scriptorium/contracts';
 import {
   ActivityRepository,
+  AgentRepository,
   type AuthenticatedUser,
   BooksRepository,
   buildMonthlyActivity,
@@ -36,6 +37,7 @@ export class MeController {
     private readonly users: UsersRepository,
     private readonly books: BooksRepository,
     private readonly queries: QueriesRepository,
+    private readonly agent: AgentRepository,
     private readonly activity: ActivityRepository,
     @Inject(PLAN_LIMITS) private readonly planLimits: PlanLimits,
   ) {}
@@ -120,7 +122,13 @@ export class MeController {
     caller: AuthenticatedUser,
   ): Promise<QuestionAllowance> {
     const limits = limitsForPlan(this.planLimits, caller.plan);
-    const used = await this.queries.countThisMonth(caller.id);
+    // Pooled across Ask library and Agent mode - the same monthly allowance,
+    // matching the `EntitlementGuard`'s `queries` lever exactly.
+    const [askUsed, agentUsed] = await Promise.all([
+      this.queries.countThisMonth(caller.id),
+      this.agent.countMessagesThisMonth(caller.id),
+    ]);
+    const used = askUsed + agentUsed;
     return {
       plan: resolvePlanSlug(caller.plan),
       used,

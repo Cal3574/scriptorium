@@ -8,6 +8,13 @@
       "when": 1788190576271,
       "tag": "0000_empty_raider",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1789286303301,
+      "tag": "0001_white_tomas",
+      "breakpoints": true
     }
   ]
 }

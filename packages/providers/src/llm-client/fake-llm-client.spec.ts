@@ -1,5 +1,30 @@
-import { FakeLlmClient } from './fake-llm-client.js';
+import {
+  FAKE_LLM_FAILURE_MARKER,
+  FakeLlmClient,
+  FakeLlmFailure,
+} from './fake-llm-client.js';
 import type { LlmRequest } from './llm-client.js';
+
+// Matches the api app's `AGENT_SYSTEM_PROMPT` on the phrase the fake branches
+// on. Kept short here - the real prompt is the api app's to own.
+const AGENT_SYSTEM = 'You are a reading companion: a thinking partner.';
+
+const agentRequest: LlmRequest = {
+  system: AGENT_SYSTEM,
+  messages: [
+    {
+      role: 'user',
+      content: [
+        'Highlighted passage:',
+        '"""',
+        'No streak survives forever.',
+        '"""',
+        '',
+        'Reader: this stung more than it should have',
+      ].join('\n'),
+    },
+  ],
+};
 
 const summaryRequest: LlmRequest = {
   messages: [
@@ -104,6 +129,60 @@ describe('FakeLlmClient', () => {
       for await (const delta of client.stream(synthesisRequest))
         streamed += delta;
       expect(streamed).toEqual(await client.complete(synthesisRequest));
+    });
+  });
+
+  describe('agent shape', () => {
+    it('answers in the companion voice: reacts to the reader, asks back, no markers', async () => {
+      const out = await client.complete(agentRequest);
+
+      expect(out).toContain('this stung more than it should have');
+      expect(out).toContain('?');
+      expect(out).not.toMatch(/\[\d+\]/);
+      // Reacts to the highlight rather than restating the passage.
+      expect(out).not.toContain('No streak survives forever.');
+    });
+
+    it('does not fall into the synthesis shape', async () => {
+      const out = await client.complete(agentRequest);
+      expect(out).not.toContain('Passages consulted');
+      expect(out).not.toContain('FakeLlmClient');
+    });
+
+    it('produces a different reply once prior turns are replayed as history', async () => {
+      const withHistory = await client.complete({
+        system: AGENT_SYSTEM,
+        messages: [
+          { role: 'user', content: 'Reader: opening question' },
+          { role: 'assistant', content: 'a reply' },
+          ...agentRequest.messages,
+        ],
+      });
+
+      expect(withHistory).not.toEqual(await client.complete(agentRequest));
+    });
+  });
+
+  describe('failure injection', () => {
+    const failing: LlmRequest = {
+      system: AGENT_SYSTEM,
+      messages: [
+        { role: 'user', content: `Reader: ${FAKE_LLM_FAILURE_MARKER}` },
+      ],
+    };
+
+    it('rejects complete()', async () => {
+      await expect(client.complete(failing)).rejects.toThrow(FakeLlmFailure);
+    });
+
+    it('rejects stream() before yielding any delta', async () => {
+      const deltas: string[] = [];
+      await expect(
+        (async () => {
+          for await (const delta of client.stream(failing)) deltas.push(delta);
+        })(),
+      ).rejects.toThrow(FakeLlmFailure);
+      expect(deltas).toEqual([]);
     });
   });
 });

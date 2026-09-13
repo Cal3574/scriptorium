@@ -44,12 +44,22 @@ describe('buildMonthlyActivity', () => {
       new Map([['2026-09', 30]]),
       now,
     );
-    const sep = rows.find((r) => r.month === '2026-09')!;
-    const aug = rows.find((r) => r.month === '2026-08')!;
-    const jul = rows.find((r) => r.month === '2026-07')!;
-    expect(sep).toEqual({ month: '2026-09', books: 2, questions: 30 });
-    expect(aug).toEqual({ month: '2026-08', books: 0, questions: 0 });
-    expect(jul).toEqual({ month: '2026-07', books: 1, questions: 0 });
+    const month = (key: string) => rows.find((r) => r.month === key);
+    expect(month('2026-09')).toEqual({
+      month: '2026-09',
+      books: 2,
+      questions: 30,
+    });
+    expect(month('2026-08')).toEqual({
+      month: '2026-08',
+      books: 0,
+      questions: 0,
+    });
+    expect(month('2026-07')).toEqual({
+      month: '2026-07',
+      books: 1,
+      questions: 0,
+    });
   });
 
   it('ignores counts for months outside the trailing-12 window', () => {

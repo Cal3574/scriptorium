@@ -48,7 +48,11 @@ export type {
   LlmRequest,
 } from './llm-client/llm-client.js';
 export { LLM_CLIENT } from './llm-client/llm-client.js';
-export { FakeLlmClient } from './llm-client/fake-llm-client.js';
+export {
+  FakeLlmClient,
+  FakeLlmFailure,
+  FAKE_LLM_FAILURE_MARKER,
+} from './llm-client/fake-llm-client.js';
 export {
   ClaudeLlmClient,
   type ClaudeLlmClientOptions,

@@ -3,6 +3,7 @@ import type { ApiConfig } from '@scriptorium/config';
 import { DEFAULT_SSE_HEARTBEAT_MS } from '@scriptorium/contracts';
 import {
   ActivityRepository,
+  AgentRepository,
   BooksRepository,
   DEFAULT_PLAN_LIMITS,
   EntitlementGuard,
@@ -14,6 +15,8 @@ import {
   QueriesRepository,
   RedisIngestEventSubscriber,
 } from '@scriptorium/server-core';
+import { AgentController } from '../agent/agent.controller';
+import { AgentService } from '../agent/agent.service';
 import { BooksController } from '../books/books.controller';
 import { BookEventsController } from '../books/books-events.controller';
 import { MAX_UPLOAD_BYTES, SSE_HEARTBEAT_MS } from '../books/books.tokens';
@@ -43,13 +46,16 @@ export class AppModule {
         BooksController,
         BookEventsController,
         QueriesController,
+        AgentController,
         ...devControllers,
       ],
       providers: [
         BooksRepository,
         QueriesRepository,
+        AgentRepository,
         ActivityRepository,
         QueryService,
+        AgentService,
         {
           provide: RAG_CONFIG,
           useValue: {
