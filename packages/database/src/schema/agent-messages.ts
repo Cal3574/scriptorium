@@ -37,7 +37,9 @@ export const agentMessages = pgTable(
     // on a user row being *immediately followed by* its assistant reply -
     // `id` is a random UUID and cannot break a same-tick tie, so this identity
     // column is the sort key that actually guarantees that adjacency.
-    seq: bigint('seq', { mode: 'number' }).notNull().generatedAlwaysAsIdentity(),
+    seq: bigint('seq', { mode: 'number' })
+      .notNull()
+      .generatedAlwaysAsIdentity(),
     createdAt: timestamp('created_at', { withTimezone: true })
       .notNull()
       .defaultNow(),

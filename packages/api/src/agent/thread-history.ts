@@ -27,7 +27,10 @@ export function reassembleHistory(messages: AgentMessageRow[]): LlmMessage[] {
 
     history.push({
       role: 'user',
-      content: buildAgentUserMessage(current.message, current.highlightedPassage),
+      content: buildAgentUserMessage(
+        current.message,
+        current.highlightedPassage,
+      ),
     });
     history.push({ role: 'assistant', content: reply.message });
     i++;

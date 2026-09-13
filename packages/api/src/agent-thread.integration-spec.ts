@@ -59,9 +59,7 @@ describe('agent conversation backend', () => {
     return me.body.id as string;
   }
 
-  async function plantBook(header: {
-    Authorization: string;
-  }): Promise<string> {
+  async function plantBook(header: { Authorization: string }): Promise<string> {
     return plantAgentBook(db, await userId(header));
   }
 
@@ -72,9 +70,7 @@ describe('agent conversation backend', () => {
   ) => sendAgentMessage(server, header, bookId, body);
 
   const readThread = (header: { Authorization: string }, bookId: string) =>
-    request(server())
-      .get(`/api/v1/books/${bookId}/agent-thread`)
-      .set(header);
+    request(server()).get(`/api/v1/books/${bookId}/agent-thread`).set(header);
 
   const doneEvent = (events: AgentEvent[]) =>
     events.find(
@@ -186,7 +182,10 @@ describe('agent conversation backend', () => {
       const second = await plantAgentBook(db, id, 'On Attention');
 
       await send(alice(), first, { message: 'a', highlightedPassage: PASSAGE });
-      await send(alice(), second, { message: 'b', highlightedPassage: PASSAGE });
+      await send(alice(), second, {
+        message: 'b',
+        highlightedPassage: PASSAGE,
+      });
 
       const { rows } = await db.pool.query(
         `SELECT book_id FROM agent_threads ORDER BY created_at`,

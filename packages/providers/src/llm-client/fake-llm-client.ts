@@ -69,7 +69,7 @@ function extractSalient(request: LlmRequest): Salient {
   const passageMatch = /Highlighted passage:\n"""\n([\s\S]*?)\n"""/.exec(
     latest,
   );
-  const readerLine = readerMatch ? readerMatch[1] : (latest.trim() || null);
+  const readerLine = readerMatch ? readerMatch[1] : latest.trim() || null;
   const highlightedPassage = passageMatch ? passageMatch[1].trim() : null;
 
   const prose = text
