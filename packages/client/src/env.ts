@@ -14,12 +14,19 @@ interface ClientEnv {
   // or CI run, in which case the consumer simply never mounts it. Set it only
   // when that remote is actually being served.
   readonly providerRemoteUrl: string | null;
+  // True in a local `vite` dev server, false in a built/served bundle. Routed
+  // through here (rather than referenced as `import.meta.env.DEV` at call
+  // sites) so this stays the one module that touches `import.meta` - Jest's
+  // Babel transform can't parse it, and every call site already mocks this
+  // module out in tests.
+  readonly isDev: boolean;
 }
 
 function readEnv(): ClientEnv {
   const clerkPublishableKey = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY;
   const apiUrl = import.meta.env.VITE_API_URL;
   const providerRemoteUrl = import.meta.env.VITE_PROVIDER_REMOTE_URL || null;
+  const isDev = import.meta.env.DEV;
 
   const missing = [
     ['VITE_CLERK_PUBLISHABLE_KEY', clerkPublishableKey],
@@ -34,7 +41,7 @@ function readEnv(): ClientEnv {
     );
   }
 
-  return { clerkPublishableKey, apiUrl, providerRemoteUrl };
+  return { clerkPublishableKey, apiUrl, providerRemoteUrl, isDev };
 }
 
 export const env: ClientEnv = readEnv();

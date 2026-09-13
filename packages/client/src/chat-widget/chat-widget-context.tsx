@@ -8,8 +8,7 @@ import {
   type ReactNode,
 } from 'react';
 import { useMatches } from 'react-router';
-
-type ReaderHandle = { isReaderRoute?: boolean };
+import { readerBookIdFromMatches } from './reader-route';
 
 export const CHAT_WIDGET_TABS = ['ask-library', 'agent'] as const;
 export type ChatWidgetTab = (typeof CHAT_WIDGET_TABS)[number];
@@ -47,9 +46,7 @@ export function ChatWidgetProvider({ children }: { children: ReactNode }) {
   // id is picked up here from the matched route params rather than
   // re-deriving the route shape from the URL.
   const matches = useMatches();
-  const readerBookId = matches.find(
-    (m) => (m.handle as ReaderHandle | undefined)?.isReaderRoute,
-  )?.params.bookId;
+  const readerBookId = readerBookIdFromMatches(matches);
   useEffect(() => {
     if (readerBookId) setLastBookId(readerBookId);
   }, [readerBookId]);

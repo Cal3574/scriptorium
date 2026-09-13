@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { useChatWidget, type ChatWidgetTab } from './chat-widget-context';
 import { AskLibraryTab } from './ask-library-tab';
+import { AgentTab } from './agent-tab';
 
 const TAB_LABEL: Record<ChatWidgetTab, string> = {
   'ask-library': 'Ask library',
@@ -13,8 +14,8 @@ const TAB_LABEL: Record<ChatWidgetTab, string> = {
 // The persistent chat widget (#159): a launcher visible on every top-level
 // screen, and - when open - a floating panel with a manual tab switcher.
 // Both tabs stay mounted once the widget has opened once, hidden rather than
-// unmounted when inactive/closed, so an in-flight Ask library answer (or,
-// later, an Agent thread) survives a tab switch or the panel closing. The
+// unmounted when inactive/closed, so an in-flight Ask library answer or
+// Agent reply survives a tab switch or the panel closing. The
 // panel has no route of its own; `AppShell` renders it as an overlay sibling
 // of the routed `<Outlet>` so it persists across client-side navigation.
 export function ChatWidget() {
@@ -78,9 +79,7 @@ export function ChatWidget() {
             <AskLibraryTab />
           </div>
           <div hidden={activeTab !== 'agent'}>
-            <p className="text-muted-foreground text-sm">
-              The Agent tab is coming soon.
-            </p>
+            <AgentTab />
           </div>
         </div>
       </section>
