@@ -32,6 +32,11 @@ export const routes: RouteObject[] = [
         // screens. `:chapterNumber` is 1-based.
         path: 'books/:bookId/read',
         element: <ReaderLayout />,
+        // Marks this route (and its chapter children, via match inheritance)
+        // as "the reader" for the chat widget's `lastBookId` tracking
+        // (#159), so that lookup keys off the route tree instead of a
+        // hand-rolled path pattern.
+        handle: { isReaderRoute: true },
         children: [
           { index: true, element: <ReaderOverview /> },
           { path: ':chapterNumber', element: <ReaderChapter /> },

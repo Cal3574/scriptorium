@@ -5,6 +5,8 @@ import { hasProviderRemote, lazyProvider } from './mf';
 import { SignInScreen } from './auth/sign-in-screen';
 import { AppShell } from './components/shell/app-shell';
 import { RouteFallback } from './components/shell/route-fallback';
+import { ChatWidget } from './chat-widget/chat-widget';
+import { ChatWidgetProvider } from './chat-widget/chat-widget-context';
 import { UsageProvider } from './usage/use-usage';
 import { useDocumentTitle } from './use-document-title';
 
@@ -53,14 +55,17 @@ const ProviderMyProvider = hasProviderRemote
 function Shell() {
   return (
     <UsageProvider>
-      <AppShell>
-        <Outlet />
-        {ProviderMyProvider && (
-          <ProviderBoundary name="my-provider">
-            <ProviderMyProvider />
-          </ProviderBoundary>
-        )}
-      </AppShell>
+      <ChatWidgetProvider>
+        <AppShell>
+          <Outlet />
+          {ProviderMyProvider && (
+            <ProviderBoundary name="my-provider">
+              <ProviderMyProvider />
+            </ProviderBoundary>
+          )}
+        </AppShell>
+        <ChatWidget />
+      </ChatWidgetProvider>
     </UsageProvider>
   );
 }
