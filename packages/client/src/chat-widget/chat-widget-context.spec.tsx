@@ -17,6 +17,9 @@ function Probe() {
     askDraft,
     setAskDraft,
     lastBookId,
+    pendingHighlight,
+    seedHighlight,
+    clearPendingHighlight,
   } = useChatWidget();
   return (
     <div>
@@ -24,11 +27,16 @@ function Probe() {
       <span data-testid="active-tab">{activeTab}</span>
       <span data-testid="draft">{askDraft}</span>
       <span data-testid="last-book-id">{lastBookId ?? 'none'}</span>
+      <span data-testid="pending-highlight">{pendingHighlight ?? 'none'}</span>
       <button onClick={open}>open</button>
       <button onClick={close}>close</button>
       <button onClick={toggle}>toggle</button>
       <button onClick={() => setActiveTab('agent')}>switch to agent</button>
       <button onClick={() => setAskDraft('what is focus?')}>set draft</button>
+      <button onClick={() => seedHighlight('a highlighted passage')}>
+        seed highlight
+      </button>
+      <button onClick={clearPendingHighlight}>clear pending highlight</button>
     </div>
   );
 }
@@ -141,6 +149,39 @@ test('navigating away from a reader route keeps the last book remembered', async
     await router.navigate('/library');
   });
   expect(screen.getByTestId('last-book-id')).toHaveTextContent('book-3');
+});
+
+test('seedHighlight sets the pending highlight, opens the widget, and switches to the agent tab', async () => {
+  renderAt('/library');
+  const user = userEvent.setup();
+
+  await user.click(screen.getByText('seed highlight'));
+
+  expect(screen.getByTestId('pending-highlight')).toHaveTextContent(
+    'a highlighted passage',
+  );
+  expect(screen.getByTestId('is-open')).toHaveTextContent('true');
+  expect(screen.getByTestId('active-tab')).toHaveTextContent('agent');
+});
+
+test('seedHighlight wins even if the widget was already open on a different tab', async () => {
+  renderAt('/library');
+  const user = userEvent.setup();
+
+  await user.click(screen.getByText('open'));
+  await user.click(screen.getByText('seed highlight'));
+
+  expect(screen.getByTestId('active-tab')).toHaveTextContent('agent');
+});
+
+test('clearPendingHighlight resets the pending highlight', async () => {
+  renderAt('/library');
+  const user = userEvent.setup();
+
+  await user.click(screen.getByText('seed highlight'));
+  await user.click(screen.getByText('clear pending highlight'));
+
+  expect(screen.getByTestId('pending-highlight')).toHaveTextContent('none');
 });
 
 test('useChatWidget throws outside the provider', () => {

@@ -401,6 +401,85 @@ test('truncated:true shows the trimmed-text note at the foot of the source', asy
   expect(screen.getByText(/has been trimmed here/i)).toBeVisible();
 });
 
+// jsdom has no layout engine, so `Range.getBoundingClientRect` isn't
+// implemented - stub it so the highlight-to-discuss selection handler can
+// run.
+beforeAll(() => {
+  Range.prototype.getBoundingClientRect = () =>
+    ({ top: 0, left: 0, width: 0, height: 0 }) as DOMRect;
+});
+
+function selectText(node: Node) {
+  const range = document.createRange();
+  range.selectNodeContents(node);
+  const selection = window.getSelection();
+  selection?.removeAllRanges();
+  selection?.addRange(range);
+  act(() => {
+    document.dispatchEvent(new Event('selectionchange'));
+  });
+}
+
+function clearSelection() {
+  window.getSelection()?.removeAllRanges();
+  act(() => {
+    document.dispatchEvent(new Event('selectionchange'));
+  });
+}
+
+test('selecting a passage on the chapter page shows "Discuss with AI", and it seeds the widget\'s Agent tab', async () => {
+  mockApiWith(
+    baseHandlers({
+      '/api/v1/books/b1/agent-thread': () =>
+        jsonRes({ id: null, bookId: 'b1', createdAt: null, messages: [] }),
+    }),
+  );
+  renderAt('/books/b1/read/1');
+  const summary = await screen.findByText('Summary of chapter 1.');
+
+  selectText(summary);
+  const discussButton = await screen.findByRole('button', {
+    name: 'Discuss with AI',
+  });
+
+  await userEvent.click(discussButton);
+
+  expect(window.getSelection()?.isCollapsed).toBe(true);
+  expect(screen.getByRole('tab', { name: 'Agent' })).toHaveAttribute(
+    'aria-selected',
+    'true',
+  );
+  expect(
+    await screen.findByText('Summary of chapter 1.', {
+      selector: 'blockquote',
+    }),
+  ).toBeVisible();
+
+  clearSelection();
+});
+
+test('a below-minimum selection shows no "Discuss with AI" action', async () => {
+  renderAt('/books/b1/read/1');
+  const summary = await screen.findByText('Summary of chapter 1.');
+  const textNode = summary.firstChild as Text;
+
+  const range = document.createRange();
+  range.setStart(textNode, 0);
+  range.setEnd(textNode, 2);
+  const selection = window.getSelection();
+  selection?.removeAllRanges();
+  selection?.addRange(range);
+  act(() => {
+    document.dispatchEvent(new Event('selectionchange'));
+  });
+
+  expect(
+    screen.queryByRole('button', { name: 'Discuss with AI' }),
+  ).not.toBeInTheDocument();
+
+  clearSelection();
+});
+
 test('a 404 on the source fetch shows a quiet inline error with a library link; the summary is untouched', async () => {
   mockApiWith(
     baseHandlers({

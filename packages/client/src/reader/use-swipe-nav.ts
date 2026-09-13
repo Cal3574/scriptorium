@@ -3,9 +3,11 @@ import { useEffect, useRef } from 'react';
 // A left/right swipe on the reader column moves to the adjacent chapter,
 // mirroring the arrow keys (#118 follow-up: mobile chapter navigation). Only
 // horizontal-dominant, single-touch gestures past the threshold count, so
-// vertical scrolling and text selection inside the Source panel are
-// untouched - nothing is prevented or stopped. The caller passes no-ops at
-// the ends, so there is no wrap-around.
+// vertical scrolling is untouched - nothing is prevented or stopped. An
+// active text selection at the end of the gesture suppresses the swipe
+// entirely (#161: highlight-to-discuss), since a drag-to-select on the
+// Source panel can otherwise read as a horizontal swipe underneath it. The
+// caller passes no-ops at the ends, so there is no wrap-around.
 const THRESHOLD_PX = 60;
 const HORIZONTAL_DOMINANCE_RATIO = 1.5;
 
@@ -33,6 +35,9 @@ export function useSwipeNav<T extends HTMLElement>(
     function handleEnd(event: TouchEvent): void {
       if (!tracking) return;
       tracking = false;
+
+      const selection = window.getSelection();
+      if (selection && !selection.isCollapsed) return;
 
       const touch = event.changedTouches[0];
       if (!touch) return;

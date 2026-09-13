@@ -3,8 +3,16 @@ import userEvent from '@testing-library/user-event';
 import { createMemoryRouter, RouterProvider, Outlet } from 'react-router';
 import { agentEventFrame, type AgentEvent } from '@scriptorium/contracts';
 
-import { ChatWidgetProvider } from './chat-widget-context';
+import { ChatWidgetProvider, useChatWidget } from './chat-widget-context';
 import { AgentTab } from './agent-tab';
+
+// Stands in for the reader page's highlight-to-discuss button (#161): calls
+// the same `seedHighlight` the real floating action uses, without needing
+// the selection machinery itself.
+function SeedHighlightButton({ passage }: { passage: string }) {
+  const { seedHighlight } = useChatWidget();
+  return <button onClick={() => seedHighlight(passage)}>seed highlight</button>;
+}
 
 jest.mock('@clerk/react', () => ({
   useAuth: () => ({ getToken: async () => 'test-token' }),
@@ -98,6 +106,35 @@ function renderAt(path: string) {
           {
             path: '/books/:bookId/read',
             element: <AgentTab />,
+            handle: { isReaderRoute: true },
+          },
+        ],
+      },
+    ],
+    { initialEntries: [path] },
+  );
+  render(<RouterProvider router={router} />);
+  return router;
+}
+
+function renderAtWithSeeder(path: string, passage: string) {
+  const router = createMemoryRouter(
+    [
+      {
+        element: (
+          <ChatWidgetProvider>
+            <Outlet />
+          </ChatWidgetProvider>
+        ),
+        children: [
+          {
+            path: '/books/:bookId/read',
+            element: (
+              <>
+                <SeedHighlightButton passage={passage} />
+                <AgentTab />
+              </>
+            ),
             handle: { isReaderRoute: true },
           },
         ],
@@ -362,4 +399,47 @@ test("switching from one book's reader to another's live-switches the shown thre
   expect(
     await screen.findByText(/highlight a passage while reading/i),
   ).toBeVisible();
+});
+
+test('a seeded highlight shows a composer before any thread exists, and is sent with the first message', async () => {
+  fetchMock.mockResolvedValueOnce(
+    jsonRes({ id: null, bookId: BOOK_A, createdAt: null, messages: [] }),
+  );
+  renderAtWithSeeder(`/books/${BOOK_A}/read`, 'A passage worth discussing.');
+  await screen.findByText(/highlight a passage while reading/i);
+
+  await userEvent.click(screen.getByText('seed highlight'));
+
+  expect(screen.getByText('A passage worth discussing.')).toBeVisible();
+  expect(
+    screen.queryByText(/highlight a passage while reading/i),
+  ).not.toBeInTheDocument();
+  const composer = screen.getByLabelText('agent message');
+  expect(composer).toHaveAttribute('placeholder', 'What do you want to know?');
+
+  const stream = deferredStream();
+  fetchMock.mockResolvedValueOnce(stream.response);
+
+  await userEvent.type(composer, 'What do you make of this?');
+  await userEvent.click(screen.getByRole('button', { name: 'Send' }));
+
+  expect(fetchMock).toHaveBeenLastCalledWith(
+    `http://api.test/api/v1/books/${BOOK_A}/agent-messages`,
+    expect.objectContaining({
+      method: 'POST',
+      body: JSON.stringify({
+        message: 'What do you make of this?',
+        highlightedPassage: 'A passage worth discussing.',
+      }),
+    }),
+  );
+
+  stream.push({
+    type: 'agent_turn_started',
+    threadId: THREAD_A,
+    userMessageId: NEW_USER_MSG,
+  });
+  stream.finish();
+
+  expect(await screen.findByText('What do you make of this?')).toBeVisible();
 });

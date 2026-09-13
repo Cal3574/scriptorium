@@ -10,18 +10,23 @@ import {
 import { SummaryProse } from '@/components/prose/summary-prose';
 import { NotGeneratedYet } from '@/components/book-detail/not-generated-yet';
 import { chapterHeading, pageRange } from '@/books/chapter-display';
+import { useChatWidget } from '../chat-widget/chat-widget-context';
 import { useReaderBook } from './reader-context';
 import { chapterIndexFromParam } from './chapter-number';
 import { useArrowNav } from './use-arrow-nav';
 import { useSwipeNav } from './use-swipe-nav';
 import { useChapterSource } from './use-chapter-source';
+import { useDiscussSelection } from './use-discuss-selection';
 import { ReaderStrip } from './reader-strip';
 import { SourcePanel } from './source-panel';
+import { DiscussSelectionButton } from './discuss-selection-button';
 
 // `/books/:bookId/read/:chapterNumber` (1-based). The chapter summary by
 // default; `?view=source` swaps the column for the reconstructed source text.
 // Prev/next and the arrow keys walk between chapters with no wrap. A bad
-// `:chapterNumber` redirects to the Overview.
+// `:chapterNumber` redirects to the Overview. Selecting text in the article
+// (either view) surfaces a highlight-to-discuss action (#161) that seeds the
+// widget's Agent tab with the passage.
 export function ReaderChapter() {
   const book = useReaderBook();
   const { chapterNumber } = useParams();
@@ -62,6 +67,8 @@ export function ReaderChapter() {
     hasPrev ? goPrev : noop,
     hasNext ? goNext : noop,
   );
+  const discussAction = useDiscussSelection(swipeRef);
+  const { seedHighlight } = useChatWidget();
 
   const chapterId = index != null ? book.chapters[index].id : '';
   const sourceState = useChapterSource(book.id, chapterId, revealed);
@@ -115,6 +122,11 @@ export function ReaderChapter() {
           <NotGeneratedYet />
         )}
       </article>
+
+      <DiscussSelectionButton
+        action={discussAction}
+        onDiscuss={seedHighlight}
+      />
     </div>
   );
 }

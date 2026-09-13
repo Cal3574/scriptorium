@@ -27,6 +27,12 @@ interface ChatWidgetContextValue {
   // The Agent tab (#160) falls back to this once the reader route itself is
   // no longer current.
   lastBookId: string | null;
+  // A passage seeded by highlight-to-discuss (#161), consumed once by the
+  // Agent tab and then cleared - not a durable draft like `askDraft`, since
+  // it exists only to hand a fresh selection across from the reader page.
+  pendingHighlight: string | null;
+  seedHighlight: (passage: string) => void;
+  clearPendingHighlight: () => void;
 }
 
 const ChatWidgetContext = createContext<ChatWidgetContextValue | null>(null);
@@ -41,6 +47,7 @@ export function ChatWidgetProvider({ children }: { children: ReactNode }) {
   const [activeTab, setActiveTab] = useState<ChatWidgetTab>('ask-library');
   const [askDraft, setAskDraft] = useState('');
   const [lastBookId, setLastBookId] = useState<string | null>(null);
+  const [pendingHighlight, setPendingHighlight] = useState<string | null>(null);
 
   // The reader route tree (`routes.tsx`) marks itself via `handle`, so a book
   // id is picked up here from the matched route params rather than
@@ -54,6 +61,17 @@ export function ChatWidgetProvider({ children }: { children: ReactNode }) {
   const open = useCallback(() => setIsOpen(true), []);
   const close = useCallback(() => setIsOpen(false), []);
   const toggle = useCallback(() => setIsOpen((prev) => !prev), []);
+  const clearPendingHighlight = useCallback(
+    () => setPendingHighlight(null),
+    [],
+  );
+  // Highlight-to-discuss (#161) always wins immediately - no confirmation
+  // step, even if the widget was already open on a different tab.
+  const seedHighlight = useCallback((passage: string) => {
+    setPendingHighlight(passage);
+    setActiveTab('agent');
+    setIsOpen(true);
+  }, []);
 
   const value = useMemo(
     () => ({
@@ -66,8 +84,22 @@ export function ChatWidgetProvider({ children }: { children: ReactNode }) {
       askDraft,
       setAskDraft,
       lastBookId,
+      pendingHighlight,
+      seedHighlight,
+      clearPendingHighlight,
     }),
-    [isOpen, open, close, toggle, activeTab, askDraft, lastBookId],
+    [
+      isOpen,
+      open,
+      close,
+      toggle,
+      activeTab,
+      askDraft,
+      lastBookId,
+      pendingHighlight,
+      seedHighlight,
+      clearPendingHighlight,
+    ],
   );
 
   return (

@@ -22,6 +22,7 @@ import { useApi } from '../auth/use-api';
 import { useUsage } from '../usage/use-usage';
 import { LimitReachedNotice } from '../usage/limit-reached-notice';
 import { useAgentBookId } from './use-agent-book-id';
+import { useChatWidget } from './chat-widget-context';
 
 type Phase = 'loading' | 'idle' | 'streaming' | 'error';
 
@@ -57,15 +58,19 @@ function MessageBubble({ message }: { message: AgentMessageDto }) {
 // the reading companion, wired to the SSE endpoint from #157. Which thread
 // shows tracks the current reader route live, falling back to `lastBookId`
 // off a reader route (`useAgentBookId`). Agent threads only ever start via
-// highlight-to-discuss (#161, not yet built) - so with no messages yet this
-// renders no freeform composer, only a nudge and (dev builds only) a trigger
-// to seed a thread for manual testing. Real cold-start empty-state polish is
+// highlight-to-discuss (#161) - so with no messages yet this renders no
+// freeform composer, only a nudge, until a `pendingHighlight` arrives from
+// `ChatWidgetProvider` and is captured as `seededHighlight` (consumed once,
+// then cleared from shared state so it does not reseed on a later render).
+// Dev builds also keep a manual trigger for a thread with no highlight, for
+// testing without the reader page. Real cold-start empty-state polish is
 // #162's job.
 export function AgentTab() {
   const { getToken } = useAuth();
   const api = useApi();
   const { refetch: refetchUsage } = useUsage();
   const bookId = useAgentBookId();
+  const { pendingHighlight, clearPendingHighlight } = useChatWidget();
 
   const [phase, setPhase] = useState<Phase>('idle');
   const [messages, setMessages] = useState<AgentMessageDto[]>([]);
@@ -73,7 +78,14 @@ export function AgentTab() {
   const [draft, setDraft] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [limit, setLimit] = useState<LimitCode | null>(null);
+  const [seededHighlight, setSeededHighlight] = useState<string | null>(null);
   const abortRef = useRef<AbortController | null>(null);
+
+  useEffect(() => {
+    if (pendingHighlight == null) return;
+    setSeededHighlight(pendingHighlight);
+    clearPendingHighlight();
+  }, [pendingHighlight, clearPendingHighlight]);
 
   useEffect(() => {
     abortRef.current?.abort();
@@ -81,6 +93,7 @@ export function AgentTab() {
     setError(null);
     setLimit(null);
     setDraft('');
+    setSeededHighlight(null);
 
     if (!bookId) {
       setMessages([]);
@@ -260,13 +273,13 @@ export function AgentTab() {
             )}
           </div>
 
-          {!hasThread && (
+          {!hasThread && !seededHighlight && (
             <p className="text-muted-foreground mb-4 text-sm">
               Highlight a passage while reading to start a conversation here.
             </p>
           )}
 
-          {!hasThread && env.isDev && (
+          {!hasThread && !seededHighlight && env.isDev && (
             <Button
               type="button"
               variant="outline"
@@ -293,19 +306,28 @@ export function AgentTab() {
             </Alert>
           )}
 
-          {hasThread && (
+          {(hasThread || seededHighlight) && (
             <form
               onSubmit={(e) => {
                 e.preventDefault();
-                void send(draft);
+                const highlightedPassage = seededHighlight ?? undefined;
+                setSeededHighlight(null);
+                void send(draft, highlightedPassage);
               }}
             >
+              {seededHighlight && (
+                <blockquote className="border-primary bg-muted text-muted-foreground mb-3 block border-l-2 px-3 py-2 text-sm italic">
+                  {seededHighlight}
+                </blockquote>
+              )}
               <Textarea
                 rows={2}
                 value={draft}
                 disabled={busy}
                 aria-label="agent message"
-                placeholder="Reply..."
+                placeholder={
+                  seededHighlight ? 'What do you want to know?' : 'Reply...'
+                }
                 onChange={(e) => setDraft(e.target.value)}
               />
               <Button
