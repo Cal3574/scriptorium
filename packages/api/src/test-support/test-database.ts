@@ -50,7 +50,7 @@ export async function setupTestDatabase(): Promise<TestDatabase> {
     pool,
     async truncateAll() {
       await pool.query(
-        'TRUNCATE users, books, chapters, chunks, queries RESTART IDENTITY CASCADE',
+        'TRUNCATE users, books, chapters, chunks, queries, agent_threads, agent_messages RESTART IDENTITY CASCADE',
       );
     },
     async close() {

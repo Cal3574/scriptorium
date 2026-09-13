@@ -36,6 +36,12 @@ export {
   type RetrieveCandidatesInput,
 } from './queries/queries.repository.js';
 export {
+  AgentRepository,
+  type AgentMessageRow,
+  type AgentThreadRow,
+  type InsertAgentMessageInput,
+} from './agent/agent.repository.js';
+export {
   IngestRepository,
   type ExtractionResult,
   type Identification,
@@ -136,6 +142,11 @@ export {
   type MonthlyActivityRow,
 } from './activity/monthly-activity.js';
 
+export {
+  pumpPostSseStream,
+  type PostSseRequest,
+  type PostSseResponse,
+} from './http/post-sse-stream.js';
 export { ProblemDetailsFilter } from './http/problem-details.filter.js';
 export { RequestAwareLogger } from './http/request-aware-logger.js';
 export {

@@ -6,6 +6,7 @@ import {
   InternalServerErrorException,
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
+import { AgentRepository } from '../agent/agent.repository.js';
 import type { AuthenticatedUser } from '../auth/current-user.decorator.js';
 import { BooksRepository } from '../books/books.repository.js';
 import { QueriesRepository } from '../queries/queries.repository.js';
@@ -25,10 +26,12 @@ import { QUOTA_KEY, type QuotaLever } from './quota.decorator.js';
  * caller's limit is resolved from {@link PLAN_LIMITS} (unknown/absent plan ->
  * `free`) and the derive-from-rows count is checked with `count >= limit`.
  *
- * The `books` lever is wired now (`BooksController`); the `queries` lever and
- * its `@Quota('queries')` land in the query ticket (#106), which adds
- * `@UseGuards(EntitlementGuard)` to `QueriesController`.
+ * The `books` lever guards `BooksController`; the `queries` lever guards both
+ * `QueriesController` (Ask library) and `AgentController` (the reading
+ * companion) - the two modes spend one pooled monthly allowance, so the count
+ * sums `queries` rows and Agent turns (`agent_messages` `role: 'user'` rows).
  *
+
  * There is no row locking: two concurrent requests can both pass at
  * `limit - 1` and overshoot by one. Accepted for v1. Downgrade grace falls out
  * of the same check with no special case - a former Pro user over the free
@@ -41,6 +44,7 @@ export class EntitlementGuard implements CanActivate {
     @Inject(PLAN_LIMITS) private readonly planLimits: PlanLimits,
     private readonly books: BooksRepository,
     private readonly queries: QueriesRepository,
+    private readonly agent: AgentRepository,
   ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
@@ -70,8 +74,11 @@ export class EntitlementGuard implements CanActivate {
       return true;
     }
 
-    const count = await this.queries.countThisMonth(user.id);
-    if (count >= limits.queries) {
+    const [queryCount, agentTurnCount] = await Promise.all([
+      this.queries.countThisMonth(user.id),
+      this.agent.countMessagesThisMonth(user.id),
+    ]);
+    if (queryCount + agentTurnCount >= limits.queries) {
       throw new QueryLimitReachedException();
     }
     return true;
