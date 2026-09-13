@@ -15,6 +15,13 @@
       "when": 1789286303301,
       "tag": "0001_white_tomas",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1789290073320,
+      "tag": "0002_robust_slapstick",
+      "breakpoints": true
     }
   ]
 }

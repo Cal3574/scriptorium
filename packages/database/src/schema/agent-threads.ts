@@ -1,4 +1,11 @@
-import { pgTable, timestamp, uniqueIndex, uuid } from 'drizzle-orm/pg-core';
+import {
+  bigint,
+  pgTable,
+  text,
+  timestamp,
+  uniqueIndex,
+  uuid,
+} from 'drizzle-orm/pg-core';
 import { books } from './books.js';
 import { users } from './users.js';
 
@@ -24,6 +31,19 @@ export const agentThreads = pgTable(
     updatedAt: timestamp('updated_at', { withTimezone: true })
       .notNull()
       .defaultNow(),
+    // Context-window trimming (#158). Both null until the thread first crosses
+    // the message-count threshold - a fresh or short thread is unaffected.
+    // `runningSummary` folds every message at or before
+    // `summarizedThroughSeq` into one string, regenerated (not appended) each
+    // time the threshold re-crosses; messages after that boundary are still
+    // replayed verbatim. A `seq` boundary rather than a timestamp one
+    // deliberately - see `agent_messages.seq` for why a timestamp can't
+    // safely break a same-tick tie for this same adjacency-sensitive
+    // ordering.
+    runningSummary: text('running_summary'),
+    summarizedThroughSeq: bigint('summarized_through_seq', {
+      mode: 'number',
+    }),
   },
   (table) => [
     uniqueIndex('agent_threads_user_id_book_id_key').on(

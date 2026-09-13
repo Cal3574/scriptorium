@@ -163,6 +163,75 @@ describe('FakeLlmClient', () => {
     });
   });
 
+  describe('agent context-window summary shape (#158)', () => {
+    // Kept in sync with `context-window.ts`'s `SUMMARY_SYSTEM_PROMPT` on the
+    // phrase the fake branches on, matching how `AGENT_SYSTEM` above mirrors
+    // the live `AGENT_SYSTEM_PROMPT`.
+    const SUMMARY_SYSTEM =
+      'You maintain a rolling summary of an ongoing conversation.';
+
+    it('does not fall into the agent-reply shape, even without "system" naming it a companion', async () => {
+      const out = await client.complete({
+        system: SUMMARY_SYSTEM,
+        messages: [
+          {
+            role: 'user',
+            content: 'Turns to summarise:\nReader: hello\nCompanion: hi',
+          },
+        ],
+      });
+
+      expect(out).not.toContain('?');
+      expect(out).toContain('1 earlier turn');
+    });
+
+    it('reports how many turns it was asked to fold in', async () => {
+      const out = await client.complete({
+        system: SUMMARY_SYSTEM,
+        messages: [
+          {
+            role: 'user',
+            content: [
+              'Turns to summarise:',
+              'Reader: a',
+              'Companion: b',
+              '',
+              'Reader: c',
+              'Companion: d',
+            ].join('\n'),
+          },
+        ],
+      });
+
+      expect(out).toContain('2 earlier turn');
+    });
+
+    it('reports when it is merging with a prior summary rather than starting fresh', async () => {
+      const fresh = await client.complete({
+        system: SUMMARY_SYSTEM,
+        messages: [
+          {
+            role: 'user',
+            content: 'Turns to summarise:\nReader: a\nCompanion: b',
+          },
+        ],
+      });
+      const merged = await client.complete({
+        system: SUMMARY_SYSTEM,
+        messages: [
+          {
+            role: 'user',
+            content:
+              'Previous summary:\nearlier stuff\n\nNew turns to fold in:\nReader: a\nCompanion: b',
+          },
+        ],
+      });
+
+      expect(fresh).not.toContain('merged with the prior summary');
+      expect(merged).toContain('merged with the prior summary');
+    });
+  });
+
   describe('failure injection', () => {
     const failing: LlmRequest = {
       system: AGENT_SYSTEM,

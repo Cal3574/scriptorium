@@ -31,7 +31,6 @@ import { QUOTA_KEY, type QuotaLever } from './quota.decorator.js';
  * companion) - the two modes spend one pooled monthly allowance, so the count
  * sums `queries` rows and Agent turns (`agent_messages` `role: 'user'` rows).
  *
-
  * There is no row locking: two concurrent requests can both pass at
  * `limit - 1` and overshoot by one. Accepted for v1. Downgrade grace falls out
  * of the same check with no special case - a former Pro user over the free

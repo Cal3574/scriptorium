@@ -2,7 +2,7 @@ import { Inject, Injectable } from '@nestjs/common';
 import type { AgentMessageRole } from '@scriptorium/contracts';
 import type { DbClient } from '@scriptorium/database/client';
 import { agentMessages, agentThreads } from '@scriptorium/database/schema';
-import { and, asc, count, eq, gte } from 'drizzle-orm';
+import { and, asc, count, eq, gt, gte } from 'drizzle-orm';
 import { currentMonthStartUtc } from '../entitlements/billing-period.js';
 import { DB } from '../database/database.module.js';
 
@@ -12,6 +12,12 @@ export interface AgentThreadRow {
   bookId: string;
   createdAt: Date;
   updatedAt: Date;
+  // Context-window trimming (#158) - both null until the thread first crosses
+  // the message-count threshold. `summarizedThroughSeq` is a `seq` boundary,
+  // not a timestamp - see `agent_messages.seq` for why a timestamp can't
+  // safely break a same-tick tie for this same adjacency-sensitive ordering.
+  runningSummary: string | null;
+  summarizedThroughSeq: number | null;
 }
 
 export interface AgentMessageRow {
@@ -124,6 +130,45 @@ export class AgentRepository {
     await this.db
       .update(agentThreads)
       .set({ updatedAt: new Date() })
+      .where(eq(agentThreads.id, threadId));
+  }
+
+  /**
+   * How many rows in this thread have not yet been folded into
+   * `runningSummary` - the cheap `COUNT` that gates trimming, mirroring
+   * {@link countMessagesThisMonth}'s pattern. `sinceSeq` is the thread's
+   * current `summarizedThroughSeq` (null for a thread that has never been
+   * trimmed, in which case every row counts).
+   */
+  async countMessagesSince(
+    threadId: string,
+    sinceSeq: number | null,
+  ): Promise<number> {
+    const [row] = await this.db
+      .select({ total: count() })
+      .from(agentMessages)
+      .where(
+        and(
+          eq(agentMessages.threadId, threadId),
+          sinceSeq !== null ? gt(agentMessages.seq, sinceSeq) : undefined,
+        ),
+      );
+    return row?.total ?? 0;
+  }
+
+  /**
+   * Replaces (never appends to) the thread's rolling summary and advances the
+   * `seq` boundary it is summarized through. Called only from the trimming
+   * pass - see `maybeTrimThread` in the api app.
+   */
+  async updateSummary(
+    threadId: string,
+    runningSummary: string,
+    summarizedThroughSeq: number,
+  ): Promise<void> {
+    await this.db
+      .update(agentThreads)
+      .set({ runningSummary, summarizedThroughSeq })
       .where(eq(agentThreads.id, threadId));
   }
 
