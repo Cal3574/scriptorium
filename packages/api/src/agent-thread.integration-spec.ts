@@ -2,7 +2,16 @@ import type { INestApplication } from '@nestjs/common';
 import type { AgentEvent } from '@scriptorium/contracts';
 import { FAKE_LLM_FAILURE_MARKER } from '@scriptorium/providers';
 import request from 'supertest';
-import { plantAgentBook, sendAgentMessage } from './test-support/agent-turn';
+import {
+  plantAgentBook,
+  seedAgentTurns,
+  sendAgentMessage,
+  sendAgentMessageTimed,
+} from './test-support/agent-turn';
+import {
+  CONTEXT_TRIM_THRESHOLD,
+  CONTEXT_VERBATIM_TURNS,
+} from './agent/context-window';
 import { createTestApp } from './test-support/create-test-app';
 import {
   createTestAuthority,
@@ -347,6 +356,106 @@ describe('agent conversation backend', () => {
       const bookId = await plantBook(alice());
       const res = await send(alice(), bookId, { message: '' });
       expect(res.status).toBe(422);
+    });
+  });
+
+  describe('context-window trimming (#158)', () => {
+    // One turn short of the threshold, seeded directly via SQL - the turn sent
+    // through the real endpoint below is what tips the thread over it.
+    const SEEDED_TURNS = CONTEXT_TRIM_THRESHOLD / 2 - 1;
+
+    it('folds everything but the most recent verbatim turns into a rolling summary once a thread crosses the threshold', async () => {
+      const id = await userId(alice());
+      const bookId = await plantAgentBook(db, id);
+      await seedAgentTurns(db, id, bookId, SEEDED_TURNS, {
+        seedPassage: PASSAGE,
+      });
+
+      await send(alice(), bookId, { message: 'the turn that tips it over' });
+
+      const { rows } = await db.pool.query(
+        `SELECT running_summary, summarized_through_seq
+         FROM agent_threads WHERE book_id = $1`,
+        [bookId],
+      );
+      expect(rows[0].running_summary).not.toBeNull();
+      expect(rows[0].summarized_through_seq).not.toBeNull();
+    });
+
+    it("next turn's prompt carries the summary, the verbatim recent window, and the seed passage regardless of age", async () => {
+      const id = await userId(alice());
+      const bookId = await plantAgentBook(db, id);
+      await seedAgentTurns(db, id, bookId, SEEDED_TURNS, {
+        seedPassage: PASSAGE,
+      });
+      // Crosses the threshold; folds the oldest turns (including the seed)
+      // into the summary, leaving `CONTEXT_VERBATIM_TURNS` verbatim.
+      await send(alice(), bookId, { message: 'the turn that tips it over' });
+
+      const next = await send(alice(), bookId, { message: 'one more' });
+
+      // The fake companion reports how many prior turns it was replayed as
+      // history: the pinned seed turn, plus the verbatim window - not the
+      // full, untrimmed turn count.
+      expect(doneEvent(next.events)?.message).toContain(
+        `turn ${CONTEXT_VERBATIM_TURNS + 2}`,
+      );
+    });
+
+    it('regenerates the summary rather than appending to it on a later re-cross', async () => {
+      const id = await userId(alice());
+      const bookId = await plantAgentBook(db, id);
+      await seedAgentTurns(db, id, bookId, SEEDED_TURNS, {
+        seedPassage: PASSAGE,
+      });
+      await send(alice(), bookId, { message: 'the turn that tips it over' });
+
+      const firstSummary = (
+        await db.pool.query(
+          `SELECT running_summary FROM agent_threads WHERE book_id = $1`,
+          [bookId],
+        )
+      ).rows[0].running_summary as string;
+
+      // Enough further rows for the unsummarized count to cross the threshold
+      // again: the verbatim window left behind, plus this many new turns.
+      await seedAgentTurns(db, id, bookId, CONTEXT_VERBATIM_TURNS - 1, {
+        startIndex: SEEDED_TURNS + 1,
+      });
+      await send(alice(), bookId, { message: 'and another' });
+
+      const secondSummary = (
+        await db.pool.query(
+          `SELECT running_summary FROM agent_threads WHERE book_id = $1`,
+          [bookId],
+        )
+      ).rows[0].running_summary as string;
+
+      expect(secondSummary).not.toEqual(firstSummary);
+    });
+
+    it('runs the trim after the SSE stream has already reached the client, not before', async () => {
+      const id = await userId(alice());
+      const bookId = await plantAgentBook(db, id);
+      await seedAgentTurns(db, id, bookId, SEEDED_TURNS, {
+        seedPassage: PASSAGE,
+      });
+
+      const before = Date.now();
+      const result = await sendAgentMessageTimed(server, alice(), bookId, {
+        message: 'the turn that tips it over',
+      });
+
+      expect(result.doneObservedAt).not.toBeNull();
+      const doneObservedAt = result.doneObservedAt ?? 0;
+      // The visible reply arrives on its own generation's schedule - roughly
+      // the fake's one configured delay (~200ms) - never stacked with a
+      // second LLM call's worth of extra latency up front.
+      expect(doneObservedAt - before).toBeLessThan(350);
+      // But the request itself keeps running well after that: the trim's own
+      // summarization call (another ~200ms on the fake) still has to finish
+      // before the response can end.
+      expect(result.endAt - doneObservedAt).toBeGreaterThan(100);
     });
   });
 });

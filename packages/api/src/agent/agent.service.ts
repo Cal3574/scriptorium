@@ -11,7 +11,8 @@ import {
   AGENT_SYSTEM_PROMPT,
   buildAgentUserMessage,
 } from './agent-prompt.js';
-import { reassembleHistory } from './thread-history.js';
+import { maybeTrimThread } from './context-window.js';
+import { buildPromptHistory } from './thread-history.js';
 
 export interface RunAgentTurnParams {
   userId: string;
@@ -59,7 +60,10 @@ export class AgentService {
 
     // Read history *before* inserting the new user message so the live turn is
     // not also replayed as history.
-    const history = reassembleHistory(await this.agent.listMessages(thread.id));
+    const history = buildPromptHistory(
+      thread,
+      await this.agent.listMessages(thread.id),
+    );
 
     const userMessageId = await this.agent.insertMessage({
       threadId: thread.id,
@@ -98,6 +102,22 @@ export class AgentService {
     });
     await this.agent.touchThread(thread.id);
     yield { type: 'agent_done', messageId, message: reply };
+
+    // Deliberately after the last yield: by the time the SSE pump resumes this
+    // generator to find out it's done, the `agent_done` frame has already been
+    // handed to the client - trimming the thread here never delays the reply
+    // the reader is waiting on. See `maybeTrimThread` (#158). Swallowed on
+    // failure: the turn itself already succeeded and the client has moved on,
+    // so a broken summarization call must not surface as a failed turn - the
+    // thread just stays untrimmed until a later turn tries again.
+    try {
+      await maybeTrimThread(this.llm, this.agent, thread, signal);
+    } catch (error) {
+      this.logger.error(
+        `context-window trim for thread ${thread.id} failed`,
+        error instanceof Error ? error.stack : String(error),
+      );
+    }
   }
 
   // Streams the companion's reply as `agent_text_delta` events and returns the

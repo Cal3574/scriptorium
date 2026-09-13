@@ -104,6 +104,15 @@ function isAgentRequest(request: LlmRequest): boolean {
   return /reading companion/i.test(request.system ?? '');
 }
 
+// True when the request is a context-window trim's summarization call (#158)
+// rather than a live turn - checked first, since its system prompt never
+// mentions "reading companion".
+function isAgentSummaryRequest(request: LlmRequest): boolean {
+  return /rolling summary of an ongoing conversation/i.test(
+    request.system ?? '',
+  );
+}
+
 // How many completed turns were replayed as history ahead of the live one.
 // Makes the fake's reply differ per turn, so a caller can tell that thread
 // history actually reached the model.
@@ -168,6 +177,20 @@ export class FakeLlmClient implements LlmClient {
       highlightedPassage,
       citations,
     } = extractSalient(request);
+
+    // Context-window trim shape (#158): a one-shot summarization call, not a
+    // reply to the reader. Echoes how many turns it was asked to fold in
+    // (counting `Reader:` lines) and whether it was merging with a prior
+    // summary, so a caller asserting the rolling summary actually changed
+    // across trims has something real to check.
+    if (isAgentSummaryRequest(request)) {
+      const turnCount = (request.messages[0]?.content.match(/^Reader:/gm) ?? [])
+        .length;
+      const merging = /^Previous summary:/.test(
+        request.messages[0]?.content ?? '',
+      );
+      return `Offline summary covering ${turnCount} earlier turn(s)${merging ? ', merged with the prior summary' : ''}.`;
+    }
 
     // Agent shape: a short Socratic reply in the companion's voice. Checked
     // first - an Agent message is freeform prose and could otherwise fall into
