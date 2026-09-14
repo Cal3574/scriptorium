@@ -11,6 +11,7 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { SummaryProse } from '@/components/prose/summary-prose';
+import { ThinkingDots } from '@/components/ai/thinking-dots';
 import { cn } from '@/lib/utils';
 import { env } from '../env';
 import {
@@ -22,6 +23,7 @@ import { useApi } from '../auth/use-api';
 import { useUsage } from '../usage/use-usage';
 import { LimitReachedNotice } from '../usage/limit-reached-notice';
 import { useAgentBookId } from './use-agent-book-id';
+import { useChatWidget } from './chat-widget-context';
 
 type Phase = 'loading' | 'idle' | 'streaming' | 'error';
 
@@ -37,7 +39,7 @@ function MessageBubble({ message }: { message: AgentMessageDto }) {
       className={isUser ? 'text-right' : 'text-left'}
     >
       {message.highlightedPassage && (
-        <blockquote className="border-primary bg-muted text-muted-foreground mb-1 inline-block border-l-2 px-3 py-2 text-left text-sm italic">
+        <blockquote className="ai-highlight-quote bg-muted text-muted-foreground mb-1 inline-block px-3 py-2 text-left text-sm italic">
           {message.highlightedPassage}
         </blockquote>
       )}
@@ -57,15 +59,25 @@ function MessageBubble({ message }: { message: AgentMessageDto }) {
 // the reading companion, wired to the SSE endpoint from #157. Which thread
 // shows tracks the current reader route live, falling back to `lastBookId`
 // off a reader route (`useAgentBookId`). Agent threads only ever start via
-// highlight-to-discuss (#161, not yet built) - so with no messages yet this
-// renders no freeform composer, only a nudge and (dev builds only) a trigger
-// to seed a thread for manual testing. Real cold-start empty-state polish is
+// highlight-to-discuss (#161) - so with no messages yet this renders no
+// freeform composer, only a nudge, until a `pendingHighlight` arrives from
+// `ChatWidgetProvider` and is captured as `seededHighlight` (consumed once,
+// then cleared from shared state so it does not reseed on a later render).
+// Dev builds also keep a manual trigger for a thread with no highlight, for
+// testing without the reader page. Real cold-start empty-state polish is
 // #162's job.
 export function AgentTab() {
   const { getToken } = useAuth();
   const api = useApi();
   const { refetch: refetchUsage } = useUsage();
   const bookId = useAgentBookId();
+  const {
+    pendingHighlight,
+    clearPendingHighlight,
+    setIsStreaming,
+    isOpen,
+    activeTab,
+  } = useChatWidget();
 
   const [phase, setPhase] = useState<Phase>('idle');
   const [messages, setMessages] = useState<AgentMessageDto[]>([]);
@@ -73,7 +85,32 @@ export function AgentTab() {
   const [draft, setDraft] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [limit, setLimit] = useState<LimitCode | null>(null);
+  const [seededHighlight, setSeededHighlight] = useState<string | null>(null);
   const abortRef = useRef<AbortController | null>(null);
+  const bottomRef = useRef<HTMLDivElement>(null);
+
+  // Keeps the newest text in view as a reply streams in - the panel's own
+  // scroll container (`ChatWidget`) is an ancestor of this tab, not
+  // something this component owns, so `scrollIntoView` on a trailing
+  // sentinel reaches it regardless.
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView?.({ block: 'end' });
+  }, [messages, streamingReply]);
+
+  // Also jump to the bottom whenever this tab becomes the one showing -
+  // switching to it, or reopening the widget while it was already the
+  // selected tab - rather than leaving the scroll position wherever it last
+  // was (e.g. mid-history, from before the panel was closed).
+  useEffect(() => {
+    if (!isOpen || activeTab !== 'agent') return;
+    bottomRef.current?.scrollIntoView?.({ block: 'end' });
+  }, [isOpen, activeTab]);
+
+  useEffect(() => {
+    if (pendingHighlight == null) return;
+    setSeededHighlight(pendingHighlight);
+    clearPendingHighlight();
+  }, [pendingHighlight, clearPendingHighlight]);
 
   useEffect(() => {
     abortRef.current?.abort();
@@ -81,6 +118,7 @@ export function AgentTab() {
     setError(null);
     setLimit(null);
     setDraft('');
+    setSeededHighlight(null);
 
     if (!bookId) {
       setMessages([]);
@@ -228,6 +266,12 @@ export function AgentTab() {
   const busy = phase === 'streaming';
   const hasThread = messages.length > 0;
 
+  // Purely cosmetic: lets the widget's ambient gradient border (index.css)
+  // animate faster/brighter while this tab is mid-reply.
+  useEffect(() => {
+    setIsStreaming(busy);
+  }, [busy, setIsStreaming]);
+
   return (
     <div>
       {!bookId && (
@@ -248,7 +292,7 @@ export function AgentTab() {
             ))}
             {streamingReply !== null && (
               <div data-message data-role="assistant" className="text-left">
-                <div className="inline-block rounded-lg px-3 py-2 text-left text-sm">
+                <div className="ai-stream-shimmer inline-block rounded-lg px-3 py-2 text-left text-sm">
                   <SummaryProse markdown={streamingReply} className="text-sm" />
                   <span
                     data-testid="agent-reply-caret"
@@ -260,18 +304,18 @@ export function AgentTab() {
             )}
           </div>
 
-          {!hasThread && (
+          {!hasThread && !seededHighlight && (
             <p className="text-muted-foreground mb-4 text-sm">
               Highlight a passage while reading to start a conversation here.
             </p>
           )}
 
-          {!hasThread && env.isDev && (
+          {!hasThread && !seededHighlight && env.isDev && (
             <Button
               type="button"
               variant="outline"
               size="sm"
-              className="mb-4"
+              className="mb-4 cursor-pointer"
               disabled={busy}
               onClick={() =>
                 void send(
@@ -293,30 +337,51 @@ export function AgentTab() {
             </Alert>
           )}
 
-          {hasThread && (
+          {(hasThread || seededHighlight) && (
             <form
               onSubmit={(e) => {
                 e.preventDefault();
-                void send(draft);
+                const highlightedPassage = seededHighlight ?? undefined;
+                setSeededHighlight(null);
+                void send(draft, highlightedPassage);
               }}
             >
+              {seededHighlight && (
+                <blockquote className="ai-highlight-quote bg-muted text-muted-foreground mb-3 block px-3 py-2 text-sm italic">
+                  {seededHighlight}
+                </blockquote>
+              )}
               <Textarea
                 rows={2}
                 value={draft}
                 disabled={busy}
                 aria-label="agent message"
-                placeholder="Reply..."
+                placeholder={
+                  seededHighlight ? 'What do you want to know?' : 'Reply...'
+                }
                 onChange={(e) => setDraft(e.target.value)}
               />
               <Button
                 type="submit"
-                className="mt-3"
+                className="mt-3 cursor-pointer"
                 disabled={busy || !draft.trim()}
               >
-                {busy ? 'Thinking...' : 'Send'}
+                {busy ? (
+                  <span className="inline-flex items-center gap-1.5">
+                    Thinking
+                    <ThinkingDots />
+                  </span>
+                ) : (
+                  'Send'
+                )}
               </Button>
             </form>
           )}
+
+          {/* Placed after the composer, not just the message list, so
+              autoscroll (below) reveals the Send button too - not only the
+              latest message text. */}
+          <div ref={bottomRef} />
         </>
       )}
     </div>

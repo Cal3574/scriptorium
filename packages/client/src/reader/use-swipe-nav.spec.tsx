@@ -65,6 +65,24 @@ test('a predominantly vertical drag (scrolling) is ignored', () => {
   expect(onNext).not.toHaveBeenCalled();
 });
 
+test('a swipe past the threshold is suppressed while a text selection is active', () => {
+  const onPrev = jest.fn();
+  const onNext = jest.fn();
+  const { getByTestId } = render(<Harness onPrev={onPrev} onNext={onNext} />);
+
+  const getSelection = jest
+    .spyOn(window, 'getSelection')
+    .mockReturnValue({ isCollapsed: false } as Selection);
+  try {
+    swipe(getByTestId('surface'), [200, 100], [100, 100]);
+  } finally {
+    getSelection.mockRestore();
+  }
+
+  expect(onPrev).not.toHaveBeenCalled();
+  expect(onNext).not.toHaveBeenCalled();
+});
+
 test('a multi-touch gesture is ignored', () => {
   const onPrev = jest.fn();
   const onNext = jest.fn();

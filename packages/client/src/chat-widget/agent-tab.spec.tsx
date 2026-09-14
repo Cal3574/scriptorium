@@ -3,8 +3,32 @@ import userEvent from '@testing-library/user-event';
 import { createMemoryRouter, RouterProvider, Outlet } from 'react-router';
 import { agentEventFrame, type AgentEvent } from '@scriptorium/contracts';
 
-import { ChatWidgetProvider } from './chat-widget-context';
+import { ChatWidgetProvider, useChatWidget } from './chat-widget-context';
 import { AgentTab } from './agent-tab';
+
+// Stands in for the reader page's highlight-to-discuss button (#161): calls
+// the same `seedHighlight` the real floating action uses, without needing
+// the selection machinery itself.
+function SeedHighlightButton({ passage }: { passage: string }) {
+  const { seedHighlight } = useChatWidget();
+  return <button onClick={() => seedHighlight(passage)}>seed highlight</button>;
+}
+
+// Stands in for `ChatWidget`'s launcher + tab switcher: real open/close and
+// tab-switching, without needing the actual panel chrome.
+function WidgetControls() {
+  const { open, close, setActiveTab } = useChatWidget();
+  return (
+    <div>
+      <button onClick={open}>open widget</button>
+      <button onClick={close}>close widget</button>
+      <button onClick={() => setActiveTab('ask-library')}>
+        switch to ask library
+      </button>
+      <button onClick={() => setActiveTab('agent')}>switch to agent</button>
+    </div>
+  );
+}
 
 jest.mock('@clerk/react', () => ({
   useAuth: () => ({ getToken: async () => 'test-token' }),
@@ -109,7 +133,71 @@ function renderAt(path: string) {
   return router;
 }
 
+function renderAtWithControls(path: string) {
+  const router = createMemoryRouter(
+    [
+      {
+        element: (
+          <ChatWidgetProvider>
+            <Outlet />
+          </ChatWidgetProvider>
+        ),
+        children: [
+          {
+            path: '/books/:bookId/read',
+            element: (
+              <>
+                <WidgetControls />
+                <AgentTab />
+              </>
+            ),
+            handle: { isReaderRoute: true },
+          },
+        ],
+      },
+    ],
+    { initialEntries: [path] },
+  );
+  render(<RouterProvider router={router} />);
+  return router;
+}
+
+function renderAtWithSeeder(path: string, passage: string) {
+  const router = createMemoryRouter(
+    [
+      {
+        element: (
+          <ChatWidgetProvider>
+            <Outlet />
+          </ChatWidgetProvider>
+        ),
+        children: [
+          {
+            path: '/books/:bookId/read',
+            element: (
+              <>
+                <SeedHighlightButton passage={passage} />
+                <AgentTab />
+              </>
+            ),
+            handle: { isReaderRoute: true },
+          },
+        ],
+      },
+    ],
+    { initialEntries: [path] },
+  );
+  render(<RouterProvider router={router} />);
+  return router;
+}
+
 const fetchMock = jest.fn();
+const scrollIntoViewMock = jest.fn();
+
+beforeAll(() => {
+  // jsdom has no layout engine and doesn't implement scrollIntoView at all.
+  Element.prototype.scrollIntoView = scrollIntoViewMock;
+});
 
 beforeEach(() => {
   globalThis.fetch = fetchMock as unknown as typeof fetch;
@@ -119,6 +207,7 @@ afterEach(() => {
   cleanup();
   fetchMock.mockReset();
   usageRefetch.mockReset();
+  scrollIntoViewMock.mockReset();
 });
 
 test('off a reader route with no last book, there is nothing to load and no request is made', () => {
@@ -139,6 +228,34 @@ test('an empty thread shows the highlight nudge, not a freeform composer', async
     await screen.findByText(/highlight a passage while reading/i),
   ).toBeVisible();
   expect(screen.queryByLabelText('agent message')).not.toBeInTheDocument();
+});
+
+test('off a reader route, the Agent tab shows the thread for lastBookId', async () => {
+  fetchMock.mockResolvedValueOnce(
+    jsonRes({
+      id: THREAD_A,
+      bookId: BOOK_A,
+      createdAt: '2026-01-01T00:00:00Z',
+      messages: [
+        {
+          id: USER_MSG,
+          role: 'user',
+          message: 'About book A',
+          highlightedPassage: 'Passage A',
+          createdAt: '2026-01-01T00:00:00Z',
+        },
+      ],
+    }),
+  );
+  const router = renderAt(`/books/${BOOK_A}/read`);
+  expect(await screen.findByText('About book A')).toBeVisible();
+
+  await act(async () => {
+    await router.navigate('/library');
+  });
+
+  expect(screen.getByText('About book A')).toBeVisible();
+  expect(fetchMock).toHaveBeenCalledTimes(1);
 });
 
 test('an existing thread renders its history and a distinct quoted passage, and the composer works', async () => {
@@ -210,6 +327,98 @@ test('an existing thread renders its history and a distinct quoted passage, and 
     expect(screen.queryByTestId('agent-reply-caret')).not.toBeInTheDocument(),
   );
   expect(usageRefetch).toHaveBeenCalled();
+});
+
+test('the message list autoscrolls to the newest content as a reply streams in', async () => {
+  fetchMock.mockResolvedValueOnce(
+    jsonRes({
+      id: THREAD_A,
+      bookId: BOOK_A,
+      createdAt: '2026-01-01T00:00:00Z',
+      messages: [
+        {
+          id: USER_MSG,
+          role: 'user',
+          message: 'Seed',
+          highlightedPassage: 'A seed passage.',
+          createdAt: '2026-01-01T00:00:00Z',
+        },
+      ],
+    }),
+  );
+  renderAt(`/books/${BOOK_A}/read`);
+  await screen.findByText('A seed passage.');
+  scrollIntoViewMock.mockClear();
+
+  const stream = deferredStream();
+  fetchMock.mockResolvedValueOnce(stream.response);
+
+  await userEvent.type(screen.getByLabelText('agent message'), 'A rebel.');
+  await userEvent.click(screen.getByRole('button', { name: 'Send' }));
+
+  stream.push({
+    type: 'agent_turn_started',
+    threadId: THREAD_A,
+    userMessageId: NEW_USER_MSG,
+  });
+  expect(await screen.findByText('A rebel.')).toBeVisible();
+  expect(scrollIntoViewMock).toHaveBeenCalled();
+
+  scrollIntoViewMock.mockClear();
+  stream.push({ type: 'agent_text_delta', text: 'Say more.' });
+  expect(await screen.findByText('Say more.')).toBeVisible();
+  expect(scrollIntoViewMock).toHaveBeenCalled();
+
+  stream.push({
+    type: 'agent_done',
+    messageId: NEW_ASSISTANT_MSG,
+    message: 'Say more.',
+  });
+  stream.finish();
+
+  await waitFor(() =>
+    expect(screen.queryByTestId('agent-reply-caret')).not.toBeInTheDocument(),
+  );
+});
+
+test('reopening the widget, or switching to the Agent tab, jumps to the bottom', async () => {
+  fetchMock.mockResolvedValueOnce(
+    jsonRes({
+      id: THREAD_A,
+      bookId: BOOK_A,
+      createdAt: '2026-01-01T00:00:00Z',
+      messages: [
+        {
+          id: USER_MSG,
+          role: 'user',
+          message: 'Seed',
+          highlightedPassage: 'A seed passage.',
+          createdAt: '2026-01-01T00:00:00Z',
+        },
+      ],
+    }),
+  );
+  const user = userEvent.setup();
+  renderAtWithControls(`/books/${BOOK_A}/read`);
+  await screen.findByText('A seed passage.');
+  await user.click(screen.getByText('open widget'));
+
+  // Switching to the Agent tab (the default is Ask library).
+  scrollIntoViewMock.mockClear();
+  await user.click(screen.getByText('switch to agent'));
+  expect(scrollIntoViewMock).toHaveBeenCalled();
+
+  // Closing and reopening the widget while Agent stays the selected tab.
+  scrollIntoViewMock.mockClear();
+  await user.click(screen.getByText('close widget'));
+  expect(scrollIntoViewMock).not.toHaveBeenCalled();
+  await user.click(screen.getByText('open widget'));
+  expect(scrollIntoViewMock).toHaveBeenCalled();
+
+  // Switching away doesn't (re-)trigger it, and switching back does.
+  scrollIntoViewMock.mockClear();
+  await user.click(screen.getByText('switch to ask library'));
+  expect(scrollIntoViewMock).not.toHaveBeenCalled();
 });
 
 test('a mid-turn agent_error leaves the user message unanswered and shows an alert', async () => {
@@ -334,4 +543,47 @@ test("switching from one book's reader to another's live-switches the shown thre
   expect(
     await screen.findByText(/highlight a passage while reading/i),
   ).toBeVisible();
+});
+
+test('a seeded highlight shows a composer before any thread exists, and is sent with the first message', async () => {
+  fetchMock.mockResolvedValueOnce(
+    jsonRes({ id: null, bookId: BOOK_A, createdAt: null, messages: [] }),
+  );
+  renderAtWithSeeder(`/books/${BOOK_A}/read`, 'A passage worth discussing.');
+  await screen.findByText(/highlight a passage while reading/i);
+
+  await userEvent.click(screen.getByText('seed highlight'));
+
+  expect(screen.getByText('A passage worth discussing.')).toBeVisible();
+  expect(
+    screen.queryByText(/highlight a passage while reading/i),
+  ).not.toBeInTheDocument();
+  const composer = screen.getByLabelText('agent message');
+  expect(composer).toHaveAttribute('placeholder', 'What do you want to know?');
+
+  const stream = deferredStream();
+  fetchMock.mockResolvedValueOnce(stream.response);
+
+  await userEvent.type(composer, 'What do you make of this?');
+  await userEvent.click(screen.getByRole('button', { name: 'Send' }));
+
+  expect(fetchMock).toHaveBeenLastCalledWith(
+    `http://api.test/api/v1/books/${BOOK_A}/agent-messages`,
+    expect.objectContaining({
+      method: 'POST',
+      body: JSON.stringify({
+        message: 'What do you make of this?',
+        highlightedPassage: 'A passage worth discussing.',
+      }),
+    }),
+  );
+
+  stream.push({
+    type: 'agent_turn_started',
+    threadId: THREAD_A,
+    userMessageId: NEW_USER_MSG,
+  });
+  stream.finish();
+
+  expect(await screen.findByText('What do you make of this?')).toBeVisible();
 });

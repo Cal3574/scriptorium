@@ -1,4 +1,4 @@
-import { MessageCircleIcon, XIcon } from 'lucide-react';
+import { SparklesIcon, XIcon } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
@@ -17,72 +17,109 @@ const TAB_LABEL: Record<ChatWidgetTab, string> = {
 // unmounted when inactive/closed, so an in-flight Ask library answer or
 // Agent reply survives a tab switch or the panel closing. The
 // panel has no route of its own; `AppShell` renders it as an overlay sibling
-// of the routed `<Outlet>` so it persists across client-side navigation.
+// of the routed <Outlet> so it persists across client-side navigation.
+//
+// The launcher's idle glow (a spinning conic aura, a pulsing ring, and a
+// scatter of twinkling sparkles) and the panel's gradient border + bloom are
+// the widget's "AI" visual language (#166, index.css) - inviting the first
+// open, and brightening/quickening while either tab is mid-reply
+// (`isStreaming`, set by whichever tab is actually streaming).
 export function ChatWidget() {
-  const { isOpen, close, toggle, activeTab, setActiveTab } = useChatWidget();
+  const { isOpen, close, toggle, activeTab, setActiveTab, isStreaming } =
+    useChatWidget();
 
   return (
     <>
-      <Button
-        type="button"
-        size="icon-lg"
-        className="fixed right-6 bottom-6 z-(--z-sheet) rounded-full shadow-lg"
-        aria-label="Toggle chat widget"
-        aria-expanded={isOpen}
-        onClick={toggle}
-      >
-        {isOpen ? <XIcon /> : <MessageCircleIcon />}
-      </Button>
+      <div className="fixed right-6 bottom-6 z-(--z-sheet)">
+        <Button
+          type="button"
+          size="icon-lg"
+          className={cn(
+            'relative cursor-pointer rounded-full shadow-lg',
+            !isOpen && 'ai-launcher-glow',
+          )}
+          aria-label="Toggle chat widget"
+          aria-expanded={isOpen}
+          onClick={toggle}
+        >
+          {isOpen ? <XIcon /> : <SparklesIcon />}
+        </Button>
+        {!isOpen && (
+          <>
+            <span
+              aria-hidden="true"
+              className="ai-sparkle"
+              style={{ top: -10, left: 2 }}
+            />
+            <span
+              aria-hidden="true"
+              className="ai-sparkle [animation-delay:0.8s]"
+              style={{ top: 8, right: -10 }}
+            />
+            <span
+              aria-hidden="true"
+              className="ai-sparkle [animation-delay:1.6s]"
+              style={{ bottom: -8, left: -6 }}
+            />
+          </>
+        )}
+      </div>
 
-      <section
-        aria-label="Chat widget"
+      <div
         hidden={!isOpen}
-        className="bg-card text-card-foreground border-border fixed right-6 bottom-24 z-(--z-sheet) flex h-[min(32rem,70dvh)] w-[min(24rem,calc(100vw-3rem))] flex-col overflow-hidden rounded-lg border shadow-xl"
+        data-active={isStreaming || undefined}
+        className="ai-panel-glow fixed right-6 bottom-24 z-(--z-sheet) h-[min(32rem,70dvh)] w-[min(24rem,calc(100vw-3rem))] rounded-lg p-px shadow-xl"
       >
-        <header className="border-border flex items-center justify-between border-b px-2 pt-2">
-          <div
-            role="tablist"
-            aria-label="Chat widget mode"
-            className="flex gap-1"
-          >
-            {(['ask-library', 'agent'] as const).map((tab) => (
-              <button
-                key={tab}
-                type="button"
-                role="tab"
-                aria-selected={activeTab === tab}
-                onClick={() => setActiveTab(tab)}
-                className={cn(
-                  'rounded-t-md px-3 py-2 text-sm font-medium',
-                  activeTab === tab
-                    ? 'border-primary text-foreground border-b-2'
-                    : 'text-muted-foreground hover:text-foreground border-b-2 border-transparent',
-                )}
-              >
-                {TAB_LABEL[tab]}
-              </button>
-            ))}
-          </div>
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon-sm"
-            aria-label="Close chat widget"
-            onClick={close}
-          >
-            <XIcon />
-          </Button>
-        </header>
+        <section
+          aria-label="Chat widget"
+          className="bg-card text-card-foreground flex h-full w-full flex-col overflow-hidden rounded-[calc(var(--radius-lg)-1px)]"
+        >
+          <header className="border-border flex items-center justify-between border-b px-2 pt-2">
+            <div
+              role="tablist"
+              aria-label="Chat widget mode"
+              className="flex gap-1"
+            >
+              {(['ask-library', 'agent'] as const).map((tab) => (
+                <button
+                  key={tab}
+                  type="button"
+                  role="tab"
+                  aria-selected={activeTab === tab}
+                  onClick={() => setActiveTab(tab)}
+                  className={cn(
+                    'cursor-pointer rounded-t-md px-3 py-2 text-sm font-medium',
+                    activeTab === tab
+                      ? 'ai-tab-glow border-primary text-foreground border-b-2'
+                      : 'text-muted-foreground hover:text-foreground border-b-2 border-transparent',
+                  )}
+                >
+                  {TAB_LABEL[tab]}
+                </button>
+              ))}
+            </div>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon-sm"
+              className="cursor-pointer"
+              aria-label="Close chat widget"
+              onClick={close}
+            >
+              <XIcon />
+            </Button>
+          </header>
 
-        <div className="flex-1 overflow-y-auto p-4">
-          <div hidden={activeTab !== 'ask-library'}>
-            <AskLibraryTab />
+          <div className="flex-1 overflow-y-auto p-4">
+            <div hidden={activeTab !== 'ask-library'}>
+              <AskLibraryTab />
+            </div>
+            <div hidden={activeTab !== 'agent'}>
+              <AgentTab />
+            </div>
           </div>
-          <div hidden={activeTab !== 'agent'}>
-            <AgentTab />
-          </div>
-        </div>
-      </section>
+        </section>
+      </div>
     </>
   );
 }

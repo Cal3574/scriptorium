@@ -1,5 +1,5 @@
 import { useAuth } from '@clerk/react';
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   type Citation,
   parseQueryEventFrame,
@@ -35,7 +35,7 @@ type Phase = 'idle' | 'streaming' | 'done' | 'error';
 export function AskLibraryTab() {
   const { getToken } = useAuth();
   const { refetch: refetchUsage } = useUsage();
-  const { askDraft, setAskDraft } = useChatWidget();
+  const { askDraft, setAskDraft, setIsStreaming } = useChatWidget();
   const [phase, setPhase] = useState<Phase>('idle');
   const [answer, setAnswer] = useState('');
   const [citations, setCitations] = useState<Citation[]>([]);
@@ -134,6 +134,12 @@ export function AskLibraryTab() {
   }, [askDraft, getToken, refetchUsage]);
 
   const busy = phase === 'streaming';
+
+  // Purely cosmetic: lets the widget's ambient gradient border (index.css)
+  // animate faster/brighter while this tab is mid-answer.
+  useEffect(() => {
+    setIsStreaming(busy);
+  }, [busy, setIsStreaming]);
 
   return (
     <div>
