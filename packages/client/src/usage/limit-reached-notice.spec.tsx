@@ -1,4 +1,5 @@
 import { render, screen, cleanup } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router';
 import type { UsageDto } from '@scriptorium/contracts';
 
@@ -76,4 +77,24 @@ test('renders without live numbers when usage has not loaded yet', () => {
 
   expect(screen.getByText(/books allowance is used up/i)).toBeVisible();
   expect(screen.getByRole('link', { name: 'Upgrade to Pro' })).toBeVisible();
+});
+
+test('an onUpgradeClick handler fires alongside the /pricing navigation', async () => {
+  currentUsage = {
+    plan: 'free',
+    books: { used: 0, limit: 2 },
+    queries: { used: 20, limit: 20, resetsAt: RESETS_AT },
+  };
+  const onUpgradeClick = jest.fn();
+  render(
+    <MemoryRouter>
+      <LimitReachedNotice
+        code="query_limit_reached"
+        onUpgradeClick={onUpgradeClick}
+      />
+    </MemoryRouter>,
+  );
+
+  await userEvent.click(screen.getByRole('link', { name: 'Upgrade to Pro' }));
+  expect(onUpgradeClick).toHaveBeenCalled();
 });

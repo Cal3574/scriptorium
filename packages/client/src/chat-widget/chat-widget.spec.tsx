@@ -21,6 +21,7 @@ jest.mock('remark-gfm', () => ({ __esModule: true, default: () => undefined }));
 
 jest.mock('../usage/use-usage', () => ({
   useUsage: () => ({ usage: null, refetch: jest.fn() }),
+  queryQuotaExhausted: () => false,
 }));
 
 function renderWidget(path = '/library') {

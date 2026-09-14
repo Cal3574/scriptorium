@@ -1,9 +1,9 @@
 import { render, screen, cleanup, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { createMemoryRouter, RouterProvider } from 'react-router';
+import { createMemoryRouter, RouterProvider, Outlet } from 'react-router';
 import { queryEventFrame, type QueryEvent } from '@scriptorium/contracts';
 
-import { ChatWidgetProvider } from './chat-widget-context';
+import { ChatWidgetProvider, useChatWidget } from './chat-widget-context';
 import { AskLibraryTab } from './ask-library-tab';
 
 jest.mock('@clerk/react', () => ({
@@ -22,8 +22,15 @@ jest.mock('react-markdown', () => ({
 jest.mock('remark-gfm', () => ({ __esModule: true, default: () => undefined }));
 
 const usageRefetch = jest.fn();
+let currentUsage: {
+  plan: 'free' | 'pro';
+  queries: { used: number; limit: number };
+} | null = null;
 jest.mock('../usage/use-usage', () => ({
-  useUsage: () => ({ usage: null, refetch: usageRefetch }),
+  useUsage: () => ({ usage: currentUsage, refetch: usageRefetch }),
+  queryQuotaExhausted: (
+    usage: { queries: { used: number; limit: number } } | null,
+  ) => usage != null && usage.queries.used >= usage.queries.limit,
 }));
 
 const CHUNK_A = '11111111-1111-4111-8111-111111111111';
@@ -79,16 +86,39 @@ function jsonRes(body: unknown, status = 200): Response {
   return { ok: status < 400, status, json: async () => body } as Response;
 }
 
+// Shows whether the widget panel is open, so a test can assert the upgrade
+// CTA closed it - real open/close state from the provider, not a stand-in.
+function OpenStateProbe() {
+  const { isOpen, open } = useChatWidget();
+  return (
+    <div>
+      <span data-testid="widget-open-state">{isOpen ? 'open' : 'closed'}</span>
+      <button onClick={open}>open widget</button>
+    </div>
+  );
+}
+
+// A layout route so `OpenStateProbe` (standing in for the always-mounted
+// `ChatWidget` panel) survives the `/pricing` navigation the upgrade CTA
+// triggers, the same way the real widget persists across routes (#159).
+function Layout() {
+  return (
+    <ChatWidgetProvider>
+      <OpenStateProbe />
+      <Outlet />
+    </ChatWidgetProvider>
+  );
+}
+
 function renderTab() {
   const router = createMemoryRouter(
     [
       {
-        path: '/library',
-        element: (
-          <ChatWidgetProvider>
-            <AskLibraryTab />
-          </ChatWidgetProvider>
-        ),
+        element: <Layout />,
+        children: [
+          { path: '/library', element: <AskLibraryTab /> },
+          { path: '/pricing', element: <p>pricing page</p> },
+        ],
       },
     ],
     { initialEntries: ['/library'] },
@@ -106,6 +136,7 @@ afterEach(() => {
   cleanup();
   fetchMock.mockReset();
   usageRefetch.mockReset();
+  currentUsage = null;
 });
 
 test('shows the helper copy and a disabled Ask button before anything is typed', () => {
@@ -216,4 +247,29 @@ test('a 402 shows the limit-reached notice and refetches usage, not a plain erro
   expect(await screen.findByText(/monthly question limit/i)).toBeVisible();
   expect(usageRefetch).toHaveBeenCalled();
   expect(screen.queryByText(/didn't go through/i)).not.toBeInTheDocument();
+});
+
+test('opening with the quota already exhausted shows the banner immediately, with no round-trip and a disabled composer', () => {
+  currentUsage = { plan: 'free', queries: { used: 20, limit: 20 } };
+  renderTab();
+
+  expect(screen.getByText(/monthly question limit/i)).toBeVisible();
+  expect(
+    screen.queryByText(/grounded in citations from every book/i),
+  ).not.toBeInTheDocument();
+  expect(screen.getByLabelText('question')).toBeDisabled();
+  expect(screen.getByRole('button', { name: 'Ask' })).toBeDisabled();
+  expect(fetchMock).not.toHaveBeenCalled();
+});
+
+test('clicking the upgrade CTA navigates to /pricing and closes the widget', async () => {
+  currentUsage = { plan: 'free', queries: { used: 20, limit: 20 } };
+  renderTab();
+  await userEvent.click(screen.getByRole('button', { name: 'open widget' }));
+  expect(screen.getByTestId('widget-open-state')).toHaveTextContent('open');
+
+  await userEvent.click(screen.getByRole('link', { name: 'Upgrade to Pro' }));
+
+  expect(await screen.findByText('pricing page')).toBeVisible();
+  expect(screen.getByTestId('widget-open-state')).toHaveTextContent('closed');
 });

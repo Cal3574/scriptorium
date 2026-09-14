@@ -12,12 +12,18 @@ export function QuestionForm({
   onQuestionChange,
   onSubmit,
   busy,
+  disabled = false,
 }: {
   question: string;
   onQuestionChange: (next: string) => void;
   onSubmit: () => void;
   busy: boolean;
+  // Separate from `busy`: a spent quota (the chat widget's proactive
+  // limit-reached banner, #163) disables the form without claiming the
+  // question is mid-flight, so it never shows the "Thinking..." label.
+  disabled?: boolean;
 }) {
+  const isDisabled = busy || disabled;
   return (
     <form
       className="mb-8"
@@ -29,7 +35,7 @@ export function QuestionForm({
       <Textarea
         rows={3}
         value={question}
-        disabled={busy}
+        disabled={isDisabled}
         aria-label="question"
         placeholder="What do these authors say about..."
         onChange={(e) => onQuestionChange(e.target.value)}
@@ -37,7 +43,7 @@ export function QuestionForm({
       <Button
         type="submit"
         className="mt-3 cursor-pointer"
-        disabled={busy || !question.trim()}
+        disabled={isDisabled || !question.trim()}
       >
         {busy ? (
           <span className="inline-flex items-center gap-1.5">

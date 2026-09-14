@@ -1,6 +1,6 @@
 import { render, screen, cleanup, act, waitFor } from '@testing-library/react';
 
-import { UsageProvider, useUsage } from './use-usage';
+import { UsageProvider, useUsage, queryQuotaExhausted } from './use-usage';
 import { notifyPaymentRequired } from './payment-required-bus';
 
 const api = jest.fn();
@@ -103,4 +103,15 @@ test('useUsage throws outside the provider', () => {
   const spy = jest.spyOn(console, 'error').mockImplementation(() => undefined);
   expect(() => render(<Probe />)).toThrow(/UsageProvider/);
   spy.mockRestore();
+});
+
+test('queryQuotaExhausted is true once used reaches the limit, false below it or before load', () => {
+  expect(queryQuotaExhausted(null)).toBe(false);
+  expect(queryQuotaExhausted(USAGE)).toBe(false);
+  expect(
+    queryQuotaExhausted({ ...USAGE, queries: { ...USAGE.queries, used: 20 } }),
+  ).toBe(true);
+  expect(
+    queryQuotaExhausted({ ...USAGE, queries: { ...USAGE.queries, used: 21 } }),
+  ).toBe(true);
 });
