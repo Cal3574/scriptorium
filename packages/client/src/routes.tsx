@@ -4,6 +4,7 @@ import { Library } from './books/Library';
 import { BookDetail } from './books/BookDetail';
 import { QueryScreen } from './queries/QueryScreen';
 import { QueryHistory } from './queries/QueryHistory';
+import { QueryDetailScreen } from './queries/QueryDetailScreen';
 import { ActivityScreen } from './activity/ActivityScreen';
 import { PricingScreen } from './pricing/PricingScreen';
 import { HowItWorks } from './how-it-works/HowItWorks';
@@ -51,6 +52,13 @@ export const routes: RouteObject[] = [
       {
         path: 'history',
         element: <QueryHistory />,
+        handle: { title: 'History' },
+      },
+      {
+        // #166: QueryDetail relocated under the History route tree, since it
+        // has no code dependency on the soon-to-be-deleted QueryScreen.
+        path: 'history/:queryId',
+        element: <QueryDetailScreen />,
         handle: { title: 'History' },
       },
       {

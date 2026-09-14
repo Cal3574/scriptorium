@@ -447,7 +447,7 @@ test('history renders the Console worklist: row link + mono summary count', asyn
   renderAt('/history');
 
   const link = await screen.findByRole('link', { name: 'What is focus?' });
-  expect(link).toHaveAttribute('href', '/ask/q1');
+  expect(link).toHaveAttribute('href', '/history/q1');
   expect(screen.getByText('1 question')).toBeVisible();
 });
 
@@ -546,6 +546,77 @@ test('a past-query load failure surfaces in an alert', async () => {
     return jsonRes({ code: 'not_found' }, 404);
   });
   renderAt('/ask/q1');
+
+  const alert = await screen.findByRole('alert');
+  expect(alert).toHaveTextContent(/couldn't load this question/i);
+});
+
+// #166: QueryDetail relocated to `/history/:queryId`, with a back-link to
+// `/history` (rather than QueryScreen's "Back to library").
+test('/history/:queryId renders that past query, with citations and retrieved passages', async () => {
+  mockApi.mockImplementation(async (path: string) => {
+    if (path === '/api/v1/queries/q1')
+      return jsonRes({
+        ...QUERY,
+        citations: [
+          {
+            chunkId: 'c1',
+            bookTitle: 'Deep Work',
+            chapterTitle: 'Rules',
+            chunkText: 'Focus is like a muscle.',
+          },
+        ],
+      });
+    return jsonRes({ code: 'not_found' }, 404);
+  });
+  renderAt('/history/q1');
+
+  expect(
+    await screen.findByRole('heading', { name: 'What is focus?' }),
+  ).toBeVisible();
+  expect(screen.getByText('Focus is a skill.')).toBeVisible();
+  expect(screen.getByRole('heading', { name: 'Citations' })).toBeVisible();
+  expect(screen.getByText('[1]')).toBeVisible();
+
+  await userEvent.click(
+    screen.getByRole('button', { name: /retrieved passages/i }),
+  );
+  expect(await screen.findByText('Focus is like a muscle.')).toBeVisible();
+});
+
+test('the back-link on /history/:queryId returns to /history', async () => {
+  const router = renderAt('/history/q1');
+
+  await userEvent.click(
+    await screen.findByRole('link', { name: /back to your questions/i }),
+  );
+
+  expect(await screen.findByRole('heading', { name: 'History' })).toBeVisible();
+  expect(router.state.location.pathname).toBe('/history');
+});
+
+test('a failed past query at /history/:queryId shows an alert and re-asks via /ask?q=', async () => {
+  mockApi.mockImplementation(async (path: string) => {
+    if (path === '/api/v1/queries/q1')
+      return jsonRes({ ...QUERY, answer: null, citations: [] });
+    return jsonRes({ code: 'not_found' }, 404);
+  });
+  const router = renderAt('/history/q1');
+
+  const alert = await screen.findByRole('alert');
+  expect(alert).toHaveTextContent(/no answer was generated/i);
+
+  await userEvent.click(screen.getByRole('button', { name: /ask again/i }));
+  expect(router.state.location.pathname).toBe('/ask');
+  expect(router.state.location.search).toBe('?q=What%20is%20focus%3F');
+});
+
+test('a past-query load failure at /history/:queryId surfaces in an alert', async () => {
+  mockApi.mockImplementation(async (path: string) => {
+    if (path === '/api/v1/queries/q1') return jsonRes({ code: 'boom' }, 500);
+    return jsonRes({ code: 'not_found' }, 404);
+  });
+  renderAt('/history/q1');
 
   const alert = await screen.findByRole('alert');
   expect(alert).toHaveTextContent(/couldn't load this question/i);
