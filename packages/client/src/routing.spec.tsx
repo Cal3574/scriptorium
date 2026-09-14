@@ -223,12 +223,19 @@ test('browser back from a book returns to the library', async () => {
   expect(router.state.location.pathname).toBe('/library');
 });
 
-test('/ask/:queryId renders that past query', async () => {
-  renderAt('/ask/q1');
+// #167: `/ask` and `/ask/:queryId` are now redirect-only.
+test('/ask redirects to /library', async () => {
+  const router = renderAt('/ask');
+  expect(await screen.findByRole('heading', { name: 'Library' })).toBeVisible();
+  expect(router.state.location.pathname).toBe('/library');
+});
+
+test('/ask/:queryId redirects to /history/:queryId', async () => {
+  const router = renderAt('/ask/q1');
   expect(
     await screen.findByRole('heading', { name: 'What is focus?' }),
   ).toBeVisible();
-  expect(screen.getByText('Focus is a skill.')).toBeVisible();
+  expect(router.state.location.pathname).toBe('/history/q1');
 });
 
 test('the shell top bar frames every screen: wordmark, nav, theme toggle, account menu', async () => {
@@ -238,7 +245,7 @@ test('the shell top bar frames every screen: wordmark, nav, theme toggle, accoun
   expect(
     screen.getByRole('link', { name: 'Scriptorium home' }),
   ).toHaveAttribute('href', '/');
-  for (const label of ['Library', 'Ask', 'History']) {
+  for (const label of ['Library', 'History']) {
     expect(screen.getByRole('link', { name: label })).toBeVisible();
   }
   expect(
@@ -419,7 +426,7 @@ test('/how-it-works renders the page and owns the active nav link', async () => 
 
   const link = screen.getByRole('link', { name: 'How it works' });
   expect(link).toHaveAttribute('aria-current', 'page');
-  for (const label of ['Library', 'Ask', 'History']) {
+  for (const label of ['Library', 'History']) {
     expect(screen.getByRole('link', { name: label })).not.toHaveAttribute(
       'aria-current',
     );
@@ -495,64 +502,9 @@ test('a history load failure surfaces in an alert', async () => {
   expect(alert).toHaveTextContent(/couldn't load your questions/i);
 });
 
-test('a past query renders its citations and retrieved passages', async () => {
-  mockApi.mockImplementation(async (path: string) => {
-    if (path === '/api/v1/queries/q1')
-      return jsonRes({
-        ...QUERY,
-        citations: [
-          {
-            chunkId: 'c1',
-            bookTitle: 'Deep Work',
-            chapterTitle: 'Rules',
-            chunkText: 'Focus is like a muscle.',
-          },
-        ],
-      });
-    return jsonRes({ code: 'not_found' }, 404);
-  });
-  renderAt('/ask/q1');
-
-  expect(await screen.findByText('Focus is a skill.')).toBeVisible();
-  expect(screen.getByRole('heading', { name: 'Citations' })).toBeVisible();
-  expect(screen.getByText('[1]')).toBeVisible();
-
-  // Passages are collapsed until the disclosure is opened.
-  await userEvent.click(
-    screen.getByRole('button', { name: /retrieved passages/i }),
-  );
-  expect(await screen.findByText('Focus is like a muscle.')).toBeVisible();
-});
-
-test('a failed past query shows an alert and re-asks via /ask?q=', async () => {
-  mockApi.mockImplementation(async (path: string) => {
-    if (path === '/api/v1/queries/q1')
-      return jsonRes({ ...QUERY, answer: null, citations: [] });
-    return jsonRes({ code: 'not_found' }, 404);
-  });
-  const router = renderAt('/ask/q1');
-
-  const alert = await screen.findByRole('alert');
-  expect(alert).toHaveTextContent(/no answer was generated/i);
-
-  await userEvent.click(screen.getByRole('button', { name: /ask again/i }));
-  expect(router.state.location.pathname).toBe('/ask');
-  expect(router.state.location.search).toBe('?q=What%20is%20focus%3F');
-});
-
-test('a past-query load failure surfaces in an alert', async () => {
-  mockApi.mockImplementation(async (path: string) => {
-    if (path === '/api/v1/queries/q1') return jsonRes({ code: 'boom' }, 500);
-    return jsonRes({ code: 'not_found' }, 404);
-  });
-  renderAt('/ask/q1');
-
-  const alert = await screen.findByRole('alert');
-  expect(alert).toHaveTextContent(/couldn't load this question/i);
-});
-
 // #166: QueryDetail relocated to `/history/:queryId`, with a back-link to
-// `/history` (rather than QueryScreen's "Back to library").
+// `/history` (rather than QueryScreen's "Back to library"). `/ask/:queryId`
+// itself now only redirects here (#167), covered above.
 test('/history/:queryId renders that past query, with citations and retrieved passages', async () => {
   mockApi.mockImplementation(async (path: string) => {
     if (path === '/api/v1/queries/q1')
@@ -595,7 +547,7 @@ test('the back-link on /history/:queryId returns to /history', async () => {
   expect(router.state.location.pathname).toBe('/history');
 });
 
-test('a failed past query at /history/:queryId shows an alert and re-asks via /ask?q=', async () => {
+test('a failed past query at /history/:queryId shows an alert and re-asks via the widget', async () => {
   mockApi.mockImplementation(async (path: string) => {
     if (path === '/api/v1/queries/q1')
       return jsonRes({ ...QUERY, answer: null, citations: [] });
@@ -607,8 +559,17 @@ test('a failed past query at /history/:queryId shows an alert and re-asks via /a
   expect(alert).toHaveTextContent(/no answer was generated/i);
 
   await userEvent.click(screen.getByRole('button', { name: /ask again/i }));
-  expect(router.state.location.pathname).toBe('/ask');
-  expect(router.state.location.search).toBe('?q=What%20is%20focus%3F');
+
+  // No navigation to the deleted `/ask?q=` route; the widget opens on the
+  // Ask library tab with the question pre-filled instead (#167).
+  expect(router.state.location.pathname).toBe('/history/q1');
+  expect(screen.getByRole('tab', { name: 'Ask library' })).toHaveAttribute(
+    'aria-selected',
+    'true',
+  );
+  expect(screen.getByRole('textbox', { name: 'question' })).toHaveValue(
+    'What is focus?',
+  );
 });
 
 test('a past-query load failure at /history/:queryId surfaces in an alert', async () => {
