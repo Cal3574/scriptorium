@@ -302,7 +302,7 @@ export function AgentTab() {
               type="button"
               variant="outline"
               size="sm"
-              className="mb-4"
+              className="mb-4 cursor-pointer"
               disabled={busy}
               onClick={() =>
                 void send(
@@ -350,7 +350,7 @@ export function AgentTab() {
               />
               <Button
                 type="submit"
-                className="mt-3"
+                className="mt-3 cursor-pointer"
                 disabled={busy || !draft.trim()}
               >
                 {busy ? (

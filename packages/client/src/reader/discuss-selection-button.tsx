@@ -27,7 +27,7 @@ export function DiscussSelectionButton({
     <Button
       type="button"
       size="sm"
-      className="fixed z-(--z-sheet) -translate-x-1/2 shadow-lg"
+      className="fixed z-(--z-sheet) -translate-x-1/2 cursor-pointer shadow-lg"
       style={{ top, left: action.left }}
       onClick={() => {
         window.getSelection()?.removeAllRanges();

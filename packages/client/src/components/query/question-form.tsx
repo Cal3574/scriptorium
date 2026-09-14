@@ -36,7 +36,7 @@ export function QuestionForm({
       />
       <Button
         type="submit"
-        className="mt-3"
+        className="mt-3 cursor-pointer"
         disabled={busy || !question.trim()}
       >
         {busy ? (

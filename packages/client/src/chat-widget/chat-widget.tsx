@@ -35,7 +35,7 @@ export function ChatWidget() {
           type="button"
           size="icon-lg"
           className={cn(
-            'relative rounded-full shadow-lg',
+            'relative cursor-pointer rounded-full shadow-lg',
             !isOpen && 'ai-launcher-glow',
           )}
           aria-label="Toggle chat widget"
@@ -88,7 +88,7 @@ export function ChatWidget() {
                   aria-selected={activeTab === tab}
                   onClick={() => setActiveTab(tab)}
                   className={cn(
-                    'rounded-t-md px-3 py-2 text-sm font-medium',
+                    'cursor-pointer rounded-t-md px-3 py-2 text-sm font-medium',
                     activeTab === tab
                       ? 'ai-tab-glow border-primary text-foreground border-b-2'
                       : 'text-muted-foreground hover:text-foreground border-b-2 border-transparent',
@@ -102,6 +102,7 @@ export function ChatWidget() {
               type="button"
               variant="ghost"
               size="icon-sm"
+              className="cursor-pointer"
               aria-label="Close chat widget"
               onClick={close}
             >
