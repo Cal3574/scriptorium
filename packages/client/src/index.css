@@ -68,6 +68,7 @@
   --z-dropdown: 40; /* nav menu, user menu, any DropdownMenu */
   --z-overlay: 50; /* mobile-nav sheet backdrop */
   --z-sheet: 51; /* mobile-nav sheet panel */
+  --z-widget-takeover: 55; /* mobile chat-widget full-screen takeover (#164) */
   --z-toast: 60; /* toasts / transient alerts */
 
   color-scheme: light;

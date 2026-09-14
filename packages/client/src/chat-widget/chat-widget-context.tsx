@@ -13,6 +13,14 @@ import { readerBookIdFromMatches } from './reader-route';
 export const CHAT_WIDGET_TABS = ['ask-library', 'agent'] as const;
 export type ChatWidgetTab = (typeof CHAT_WIDGET_TABS)[number];
 
+// Shared between the desktop floating panel and the mobile full-bleed
+// takeover (#164) - both render the same mode tabs, just inside different
+// chrome, so the copy lives in one place rather than two.
+export const CHAT_WIDGET_TAB_LABEL: Record<ChatWidgetTab, string> = {
+  'ask-library': 'Ask library',
+  agent: 'Agent',
+};
+
 interface ChatWidgetContextValue {
   isOpen: boolean;
   open: () => void;
