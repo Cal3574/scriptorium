@@ -30,6 +30,7 @@ export const BookDto = z.object({
   originalFilename: z.string(),
   fileSizeBytes: z.number().int().nonnegative().nullable(),
   pageCount: z.number().int().nonnegative().nullable(),
+  coverImageUrl: z.string().nullable().optional(),
   status: BookStatus,
   failedStage: z.string().nullable(),
   failureReason: z.string().nullable(),
@@ -111,6 +112,7 @@ export const CreateBookRequest = z.object({
   originalFilename: z.string().min(1),
   fileSizeBytes: z.number().int().positive(),
   title: z.string().min(1).max(TITLE_MAX).optional(),
+  coverImageUrl: z.string().max(1_000_000).optional(),
 });
 export type CreateBookRequest = z.infer<typeof CreateBookRequest>;
 

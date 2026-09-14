@@ -96,6 +96,30 @@ test('Deposit runs the handoff and calls onDeposited', async () => {
   );
 });
 
+test('Deposit forwards the pdf.js first-page thumbnail as coverImageUrl', async () => {
+  const registerBody = jest.fn();
+  api.mockImplementation(async (path: string, init?: RequestInit) => {
+    if (path === '/api/v1/books/upload-url') {
+      return jsonRes({
+        uploadUrl: 'https://s3.test/put',
+        s3Key: 'books/u/1.pdf',
+        expiresInSeconds: 300,
+      });
+    }
+    registerBody(JSON.parse(init?.body as string));
+    return jsonRes({ id: 'b1' }, 201);
+  });
+  renderSlip();
+  await screen.findByText(/12 pages/);
+
+  await userEvent.click(screen.getByRole('button', { name: 'Deposit' }));
+
+  await waitFor(() => expect(onDeposited).toHaveBeenCalled());
+  expect(registerBody).toHaveBeenCalledWith(
+    expect.objectContaining({ coverImageUrl: 'data:image/png;base64,AAA' }),
+  );
+});
+
 test('a duplicate relabels the confirm to "Upload anyway" but still deposits', async () => {
   happyApi();
   const dup = {

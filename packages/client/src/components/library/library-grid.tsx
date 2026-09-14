@@ -125,6 +125,7 @@ function LibraryGridCard({
         <BookCover
           id={book.id}
           title={title}
+          src={book.coverImageUrl}
           className="w-20 rounded-md shadow-sm ring-white/10 transition-transform group-hover:-rotate-1 group-hover:scale-[1.02]"
         />
         <div className="min-w-0 flex-1">

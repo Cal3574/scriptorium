@@ -87,6 +87,7 @@ const BOOK = {
   chapters: [],
   failedStage: null,
   failureReason: null,
+  coverImageUrl: 'data:image/png;base64,AAA',
 };
 
 const QUERY = {
@@ -284,6 +285,14 @@ test('the library renders the Console worklist: toolbar count, status chip, row 
   expect(screen.getAllByText('ready')[0]).toBeVisible();
   // mono summary count in the toolbar
   expect(screen.getByText('1 book')).toBeVisible();
+});
+
+test('the library grid renders the PDF first-page thumbnail as the book cover', async () => {
+  renderAt('/library');
+
+  await screen.findByRole('link', { name: 'Deep Work' });
+  const img = document.querySelector('img[src="data:image/png;base64,AAA"]');
+  expect(img).not.toBeNull();
 });
 
 test('the library toolbar shows the list summary but no plan-limit meter', async () => {

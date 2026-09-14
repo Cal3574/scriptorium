@@ -132,6 +132,7 @@ export function BookRow({
         <BookCover
           id={book.id}
           title={title}
+          src={book.coverImageUrl}
           className="w-10 self-start sm:w-11"
         />
         <span className="min-w-0">

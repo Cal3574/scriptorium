@@ -26,6 +26,7 @@ export interface CreateBookInput {
   originalFilename: string;
   s3Key: string;
   fileSizeBytes: number;
+  coverImageUrl?: string | null;
 }
 
 export interface CreateBookResult {
@@ -61,6 +62,7 @@ export class BooksRepository {
         originalFilename: input.originalFilename,
         s3Key: input.s3Key,
         fileSizeBytes: input.fileSizeBytes,
+        coverImageUrl: input.coverImageUrl ?? null,
       })
       .onConflictDoNothing({ target: books.s3Key })
       .returning();

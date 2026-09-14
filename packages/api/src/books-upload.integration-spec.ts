@@ -246,6 +246,45 @@ describe('upload a book to the library (Seam 1)', () => {
       expect(list.body[0].id).toBe(created.body.id);
     });
 
+    it('accepts a client-supplied coverImageUrl and returns it on create, list and detail', async () => {
+      const url = await landUpload();
+      const coverImageUrl = 'data:image/png;base64,AAA';
+      const created = await request(server())
+        .post('/api/v1/books')
+        .set(header())
+        .send({
+          s3Key: url.s3Key,
+          originalFilename: validUploadBody.filename,
+          fileSizeBytes: validUploadBody.fileSizeBytes,
+          coverImageUrl,
+        });
+
+      expect(created.status).toBe(201);
+      expect(created.body.coverImageUrl).toBe(coverImageUrl);
+
+      const list = await request(server()).get('/api/v1/books').set(header());
+      expect(list.body[0].coverImageUrl).toBe(coverImageUrl);
+
+      const detail = await request(server())
+        .get(`/api/v1/books/${created.body.id}`)
+        .set(header());
+      expect(detail.body.coverImageUrl).toBe(coverImageUrl);
+    });
+
+    it('defaults coverImageUrl to null when the client omits it', async () => {
+      const url = await landUpload();
+      const created = await request(server())
+        .post('/api/v1/books')
+        .set(header())
+        .send({
+          s3Key: url.s3Key,
+          originalFilename: validUploadBody.filename,
+          fileSizeBytes: validUploadBody.fileSizeBytes,
+        });
+
+      expect(created.body.coverImageUrl).toBeNull();
+    });
+
     it('returns books newest-first, scoped to the caller', async () => {
       const first = await landUpload();
       await request(server()).post('/api/v1/books').set(header()).send({

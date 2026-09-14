@@ -30,6 +30,9 @@ export const books = pgTable(
     s3Key: text('s3_key').notNull(),
     fileSizeBytes: bigint('file_size_bytes', { mode: 'number' }),
     pageCount: integer('page_count'),
+    // Browser-rendered first-page thumbnail, usually a small data URL.
+    // Null for legacy books and PDFs whose first page could not be rendered.
+    coverImageUrl: text('cover_image_url'),
     // S3 object key for the full LlamaParse markdown blob.
     extractedMarkdownKey: text('extracted_markdown_key'),
     // Whole-book high-level summary, markdown. Null until the book-summary
