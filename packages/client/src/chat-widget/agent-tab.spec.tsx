@@ -14,6 +14,22 @@ function SeedHighlightButton({ passage }: { passage: string }) {
   return <button onClick={() => seedHighlight(passage)}>seed highlight</button>;
 }
 
+// Stands in for `ChatWidget`'s launcher + tab switcher: real open/close and
+// tab-switching, without needing the actual panel chrome.
+function WidgetControls() {
+  const { open, close, setActiveTab } = useChatWidget();
+  return (
+    <div>
+      <button onClick={open}>open widget</button>
+      <button onClick={close}>close widget</button>
+      <button onClick={() => setActiveTab('ask-library')}>
+        switch to ask library
+      </button>
+      <button onClick={() => setActiveTab('agent')}>switch to agent</button>
+    </div>
+  );
+}
+
 jest.mock('@clerk/react', () => ({
   useAuth: () => ({ getToken: async () => 'test-token' }),
 }));
@@ -106,6 +122,35 @@ function renderAt(path: string) {
           {
             path: '/books/:bookId/read',
             element: <AgentTab />,
+            handle: { isReaderRoute: true },
+          },
+        ],
+      },
+    ],
+    { initialEntries: [path] },
+  );
+  render(<RouterProvider router={router} />);
+  return router;
+}
+
+function renderAtWithControls(path: string) {
+  const router = createMemoryRouter(
+    [
+      {
+        element: (
+          <ChatWidgetProvider>
+            <Outlet />
+          </ChatWidgetProvider>
+        ),
+        children: [
+          {
+            path: '/books/:bookId/read',
+            element: (
+              <>
+                <WidgetControls />
+                <AgentTab />
+              </>
+            ),
             handle: { isReaderRoute: true },
           },
         ],
@@ -334,6 +379,46 @@ test('the message list autoscrolls to the newest content as a reply streams in',
   await waitFor(() =>
     expect(screen.queryByTestId('agent-reply-caret')).not.toBeInTheDocument(),
   );
+});
+
+test('reopening the widget, or switching to the Agent tab, jumps to the bottom', async () => {
+  fetchMock.mockResolvedValueOnce(
+    jsonRes({
+      id: THREAD_A,
+      bookId: BOOK_A,
+      createdAt: '2026-01-01T00:00:00Z',
+      messages: [
+        {
+          id: USER_MSG,
+          role: 'user',
+          message: 'Seed',
+          highlightedPassage: 'A seed passage.',
+          createdAt: '2026-01-01T00:00:00Z',
+        },
+      ],
+    }),
+  );
+  const user = userEvent.setup();
+  renderAtWithControls(`/books/${BOOK_A}/read`);
+  await screen.findByText('A seed passage.');
+  await user.click(screen.getByText('open widget'));
+
+  // Switching to the Agent tab (the default is Ask library).
+  scrollIntoViewMock.mockClear();
+  await user.click(screen.getByText('switch to agent'));
+  expect(scrollIntoViewMock).toHaveBeenCalled();
+
+  // Closing and reopening the widget while Agent stays the selected tab.
+  scrollIntoViewMock.mockClear();
+  await user.click(screen.getByText('close widget'));
+  expect(scrollIntoViewMock).not.toHaveBeenCalled();
+  await user.click(screen.getByText('open widget'));
+  expect(scrollIntoViewMock).toHaveBeenCalled();
+
+  // Switching away doesn't (re-)trigger it, and switching back does.
+  scrollIntoViewMock.mockClear();
+  await user.click(screen.getByText('switch to ask library'));
+  expect(scrollIntoViewMock).not.toHaveBeenCalled();
 });
 
 test('a mid-turn agent_error leaves the user message unanswered and shows an alert', async () => {

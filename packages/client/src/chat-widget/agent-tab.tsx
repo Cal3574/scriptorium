@@ -71,8 +71,13 @@ export function AgentTab() {
   const api = useApi();
   const { refetch: refetchUsage } = useUsage();
   const bookId = useAgentBookId();
-  const { pendingHighlight, clearPendingHighlight, setIsStreaming } =
-    useChatWidget();
+  const {
+    pendingHighlight,
+    clearPendingHighlight,
+    setIsStreaming,
+    isOpen,
+    activeTab,
+  } = useChatWidget();
 
   const [phase, setPhase] = useState<Phase>('idle');
   const [messages, setMessages] = useState<AgentMessageDto[]>([]);
@@ -91,6 +96,15 @@ export function AgentTab() {
   useEffect(() => {
     bottomRef.current?.scrollIntoView?.({ block: 'end' });
   }, [messages, streamingReply]);
+
+  // Also jump to the bottom whenever this tab becomes the one showing -
+  // switching to it, or reopening the widget while it was already the
+  // selected tab - rather than leaving the scroll position wherever it last
+  // was (e.g. mid-history, from before the panel was closed).
+  useEffect(() => {
+    if (!isOpen || activeTab !== 'agent') return;
+    bottomRef.current?.scrollIntoView?.({ block: 'end' });
+  }, [isOpen, activeTab]);
 
   useEffect(() => {
     if (pendingHighlight == null) return;
