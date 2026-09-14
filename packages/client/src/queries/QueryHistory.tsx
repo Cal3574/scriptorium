@@ -26,8 +26,9 @@ function summarise(items: QueryListItemDto[]): string {
 // The reader's past questions, newest first, as the full `/history` page.
 // Restyled to the Console worklist (#67): the `/history` GET and every error
 // path are unchanged from the pre-restyle screen - only the markup moved. A
-// row links to `/ask/:queryId`; a `failed` row also offers "Ask again", which
-// navigates to `/ask?q=` to re-run the question as a fresh `POST /queries`.
+// row links to `/history/:queryId` (#166); a `failed` row also offers "Ask
+// again", which opens the widget's Ask library tab with the question
+// pre-filled, ready to re-send as a fresh `POST /queries`.
 export function QueryHistory() {
   const api = useApi();
   const [items, setItems] = useState<QueryListItemDto[] | null>(null);

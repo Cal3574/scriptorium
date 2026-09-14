@@ -11,11 +11,11 @@ import { relativeTime } from '@/queries/relative-time';
 export const ROW_GRID =
   'grid grid-cols-[minmax(0,1fr)_8rem_6rem] items-center gap-x-3 px-4';
 
-// One past question. The whole row is a link to `/ask/:queryId`; a query that
-// never reached `complete()` (`failed`) also carries a `failed` chip and an
-// "Ask again" ghost button that opens the widget's Ask library tab with the
-// question pre-filled, ready to re-send as a fresh `POST /queries` (#165).
-// Only markup - no network here.
+// One past question. The whole row is a link to `/history/:queryId` (#166);
+// a query that never reached `complete()` (`failed`) also carries a `failed`
+// chip and an "Ask again" ghost button that opens the widget's Ask library
+// tab with the question pre-filled, ready to re-send as a fresh
+// `POST /queries` (#165). Only markup - no network here.
 export function HistoryRow({ item }: { item: QueryListItemDto }) {
   const { prefillAsk } = useChatWidget();
 
@@ -28,7 +28,7 @@ export function HistoryRow({ item }: { item: QueryListItemDto }) {
       data-failed={item.failed}
     >
       <Link
-        to={`/ask/${item.id}`}
+        to={`/history/${item.id}`}
         className="text-foreground truncate font-serif text-[15px] leading-tight font-medium no-underline hover:underline"
       >
         {item.question}
