@@ -187,12 +187,13 @@ export function AgentTab() {
     bottomRef.current?.scrollIntoView?.({ block: 'end' });
   }, [isOpen, activeTab]);
 
-  useEffect(() => {
-    if (pendingHighlight == null) return;
-    setSeededHighlight(pendingHighlight);
-    clearPendingHighlight();
-  }, [pendingHighlight, clearPendingHighlight]);
-
+  // Resets per-book state whenever the shown book changes (including to
+  // none). This runs in the same commit as the pendingHighlight-consuming
+  // effect below on the very first mount with a highlight already pending
+  // (the widget's first-ever open via highlight-to-discuss, where bookId
+  // and pendingHighlight are both already set) - so `setSeededHighlight`
+  // here must stay declared before that effect, not after, or this reset
+  // would run second and clobber the highlight it just seeded.
   useEffect(() => {
     abortRef.current?.abort();
     setStreamingReply(null);
@@ -227,6 +228,12 @@ export function AgentTab() {
     };
   }, [bookId, api]);
 
+  useEffect(() => {
+    if (pendingHighlight == null) return;
+    setSeededHighlight(pendingHighlight);
+    clearPendingHighlight();
+  }, [pendingHighlight, clearPendingHighlight]);
+
   const send = useCallback(
     async (message: string, highlightedPassage?: string) => {
       const trimmed = message.trim();
@@ -240,6 +247,11 @@ export function AgentTab() {
       setError(null);
       setLimit(null);
       setStreamingReply('');
+      // Flipped by applyEvent on a terminal (agent_done/agent_error) frame -
+      // declared up here, not inside the try block below, so both the
+      // post-loop check and applyEvent (a sibling function, not nested in
+      // the try) can see it.
+      let settled = false;
 
       try {
         const token = await getToken();
@@ -292,6 +304,16 @@ export function AgentTab() {
             if (event) applyEvent(event);
           }
         }
+
+        // The stream can end (a dropped connection, an idle-timeout proxy)
+        // without ever sending a terminal agent_done/agent_error frame - if
+        // so, applyEvent never flipped `settled`, and phase/streamingReply
+        // would otherwise be stuck mid-turn with no way out for the user.
+        if (!settled) {
+          setError('The connection to the agent was lost.');
+          setPhase('idle');
+          setStreamingReply(null);
+        }
       } catch (err) {
         if (controller.signal.aborted) return;
         setError(err instanceof Error ? err.message : String(err));
@@ -317,6 +339,7 @@ export function AgentTab() {
             setStreamingReply((prev) => (prev ?? '') + event.text);
             break;
           case 'agent_done':
+            settled = true;
             setMessages((prev) => [
               ...prev,
               {
@@ -332,6 +355,7 @@ export function AgentTab() {
             void refetchUsage();
             break;
           case 'agent_error':
+            settled = true;
             setError(event.message);
             setStreamingReply(null);
             setPhase('idle');

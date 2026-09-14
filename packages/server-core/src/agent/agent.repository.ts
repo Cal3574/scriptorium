@@ -114,8 +114,10 @@ export class AgentRepository {
    * Every message in a thread, oldest first, ordered by `seq` (insertion order)
    * rather than `created_at` - history reassembly depends on a user row being
    * *immediately followed by* its assistant reply, and two rows landing inside
-   * the same timestamp tick would make a `created_at` sort ambiguous. Covered
-   * by `agent_messages_thread_id_created_at_idx`.
+   * the same timestamp tick would make a `created_at` sort ambiguous. NOT
+   * covered by an index (`agent_messages_thread_id_created_at_idx` is keyed
+   * on `created_at`, not `seq`) - fine at today's per-thread row counts, but
+   * worth a `(thread_id, seq)` index if threads grow long.
    */
   async listMessages(threadId: string): Promise<AgentMessageRow[]> {
     return this.db
