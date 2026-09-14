@@ -1,4 +1,4 @@
-import { render, screen, cleanup } from '@testing-library/react';
+import { render, screen, cleanup, act } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { createMemoryRouter, RouterProvider } from 'react-router';
 
@@ -108,5 +108,94 @@ test('a draft typed in the Ask library tab survives closing and reopening the pa
     screen.getByRole('button', { name: 'Toggle chat widget' }),
   );
 
+  expect(screen.getByLabelText('question')).toHaveValue('What is focus?');
+});
+
+test('the desktop floating panel never pushes a history entry on open', async () => {
+  const pushSpy = jest.spyOn(window.history, 'pushState');
+  renderWidget();
+  await userEvent.click(
+    screen.getByRole('button', { name: 'Toggle chat widget' }),
+  );
+
+  expect(pushSpy).not.toHaveBeenCalled();
+  pushSpy.mockRestore();
+});
+
+describe('below the mobile breakpoint', () => {
+  beforeEach(() => {
+    window.matchMedia = jest.fn().mockImplementation((query: string) => ({
+      matches: query.includes('max-width'),
+      media: query,
+      onchange: null,
+      addListener: () => undefined,
+      removeListener: () => undefined,
+      addEventListener: () => undefined,
+      removeEventListener: () => undefined,
+      dispatchEvent: () => false,
+    }));
+  });
+
+  test('opening the widget shows the full-bleed takeover, not the desktop panel', async () => {
+    renderWidget();
+    await userEvent.click(
+      screen.getByRole('button', { name: 'Toggle chat widget' }),
+    );
+
+    expect(screen.getByTestId('mobile-widget-takeover')).toBeVisible();
+    expect(screen.getByRole('tab', { name: 'Ask library' })).toBeVisible();
+    expect(
+      screen.getByRole('button', { name: 'Close chat widget' }),
+    ).toBeVisible();
+  });
+
+  test('opening pushes a history entry, and the device back gesture closes the takeover instead of navigating away', async () => {
+    const pushSpy = jest.spyOn(window.history, 'pushState');
+    renderWidget();
+    await userEvent.click(
+      screen.getByRole('button', { name: 'Toggle chat widget' }),
+    );
+    expect(screen.getByTestId('mobile-widget-takeover')).toBeVisible();
+    expect(pushSpy).toHaveBeenCalledTimes(1);
+    pushSpy.mockRestore();
+
+    await act(async () => {
+      window.dispatchEvent(new PopStateEvent('popstate'));
+    });
+
+    expect(screen.getByTestId('mobile-widget-takeover')).not.toBeVisible();
+  });
+});
+
+test('crossing the mobile breakpoint while the panel is open keeps the Ask library draft (one mounted tab, not two)', async () => {
+  let matches = false;
+  let changeListener: (() => void) | null = null;
+  window.matchMedia = jest.fn().mockImplementation((query: string) => ({
+    get matches() {
+      return matches;
+    },
+    media: query,
+    onchange: null,
+    addListener: () => undefined,
+    removeListener: () => undefined,
+    addEventListener: (_type: string, cb: () => void) => {
+      changeListener = cb;
+    },
+    removeEventListener: () => {
+      changeListener = null;
+    },
+    dispatchEvent: () => false,
+  }));
+
+  renderWidget();
+  await userEvent.click(
+    screen.getByRole('button', { name: 'Toggle chat widget' }),
+  );
+  await userEvent.type(screen.getByLabelText('question'), 'What is focus?');
+
+  matches = true;
+  act(() => changeListener?.());
+
+  expect(screen.getByTestId('mobile-widget-takeover')).toBeVisible();
   expect(screen.getByLabelText('question')).toHaveValue('What is focus?');
 });
