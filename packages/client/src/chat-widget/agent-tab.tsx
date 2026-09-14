@@ -302,7 +302,6 @@ export function AgentTab() {
                 </div>
               </div>
             )}
-            <div ref={bottomRef} />
           </div>
 
           {!hasThread && !seededHighlight && (
@@ -378,6 +377,11 @@ export function AgentTab() {
               </Button>
             </form>
           )}
+
+          {/* Placed after the composer, not just the message list, so
+              autoscroll (below) reveals the Send button too - not only the
+              latest message text. */}
+          <div ref={bottomRef} />
         </>
       )}
     </div>
