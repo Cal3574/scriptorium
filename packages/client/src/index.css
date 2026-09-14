@@ -626,6 +626,63 @@
     color-mix(in srgb, var(--primary) 55%, transparent);
 }
 
+/* The Agent tab's empty-state avatar (#162): the launcher's glow ring
+ * (`ai-launcher-glow`, `ai-aura-spin`) scaled down onto a small circle, so
+ * the widget's "AI surface" identity carries through even at rest with no
+ * thread yet. */
+.ai-empty-avatar {
+  position: relative;
+  box-shadow: 0 0 14px 2px color-mix(in srgb, var(--chart-3) 45%, transparent);
+}
+.ai-empty-avatar::before {
+  content: '';
+  position: absolute;
+  inset: -6px;
+  z-index: -1;
+  border-radius: inherit;
+  filter: blur(5px);
+  background: conic-gradient(
+    from 0deg,
+    color-mix(in srgb, var(--chart-3) 70%, transparent),
+    color-mix(in srgb, var(--primary) 70%, transparent),
+    color-mix(in srgb, var(--chart-2) 70%, transparent),
+    color-mix(in srgb, var(--chart-3) 70%, transparent)
+  );
+}
+@media (prefers-reduced-motion: no-preference) {
+  .ai-empty-avatar::before {
+    animation: ai-aura-spin 5s linear infinite;
+  }
+}
+
+/* Empty-state headline shimmer (#162): a gradient sweeping through the text
+ * itself, always clipped to a gradient so reduced-motion readers still get
+ * a static "glow" instead of the sweep. */
+@keyframes ai-text-shimmer {
+  to {
+    background-position: -200% center;
+  }
+}
+.ai-shimmer-text {
+  background-image: linear-gradient(
+    90deg,
+    var(--foreground) 0%,
+    var(--foreground) 35%,
+    var(--chart-3) 50%,
+    var(--foreground) 65%,
+    var(--foreground) 100%
+  );
+  background-size: 220% auto;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .ai-shimmer-text {
+    animation: ai-text-shimmer 3.2s linear infinite;
+  }
+}
+
 @media (prefers-reduced-motion: no-preference) {
   .ingest-spine-flow {
     background-image: linear-gradient(

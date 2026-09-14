@@ -1,5 +1,7 @@
 import { useAuth } from '@clerk/react';
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { Link, useMatches } from 'react-router';
+import { BookOpenIcon, SparklesIcon } from 'lucide-react';
 import {
   type AgentEvent,
   type AgentMessageDto,
@@ -23,6 +25,7 @@ import { useApi } from '../auth/use-api';
 import { useUsage } from '../usage/use-usage';
 import { LimitReachedNotice } from '../usage/limit-reached-notice';
 import { useAgentBookId } from './use-agent-book-id';
+import { readerBookIdFromMatches } from './reader-route';
 import { useChatWidget } from './chat-widget-context';
 
 type Phase = 'loading' | 'idle' | 'streaming' | 'error';
@@ -55,6 +58,82 @@ function MessageBubble({ message }: { message: AgentMessageDto }) {
   );
 }
 
+// Shared "AI surface" avatar for the Agent tab's empty states (#162): the
+// same glow-ring treatment as the launcher (index.css), scaled down, so the
+// widget reads as one visual identity whether it's closed, idle, or empty.
+function EmptyAvatar() {
+  return (
+    <div className="ai-empty-avatar bg-card mb-4 flex size-10 items-center justify-center rounded-full">
+      <SparklesIcon className="text-primary size-5" aria-hidden="true" />
+    </div>
+  );
+}
+
+// No book in context and no `lastBookId` yet this session - the reader has
+// never opened a book, so there's nothing to discuss and nowhere to jump
+// back to.
+function NoBookEmptyState() {
+  return (
+    <div className="flex flex-col items-center py-8 text-center">
+      <EmptyAvatar />
+      <h3 className="ai-shimmer-text font-serif text-lg">
+        Nothing to discuss yet
+      </h3>
+      <p className="text-muted-foreground mt-2 mb-5 max-w-[26ch] text-sm">
+        Agent conversations start from something you highlight while reading.
+        Open a book and select a passage to begin.
+      </p>
+      <Button asChild variant="outline" size="sm">
+        <Link to="/library">
+          <BookOpenIcon className="size-4" />
+          Go to library
+        </Link>
+      </Button>
+    </div>
+  );
+}
+
+// A book is in context (live reader route or `lastBookId`) but no thread has
+// started yet. The copy and CTA differ depending on whether the reader is
+// still on that book's reader route: on the page, the nudge points at the
+// highlight-to-discuss action right there; off the page, it offers a way
+// back in since there's nothing to highlight from here.
+function NoThreadEmptyState({
+  bookId,
+  onReader,
+}: {
+  bookId: string;
+  onReader: boolean;
+}) {
+  return (
+    <div className="flex flex-col items-center py-8 text-center">
+      <EmptyAvatar />
+      <h3 className="ai-shimmer-text font-serif text-lg">
+        Start a conversation
+      </h3>
+      {onReader ? (
+        <p className="text-muted-foreground mt-2 max-w-[28ch] text-sm">
+          Select a passage on this page and choose &ldquo;Discuss with
+          AI&rdquo; to start talking about it.
+        </p>
+      ) : (
+        <>
+          <p className="text-muted-foreground mt-2 mb-5 max-w-[28ch] text-sm">
+            You haven&apos;t started a conversation about this book yet.
+            Highlight a passage while reading to begin.
+          </p>
+          <Button asChild variant="outline" size="sm">
+            <Link to={`/books/${bookId}/read`}>
+              <BookOpenIcon className="size-4" />
+              Continue reading
+            </Link>
+          </Button>
+        </>
+      )}
+    </div>
+  );
+}
+
 // The widget's Agent tab (#160): a persisted, book-scoped conversation with
 // the reading companion, wired to the SSE endpoint from #157. Which thread
 // shows tracks the current reader route live, falling back to `lastBookId`
@@ -64,13 +143,15 @@ function MessageBubble({ message }: { message: AgentMessageDto }) {
 // `ChatWidgetProvider` and is captured as `seededHighlight` (consumed once,
 // then cleared from shared state so it does not reseed on a later render).
 // Dev builds also keep a manual trigger for a thread with no highlight, for
-// testing without the reader page. Real cold-start empty-state polish is
-// #162's job.
+// testing without the reader page. The three cold-start empty states (#162)
+// - no book at all, a book with no thread yet, and a live thread - use the
+// same "AI surface" glow/shimmer identity as the rest of the widget.
 export function AgentTab() {
   const { getToken } = useAuth();
   const api = useApi();
   const { refetch: refetchUsage } = useUsage();
   const bookId = useAgentBookId();
+  const onReader = readerBookIdFromMatches(useMatches()) === bookId;
   const {
     pendingHighlight,
     clearPendingHighlight,
@@ -274,11 +355,7 @@ export function AgentTab() {
 
   return (
     <div>
-      {!bookId && (
-        <p className="text-muted-foreground text-sm">
-          Open a book to start a conversation with your reading companion.
-        </p>
-      )}
+      {!bookId && <NoBookEmptyState />}
 
       {bookId && phase === 'loading' && (
         <p className="text-muted-foreground text-sm">Loading conversation…</p>
@@ -305,9 +382,7 @@ export function AgentTab() {
           </div>
 
           {!hasThread && !seededHighlight && (
-            <p className="text-muted-foreground mb-4 text-sm">
-              Highlight a passage while reading to start a conversation here.
-            </p>
+            <NoThreadEmptyState bookId={bookId} onReader={onReader} />
           )}
 
           {!hasThread && !seededHighlight && env.isDev && (
