@@ -213,9 +213,10 @@ afterEach(() => {
 test('off a reader route with no last book, there is nothing to load and no request is made', () => {
   renderAt('/library');
   expect(screen.getByText(/nothing to discuss yet/i)).toBeVisible();
-  expect(
-    screen.getByRole('link', { name: /go to library/i }),
-  ).toHaveAttribute('href', '/library');
+  expect(screen.getByRole('link', { name: /go to library/i })).toHaveAttribute(
+    'href',
+    '/library',
+  );
   expect(fetchMock).not.toHaveBeenCalled();
 });
 
@@ -225,7 +226,9 @@ test('an empty thread on the reader route shows the on-page nudge, not a freefor
   );
   renderAt(`/books/${BOOK_A}/read`);
 
-  expect(await screen.findByText(/select a passage on this page/i)).toBeVisible();
+  expect(
+    await screen.findByText(/select a passage on this page/i),
+  ).toBeVisible();
   expect(screen.queryByLabelText('agent message')).not.toBeInTheDocument();
   expect(
     screen.queryByRole('link', { name: /continue reading/i }),

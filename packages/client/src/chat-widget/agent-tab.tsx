@@ -113,8 +113,8 @@ function NoThreadEmptyState({
       </h3>
       {onReader ? (
         <p className="text-muted-foreground mt-2 max-w-[28ch] text-sm">
-          Select a passage on this page and choose &ldquo;Discuss with
-          AI&rdquo; to start talking about it.
+          Select a passage on this page and choose &ldquo;Discuss with AI&rdquo;
+          to start talking about it.
         </p>
       ) : (
         <>
