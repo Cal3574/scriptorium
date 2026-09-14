@@ -19,29 +19,51 @@ const TAB_LABEL: Record<ChatWidgetTab, string> = {
 // panel has no route of its own; `AppShell` renders it as an overlay sibling
 // of the routed <Outlet> so it persists across client-side navigation.
 //
-// The launcher's idle glow and the panel's gradient border are the widget's
-// "AI" visual language (#166, index.css) - a soft pulse inviting the first
-// open, and a border that animates faster/brighter while either tab is
-// mid-reply (`isStreaming`, set by whichever tab is actually streaming).
+// The launcher's idle glow (a spinning conic aura, a pulsing ring, and a
+// scatter of twinkling sparkles) and the panel's gradient border + bloom are
+// the widget's "AI" visual language (#166, index.css) - inviting the first
+// open, and brightening/quickening while either tab is mid-reply
+// (`isStreaming`, set by whichever tab is actually streaming).
 export function ChatWidget() {
   const { isOpen, close, toggle, activeTab, setActiveTab, isStreaming } =
     useChatWidget();
 
   return (
     <>
-      <Button
-        type="button"
-        size="icon-lg"
-        className={cn(
-          'fixed right-6 bottom-6 z-(--z-sheet) rounded-full shadow-lg',
-          !isOpen && 'ai-launcher-glow',
+      <div className="fixed right-6 bottom-6 z-(--z-sheet)">
+        <Button
+          type="button"
+          size="icon-lg"
+          className={cn(
+            'relative rounded-full shadow-lg',
+            !isOpen && 'ai-launcher-glow',
+          )}
+          aria-label="Toggle chat widget"
+          aria-expanded={isOpen}
+          onClick={toggle}
+        >
+          {isOpen ? <XIcon /> : <SparklesIcon />}
+        </Button>
+        {!isOpen && (
+          <>
+            <span
+              aria-hidden="true"
+              className="ai-sparkle"
+              style={{ top: -10, left: 2 }}
+            />
+            <span
+              aria-hidden="true"
+              className="ai-sparkle [animation-delay:0.8s]"
+              style={{ top: 8, right: -10 }}
+            />
+            <span
+              aria-hidden="true"
+              className="ai-sparkle [animation-delay:1.6s]"
+              style={{ bottom: -8, left: -6 }}
+            />
+          </>
         )}
-        aria-label="Toggle chat widget"
-        aria-expanded={isOpen}
-        onClick={toggle}
-      >
-        {isOpen ? <XIcon /> : <SparklesIcon />}
-      </Button>
+      </div>
 
       <div
         hidden={!isOpen}
@@ -68,7 +90,7 @@ export function ChatWidget() {
                   className={cn(
                     'rounded-t-md px-3 py-2 text-sm font-medium',
                     activeTab === tab
-                      ? 'border-primary text-foreground border-b-2'
+                      ? 'ai-tab-glow border-primary text-foreground border-b-2'
                       : 'text-muted-foreground hover:text-foreground border-b-2 border-transparent',
                   )}
                 >
