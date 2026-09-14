@@ -77,6 +77,14 @@
         "jestConfig": "packages/worker/jest.integration.config.cts",
         "runInBand": true
       }
+    },
+    "backfill-covers": {
+      "executor": "nx:run-commands",
+      "dependsOn": ["build"],
+      "options": {
+        "command": "node dist/main.js --backfill-covers",
+        "cwd": "packages/worker"
+      }
     }
   }
 }

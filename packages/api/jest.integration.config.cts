@@ -11,8 +11,13 @@ module.exports = {
   testEnvironment: 'node',
   transform: {
     '^.+\\.[tj]s$': ['@swc/jest', swcJestConfig],
+    // `pdfjs-dist`'s Node ("legacy") build, used by `renderPdfCover`
+    // (`@scriptorium/providers`), ships as real ESM with no CJS fallback.
+    // See `packages/providers/jest.config.cts` for the full rationale.
+    '^.+\\.mjs$': ['@swc/jest', swcJestConfig],
   },
-  moduleFileExtensions: ['ts', 'js', 'html'],
+  transformIgnorePatterns: ['node_modules/(?!.*pdfjs-dist)'],
+  moduleFileExtensions: ['ts', 'js', 'mjs', 'html'],
   testMatch: ['<rootDir>/src/**/*.integration-spec.ts'],
   coverageDirectory: 'test-output/jest/coverage-integration',
 };
