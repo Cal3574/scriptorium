@@ -12,13 +12,13 @@ import { ThemeToggle } from '@/components/shell/theme-toggle';
 // mode is a free recompute.
 export function SignInScreen() {
   return (
-    <div className="bg-background text-foreground flex min-h-dvh flex-col items-center px-(--shell-gutter) py-16">
+    <div className="app-ambient bg-background text-foreground flex min-h-dvh flex-col items-center px-(--shell-gutter) py-16">
       <div className="absolute right-(--shell-gutter) top-4">
         <ThemeToggle />
       </div>
 
       <div className="flex flex-1 flex-col items-center justify-center">
-        <div className="mb-8 flex flex-col items-center text-center">
+        <div className="premium-panel mb-8 flex max-w-md flex-col items-center rounded-2xl px-8 py-7 text-center">
           <Monogram className="size-12" />
           <h1 className="text-foreground mt-4 font-serif text-2xl font-medium tracking-tight">
             Scriptorium

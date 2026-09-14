@@ -77,7 +77,7 @@ export function ReaderLayout() {
   return (
     <div className="md:grid md:grid-cols-[15rem_minmax(0,1fr)] md:gap-10">
       <ReaderToc book={state.book} />
-      <div className="min-w-0">
+      <div className="literary-paper min-w-0 rounded-2xl border border-border/70 px-5 py-6 shadow-sm md:px-8 md:py-8">
         <Outlet context={{ book: state.book } satisfies ReaderContext} />
       </div>
       <ScrollRestoration />

@@ -19,7 +19,7 @@ export function EmptyState({
   action?: ReactNode;
 }) {
   return (
-    <div className="border-border bg-card flex flex-col items-center gap-2 rounded-lg border px-6 py-16 text-center">
+    <div className="premium-panel flex flex-col items-center gap-2 rounded-2xl px-6 py-16 text-center">
       {visual ??
         (Icon ? <Icon className="text-muted-foreground size-6" /> : null)}
       <p className="text-foreground font-serif text-lg">{title}</p>

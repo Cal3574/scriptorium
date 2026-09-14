@@ -54,9 +54,10 @@ export function ChatWidget() {
         <Button
           type="button"
           size="icon-lg"
+          variant="premium"
           className={cn(
-            'relative cursor-pointer rounded-full shadow-lg',
-            !isOpen && 'ai-launcher-glow',
+            'relative cursor-pointer rounded-full border-primary/45 shadow-[0_12px_34px_-22px_rgb(var(--glow))]',
+            !isOpen && 'ring-1 ring-primary/20',
           )}
           aria-label="Toggle chat widget"
           aria-expanded={isOpen}
@@ -64,25 +65,6 @@ export function ChatWidget() {
         >
           {isOpen ? <XIcon /> : <SparklesIcon />}
         </Button>
-        {!isOpen && (
-          <>
-            <span
-              aria-hidden="true"
-              className="ai-sparkle"
-              style={{ top: -10, left: 2 }}
-            />
-            <span
-              aria-hidden="true"
-              className="ai-sparkle [animation-delay:0.8s]"
-              style={{ top: 8, right: -10 }}
-            />
-            <span
-              aria-hidden="true"
-              className="ai-sparkle [animation-delay:1.6s]"
-              style={{ bottom: -8, left: -6 }}
-            />
-          </>
-        )}
       </div>
 
       <div
@@ -93,14 +75,14 @@ export function ChatWidget() {
           'fixed',
           isMobile
             ? 'inset-0 z-(--z-widget-takeover) animate-in slide-in-from-bottom duration-300'
-            : 'ai-panel-glow right-6 bottom-24 z-(--z-sheet) h-[min(32rem,70dvh)] w-[min(24rem,calc(100vw-3rem))] rounded-lg p-px shadow-xl',
+            : 'right-6 bottom-24 z-(--z-sheet) h-[min(32rem,70dvh)] w-[min(24rem,calc(100vw-3rem))] rounded-xl border border-primary/25 bg-card/80 p-px shadow-[0_24px_70px_-42px_rgb(var(--glow))] backdrop-blur-xl',
         )}
       >
         <section
           aria-label="Chat widget"
           className={cn(
             'bg-card text-card-foreground flex h-full w-full flex-col overflow-hidden',
-            !isMobile && 'rounded-[calc(var(--radius-lg)-1px)]',
+            !isMobile && 'rounded-[calc(var(--radius-xl)-1px)]',
           )}
         >
           <header className="border-border flex items-center justify-between border-b px-2 pt-2">
@@ -119,7 +101,7 @@ export function ChatWidget() {
                   className={cn(
                     'cursor-pointer rounded-t-md px-3 py-2 text-sm font-medium',
                     activeTab === tab
-                      ? 'ai-tab-glow border-primary text-foreground border-b-2'
+                      ? 'border-primary text-foreground border-b-2 bg-primary/10'
                       : 'text-muted-foreground hover:text-foreground border-b-2 border-transparent',
                   )}
                 >
