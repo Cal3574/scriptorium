@@ -451,7 +451,7 @@ test('history renders the Console worklist: row link + mono summary count', asyn
   expect(screen.getByText('1 question')).toBeVisible();
 });
 
-test('a failed history row shows a failed chip and re-asks via /ask?q=', async () => {
+test('a failed history row shows a failed chip and re-asks via the widget', async () => {
   mockApi.mockImplementation(async (path: string) => {
     if (path === '/api/v1/queries')
       return jsonRes([{ ...QUERY, failed: true }]);
@@ -462,8 +462,16 @@ test('a failed history row shows a failed chip and re-asks via /ask?q=', async (
   expect(await screen.findByText('failed')).toBeVisible();
   await userEvent.click(screen.getByRole('button', { name: /ask again/i }));
 
-  expect(router.state.location.pathname).toBe('/ask');
-  expect(router.state.location.search).toBe('?q=What%20is%20focus%3F');
+  // No navigation to the soon-to-be-deleted `/ask?q=` route; the widget
+  // opens on the Ask library tab with the question pre-filled instead.
+  expect(router.state.location.pathname).toBe('/history');
+  expect(screen.getByRole('tab', { name: 'Ask library' })).toHaveAttribute(
+    'aria-selected',
+    'true',
+  );
+  expect(screen.getByRole('textbox', { name: 'question' })).toHaveValue(
+    'What is focus?',
+  );
 });
 
 test('an empty history shows the empty state, not a flash of nothing', async () => {
