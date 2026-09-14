@@ -56,8 +56,9 @@ let currentUsage: {
 } | null = null;
 jest.mock('../usage/use-usage', () => ({
   useUsage: () => ({ usage: currentUsage, refetch: usageRefetch }),
-  queryQuotaExhausted: (usage: { queries: { used: number; limit: number } } | null) =>
-    usage != null && usage.queries.used >= usage.queries.limit,
+  queryQuotaExhausted: (
+    usage: { queries: { used: number; limit: number } } | null,
+  ) => usage != null && usage.queries.used >= usage.queries.limit,
 }));
 
 const BOOK_A = '33333333-3333-4333-8333-333333333333';

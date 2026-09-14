@@ -28,8 +28,9 @@ let currentUsage: {
 } | null = null;
 jest.mock('../usage/use-usage', () => ({
   useUsage: () => ({ usage: currentUsage, refetch: usageRefetch }),
-  queryQuotaExhausted: (usage: { queries: { used: number; limit: number } } | null) =>
-    usage != null && usage.queries.used >= usage.queries.limit,
+  queryQuotaExhausted: (
+    usage: { queries: { used: number; limit: number } } | null,
+  ) => usage != null && usage.queries.used >= usage.queries.limit,
 }));
 
 const CHUNK_A = '11111111-1111-4111-8111-111111111111';
@@ -267,9 +268,7 @@ test('clicking the upgrade CTA navigates to /pricing and closes the widget', asy
   await userEvent.click(screen.getByRole('button', { name: 'open widget' }));
   expect(screen.getByTestId('widget-open-state')).toHaveTextContent('open');
 
-  await userEvent.click(
-    screen.getByRole('link', { name: 'Upgrade to Pro' }),
-  );
+  await userEvent.click(screen.getByRole('link', { name: 'Upgrade to Pro' }));
 
   expect(await screen.findByText('pricing page')).toBeVisible();
   expect(screen.getByTestId('widget-open-state')).toHaveTextContent('closed');
