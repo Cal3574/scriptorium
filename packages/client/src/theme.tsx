@@ -7,25 +7,87 @@ import {
   type ReactNode,
 } from 'react';
 
-// Light / dark only - a deliberate 2-way switch, no "system" mode and no live
-// OS following after the first load (per scriptorium#53). The OS preference is
-// consulted exactly once, by the pre-paint script, when nothing is stored.
-export type Theme = 'light' | 'dark';
+export type Theme =
+  | 'poimandres'
+  | 'lattice-light'
+  | 'catppuccin'
+  | 'gruvbox-dark'
+  | 'rose-pine'
+  | 'high-contrast';
 
-export const THEME_STORAGE_KEY = 'scriptorium-theme';
-
-// The single place the DOM is mutated. `.dark` is the shadcn / Tailwind v4
-// class hook; `color-scheme` flips native controls, scrollbars and form
-// widgets in lockstep.
-function applyTheme(theme: Theme): void {
-  const root = document.documentElement;
-  root.classList.toggle('dark', theme === 'dark');
-  root.style.colorScheme = theme;
+export interface ThemeOption {
+  id: Theme;
+  label: string;
+  tone: 'dark' | 'light';
+  swatches: readonly [string, string, string, string];
 }
 
-// Same resolution the inline pre-paint script in index.html performs. Exported
-// so tests can reproduce the pre-paint step (the inline script never runs in
-// jsdom) and so the logic lives in one readable place.
+export const THEME_STORAGE_KEY = 'scriptorium-theme';
+export const DEFAULT_THEME: Theme = 'poimandres';
+
+export const THEME_OPTIONS: readonly ThemeOption[] = [
+  {
+    id: 'poimandres',
+    label: 'Poimandres',
+    tone: 'dark',
+    swatches: ['#11121a', '#1b1e2b', '#89ddff', '#c792ea'],
+  },
+  {
+    id: 'lattice-light',
+    label: 'Lattice Light',
+    tone: 'light',
+    swatches: ['#f6f4ee', '#ffffff', '#3d6f8e', '#d98a47'],
+  },
+  {
+    id: 'catppuccin',
+    label: 'Catppuccin',
+    tone: 'dark',
+    swatches: ['#1e1e2e', '#313244', '#89b4fa', '#f5c2e7'],
+  },
+  {
+    id: 'gruvbox-dark',
+    label: 'Gruvbox Dark',
+    tone: 'dark',
+    swatches: ['#1d2021', '#282828', '#fabd2f', '#8ec07c'],
+  },
+  {
+    id: 'rose-pine',
+    label: 'Rosé Pine',
+    tone: 'dark',
+    swatches: ['#191724', '#26233a', '#ebbcba', '#c4a7e7'],
+  },
+  {
+    id: 'high-contrast',
+    label: 'High Contrast',
+    tone: 'dark',
+    swatches: ['#000000', '#111111', '#ffff00', '#00e5ff'],
+  },
+] as const;
+
+const THEME_IDS = new Set<Theme>(THEME_OPTIONS.map((theme) => theme.id));
+const DARK_THEMES = new Set<Theme>(
+  THEME_OPTIONS.filter((theme) => theme.tone === 'dark').map(
+    (theme) => theme.id,
+  ),
+);
+
+export function isDarkTheme(theme: Theme): boolean {
+  return DARK_THEMES.has(theme);
+}
+
+export function normaliseStoredTheme(stored: string | null): Theme | null {
+  if (stored === 'dark') return 'poimandres';
+  if (stored === 'light') return 'lattice-light';
+  return THEME_IDS.has(stored as Theme) ? (stored as Theme) : null;
+}
+
+function applyTheme(theme: Theme): void {
+  const root = document.documentElement;
+  root.dataset.theme = theme;
+  root.classList.toggle('dark', isDarkTheme(theme));
+  root.style.colorScheme = isDarkTheme(theme) ? 'dark' : 'light';
+}
+
 export function resolveInitialTheme(): Theme {
   let stored: string | null = null;
   try {
@@ -33,43 +95,36 @@ export function resolveInitialTheme(): Theme {
   } catch {
     // localStorage unavailable (private mode, disabled) - treat as unset.
   }
-  if (stored === 'dark') return 'dark';
-  if (stored === 'light') return 'light';
-  return window.matchMedia('(prefers-color-scheme: dark)').matches
-    ? 'dark'
-    : 'light';
+  return normaliseStoredTheme(stored) ?? DEFAULT_THEME;
 }
 
 interface ThemeContextValue {
   theme: Theme;
-  toggle: () => void;
+  setTheme: (theme: Theme) => void;
 }
 
 const ThemeContext = createContext<ThemeContextValue | null>(null);
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
-  // Initial state is read back from what the pre-paint script already put on
-  // the DOM, so React and the DOM never disagree and StrictMode's double
-  // invoke cannot cause a re-flash.
-  const [theme, setTheme] = useState<Theme>(() =>
-    document.documentElement.classList.contains('dark') ? 'dark' : 'light',
-  );
+  const [theme, setThemeState] = useState<Theme>(() => {
+    const attr = document.documentElement.dataset.theme;
+    const initial = normaliseStoredTheme(attr ?? null) ?? resolveInitialTheme();
+    if (attr !== initial) applyTheme(initial);
+    return initial;
+  });
 
-  const toggle = useCallback(() => {
-    setTheme((current) => {
-      const next: Theme = current === 'dark' ? 'light' : 'dark';
-      applyTheme(next);
-      try {
-        localStorage.setItem(THEME_STORAGE_KEY, next);
-      } catch {
-        // Storage write failed - the DOM is still updated, the choice just
-        // won't survive a reload.
-      }
-      return next;
-    });
+  const setTheme = useCallback((next: Theme) => {
+    applyTheme(next);
+    try {
+      localStorage.setItem(THEME_STORAGE_KEY, next);
+    } catch {
+      // Storage write failed - the DOM is still updated, the choice just
+      // won't survive a reload.
+    }
+    setThemeState(next);
   }, []);
 
-  const value = useMemo(() => ({ theme, toggle }), [theme, toggle]);
+  const value = useMemo(() => ({ theme, setTheme }), [theme, setTheme]);
   return (
     <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>
   );

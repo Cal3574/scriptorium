@@ -9,6 +9,10 @@ import {
   LibraryTable,
   LibraryTableSkeleton,
 } from '@/components/library/library-table';
+import {
+  LibraryGrid,
+  LibraryGridSkeleton,
+} from '@/components/library/library-grid';
 import { DepositSlot } from '@/components/library/deposit-slot';
 import { useApi } from '../auth/use-api';
 import { useUsage } from '../usage/use-usage';
@@ -26,6 +30,7 @@ export function Library() {
   const [books, setBooks] = useState<BookListItemDto[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [bookLimit, setBookLimit] = useState<LimitCode | null>(null);
+  const [view, setView] = useState<'grid' | 'list'>('grid');
 
   const refresh = useCallback(async () => {
     const res = await api('/api/v1/books');
@@ -74,6 +79,8 @@ export function Library() {
       <Toolbar
         books={books ?? []}
         api={api}
+        view={view}
+        onViewChange={setView}
         onUploaded={onUploaded}
         onLimitReached={onLimitReached}
       />
@@ -88,7 +95,11 @@ export function Library() {
       )}
 
       {!books ? (
-        <LibraryTableSkeleton />
+        view === 'grid' ? (
+          <LibraryGridSkeleton />
+        ) : (
+          <LibraryTableSkeleton />
+        )
       ) : books.length === 0 ? (
         <EmptyState
           visual={<EmptyShelf />}
@@ -104,6 +115,8 @@ export function Library() {
             />
           }
         />
+      ) : view === 'grid' ? (
+        <LibraryGrid books={books} onSettled={onSettled} />
       ) : (
         <LibraryTable books={books} onSettled={onSettled} />
       )}

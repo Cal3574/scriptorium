@@ -157,6 +157,7 @@ afterEach(() => {
   mockApi.mockReset();
   localStorage.clear();
   document.documentElement.className = '';
+  document.documentElement.removeAttribute('data-theme');
   document.documentElement.style.colorScheme = '';
   document.title = '';
 });
@@ -238,7 +239,7 @@ test('/ask/:queryId redirects to /history/:queryId', async () => {
   expect(router.state.location.pathname).toBe('/history/q1');
 });
 
-test('the shell top bar frames every screen: wordmark, nav, theme toggle, account menu', async () => {
+test('the shell top bar frames every screen: wordmark, nav, theme selector, account menu', async () => {
   renderAt('/library');
   await screen.findByRole('heading', { name: 'Library' });
 
@@ -249,21 +250,23 @@ test('the shell top bar frames every screen: wordmark, nav, theme toggle, accoun
     expect(screen.getByRole('link', { name: label })).toBeVisible();
   }
   expect(
-    screen.getByRole('button', { name: /switch to (dark|light) theme/i }),
+    screen.getByRole('button', { name: /select colour scheme/i }),
   ).toBeVisible();
   expect(screen.getByTestId('user-button')).toBeVisible();
 });
 
-test('the theme toggle in the shell drives useTheme().toggle', async () => {
+test('the theme selector in the shell drives useTheme().setTheme', async () => {
   renderAt('/library');
   await screen.findByRole('heading', { name: 'Library' });
 
-  expect(document.documentElement.classList.contains('dark')).toBe(false);
+  expect(document.documentElement.dataset.theme).toBe('poimandres');
   await userEvent.click(
-    screen.getByRole('button', { name: /switch to dark theme/i }),
+    screen.getByRole('button', { name: /select colour scheme/i }),
   );
-  expect(document.documentElement.classList.contains('dark')).toBe(true);
-  expect(localStorage.getItem('scriptorium-theme')).toBe('dark');
+  await userEvent.click(screen.getByRole('option', { name: /lattice light/i }));
+  expect(document.documentElement.dataset.theme).toBe('lattice-light');
+  expect(document.documentElement.classList.contains('dark')).toBe(false);
+  expect(localStorage.getItem('scriptorium-theme')).toBe('lattice-light');
 });
 
 test('the library renders the Console worklist: toolbar count, status chip, row link', async () => {
@@ -278,7 +281,7 @@ test('the library renders the Console worklist: toolbar count, status chip, row 
     '/books/b1',
   );
   // 8 book_status values collapse to the 4 chip roles.
-  expect(screen.getByText('ready')).toBeVisible();
+  expect(screen.getAllByText('ready')[0]).toBeVisible();
   // mono summary count in the toolbar
   expect(screen.getByText('1 book')).toBeVisible();
 });

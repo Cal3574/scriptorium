@@ -14,7 +14,7 @@ import { Wordmark } from './wordmark';
 // reads as a raised surface, not a hairline.
 export function TopBar() {
   return (
-    <header className="border-border bg-card sticky top-0 z-(--z-header) border-b shadow-xs">
+    <header className="sticky top-0 z-(--z-header) border-b border-border/80 bg-card/78 shadow-xs backdrop-blur-xl">
       <div className="mx-auto flex h-(--header-height) w-full max-w-(--container-app) items-center gap-6 px-(--shell-gutter)">
         <Wordmark />
 

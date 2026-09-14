@@ -3,7 +3,12 @@ import { render, screen, cleanup } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { ClerkProvider } from '@clerk/react';
 import { ClerkGate } from './clerk-gate';
-import { ThemeProvider, resolveInitialTheme } from './theme';
+import {
+  ThemeProvider,
+  isDarkTheme,
+  normaliseStoredTheme,
+  resolveInitialTheme,
+} from './theme';
 import { ThemeToggle } from './components/shell/theme-toggle';
 
 jest.mock('@clerk/react', () => ({
@@ -31,29 +36,15 @@ const lastAppearance = () =>
     options: { shimmer: boolean };
   };
 
-function setPrefersDark(dark: boolean) {
-  window.matchMedia = ((query: string) => ({
-    matches: dark,
-    media: query,
-    onchange: null,
-    addListener: jest.fn(),
-    removeListener: jest.fn(),
-    addEventListener: jest.fn(),
-    removeEventListener: jest.fn(),
-    dispatchEvent: () => false,
-  })) as unknown as typeof window.matchMedia;
-}
-
-// Reproduce the index.html pre-paint script: it, not React, sets the initial
-// class. Tests must run it because the inline script never executes in jsdom.
 function prePaint() {
   const theme = resolveInitialTheme();
-  document.documentElement.classList.toggle('dark', theme === 'dark');
-  document.documentElement.style.colorScheme = theme;
+  document.documentElement.dataset.theme = theme;
+  document.documentElement.classList.toggle('dark', isDarkTheme(theme));
+  document.documentElement.style.colorScheme = isDarkTheme(theme)
+    ? 'dark'
+    : 'light';
 }
 
-// Mounts once; increments on every (re)mount of its subtree. Used to prove
-// ClerkProvider's subtree is not torn down when the theme changes.
 let subtreeMounts = 0;
 function MountProbe() {
   const first = useRef(true);
@@ -84,6 +75,7 @@ const isDark = () => document.documentElement.classList.contains('dark');
 beforeEach(() => {
   localStorage.clear();
   document.documentElement.className = '';
+  document.documentElement.removeAttribute('data-theme');
   document.documentElement.style.colorScheme = '';
   clerkProviderMock.mockClear();
   subtreeMounts = 0;
@@ -91,81 +83,77 @@ beforeEach(() => {
 
 afterEach(cleanup);
 
-test('first visit with no stored choice follows the OS dark preference', () => {
-  setPrefersDark(true);
+test('first visit defaults to Poimandres', () => {
   renderTree();
+  expect(document.documentElement.dataset.theme).toBe('poimandres');
   expect(isDark()).toBe(true);
   expect(document.documentElement.style.colorScheme).toBe('dark');
 });
 
-test('first visit with no stored choice follows the OS light preference', () => {
-  setPrefersDark(false);
-  renderTree();
-  expect(isDark()).toBe(false);
-  expect(document.documentElement.style.colorScheme).toBe('light');
+test('stored light and dark choices migrate to named schemes', () => {
+  expect(normaliseStoredTheme('dark')).toBe('poimandres');
+  expect(normaliseStoredTheme('light')).toBe('lattice-light');
 });
 
 test('StrictMode double-invoke does not re-flash the theme', () => {
-  setPrefersDark(true);
   renderTree({ strict: true });
+  expect(document.documentElement.dataset.theme).toBe('poimandres');
   expect(isDark()).toBe(true);
 });
 
-test('toggle flips the class, colorScheme and writes localStorage', async () => {
-  setPrefersDark(false);
+test('theme selector writes data-theme, compatibility class, colorScheme and localStorage', async () => {
   renderTree();
-  expect(isDark()).toBe(false);
   expect(localStorage.getItem('scriptorium-theme')).toBeNull();
 
-  await userEvent.click(screen.getByRole('button', { name: /dark theme/i }));
-  expect(isDark()).toBe(true);
-  expect(document.documentElement.style.colorScheme).toBe('dark');
-  expect(localStorage.getItem('scriptorium-theme')).toBe('dark');
+  await userEvent.click(
+    screen.getByRole('button', { name: /select colour scheme/i }),
+  );
+  await userEvent.click(screen.getByRole('option', { name: /lattice light/i }));
 
-  await userEvent.click(screen.getByRole('button', { name: /light theme/i }));
+  expect(document.documentElement.dataset.theme).toBe('lattice-light');
   expect(isDark()).toBe(false);
   expect(document.documentElement.style.colorScheme).toBe('light');
-  expect(localStorage.getItem('scriptorium-theme')).toBe('light');
-});
+  expect(localStorage.getItem('scriptorium-theme')).toBe('lattice-light');
 
-test('a stored "dark" choice wins over a light OS preference', () => {
-  localStorage.setItem('scriptorium-theme', 'dark');
-  setPrefersDark(false);
-  renderTree();
+  await userEvent.click(
+    screen.getByRole('button', { name: /select colour scheme/i }),
+  );
+  await userEvent.click(screen.getByRole('option', { name: /ros/i }));
+
+  expect(document.documentElement.dataset.theme).toBe('rose-pine');
   expect(isDark()).toBe(true);
+  expect(document.documentElement.style.colorScheme).toBe('dark');
+  expect(localStorage.getItem('scriptorium-theme')).toBe('rose-pine');
 });
 
-test('a stored "light" choice wins over a dark OS preference', () => {
-  localStorage.setItem('scriptorium-theme', 'light');
-  setPrefersDark(true);
+test('a stored named choice wins over the default', () => {
+  localStorage.setItem('scriptorium-theme', 'catppuccin');
   renderTree();
-  expect(isDark()).toBe(false);
+  expect(document.documentElement.dataset.theme).toBe('catppuccin');
+  expect(isDark()).toBe(true);
 });
 
 test('ClerkGate binds Clerk to the app CSS tokens: theme switch is a CSS recompute, not a remount', async () => {
-  setPrefersDark(false);
   renderTree();
 
   expect(subtreeMounts).toBe(1);
   const first = lastAppearance();
-  // Every colour is a live custom property, redefined under `.dark` in
-  // index.css - never resolved hex.
   expect(first.variables.colorBackground).toBe('var(--card)');
   expect(first.variables.colorPrimary).toBe('var(--primary)');
   expect(first.variables.colorInput).toBe('var(--background)');
   expect(
     Object.values(first.variables).every((v) => v.startsWith('var(--')),
   ).toBe(true);
-  // shimmer stays on to cover the initial mount gap.
   expect(first.options.shimmer).toBe(true);
 
-  await userEvent.click(screen.getByRole('button', { name: /dark theme/i }));
+  await userEvent.click(
+    screen.getByRole('button', { name: /select colour scheme/i }),
+  );
+  await userEvent.click(screen.getByRole('option', { name: /lattice light/i }));
 
   const next = lastAppearance();
-  // The appearance object never changes - the toggle only flips the DOM
-  // class, so the browser recomputes the custom properties Clerk points at.
   expect(next).toBe(first);
-  expect(isDark()).toBe(true);
-  // No teardown of ClerkProvider's subtree - Clerk.js is not re-initialised.
+  expect(document.documentElement.dataset.theme).toBe('lattice-light');
+  expect(isDark()).toBe(false);
   expect(subtreeMounts).toBe(1);
 });

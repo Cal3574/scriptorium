@@ -7,9 +7,9 @@ import { TopBar } from './top-bar';
 // supplied by the layout route.
 export function AppShell({ children }: { children: ReactNode }) {
   return (
-    <div className="bg-background text-foreground min-h-dvh">
+    <div className="app-ambient bg-background text-foreground min-h-dvh">
       <TopBar />
-      <div className="mx-auto w-full max-w-(--container-app) px-(--shell-gutter) py-8">
+      <div className="mx-auto w-full max-w-(--container-app) px-(--shell-gutter) py-8 md:py-10">
         {children}
       </div>
     </div>

@@ -38,7 +38,7 @@ export function LibraryTable({
   onSettled: () => void;
 }) {
   return (
-    <div className="border-border bg-card overflow-hidden rounded-lg border sm:overflow-x-auto">
+    <div className="premium-panel overflow-hidden rounded-xl sm:overflow-x-auto">
       <div className="sm:min-w-[38rem]">
         <Header />
         {sortBooks(books).map((book) => (
@@ -53,7 +53,7 @@ export function LibraryTable({
 // skeleton rows, so the list does not flash empty then full (#63).
 export function LibraryTableSkeleton() {
   return (
-    <div className="border-border bg-card overflow-hidden rounded-lg border sm:overflow-x-auto">
+    <div className="premium-panel overflow-hidden rounded-xl sm:overflow-x-auto">
       <div className="sm:min-w-[38rem]">
         <Header />
         {Array.from({ length: 4 }).map((_, i) => (
