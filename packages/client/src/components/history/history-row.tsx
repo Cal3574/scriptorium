@@ -1,10 +1,10 @@
-import { Link, useNavigate } from 'react-router';
+import { Link } from 'react-router';
 import type { QueryListItemDto } from '@scriptorium/contracts';
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
-import { askAgainPath } from '@/queries/ask-again';
+import { useChatWidget } from '@/chat-widget/chat-widget-context';
 import { relativeTime } from '@/queries/relative-time';
 
 // Shared grid template for the header row and every history row.
@@ -13,10 +13,11 @@ export const ROW_GRID =
 
 // One past question. The whole row is a link to `/ask/:queryId`; a query that
 // never reached `complete()` (`failed`) also carries a `failed` chip and an
-// "Ask again" ghost button that navigates to `/ask?q=` to re-run it as a
-// fresh `POST /queries` (#67). Only markup - no network here.
+// "Ask again" ghost button that opens the widget's Ask library tab with the
+// question pre-filled, ready to re-send as a fresh `POST /queries` (#165).
+// Only markup - no network here.
 export function HistoryRow({ item }: { item: QueryListItemDto }) {
-  const navigate = useNavigate();
+  const { prefillAsk } = useChatWidget();
 
   return (
     <div
@@ -59,7 +60,7 @@ export function HistoryRow({ item }: { item: QueryListItemDto }) {
             type="button"
             variant="ghost"
             size="xs"
-            onClick={() => navigate(askAgainPath(item.question))}
+            onClick={() => prefillAsk(item.question)}
             aria-label={`Ask again: ${item.question}`}
           >
             Ask again

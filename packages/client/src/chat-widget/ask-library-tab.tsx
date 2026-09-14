@@ -35,13 +35,33 @@ type Phase = 'idle' | 'streaming' | 'done' | 'error';
 export function AskLibraryTab() {
   const { getToken } = useAuth();
   const { usage, refetch: refetchUsage } = useUsage();
-  const { askDraft, setAskDraft, setIsStreaming, close } = useChatWidget();
+  const { askDraft, setAskDraft, askPrefillSeq, setIsStreaming, close } =
+    useChatWidget();
   const [phase, setPhase] = useState<Phase>('idle');
   const [answer, setAnswer] = useState('');
   const [citations, setCitations] = useState<Citation[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [limit, setLimit] = useState<LimitCode | null>(null);
   const abortRef = useRef<AbortController | null>(null);
+  const isFirstPrefillSeq = useRef(true);
+
+  // A prefill (#165) replaces the question from outside this component - like
+  // `/ask?q=`'s old behavior, where "Ask again" landed on a fresh page, this
+  // clears whatever answer/citations/error belonged to the previous question
+  // rather than leaving it stranded under the new one. Skipped on the tab's
+  // own first mount, since local state already starts empty then.
+  useEffect(() => {
+    if (isFirstPrefillSeq.current) {
+      isFirstPrefillSeq.current = false;
+      return;
+    }
+    abortRef.current?.abort();
+    setPhase('idle');
+    setAnswer('');
+    setCitations([]);
+    setError(null);
+    setLimit(null);
+  }, [askPrefillSeq]);
 
   // Proactive, from the already-fetched pooled allowance - no round-trip
   // needed to know the quota is spent. `limit` (set from a 402 below) wins

@@ -30,6 +30,20 @@ interface ChatWidgetContextValue {
   setActiveTab: (tab: ChatWidgetTab) => void;
   askDraft: string;
   setAskDraft: (value: string) => void;
+  // Opens the widget (if closed), switches to the Ask library tab, and seeds
+  // `askDraft` with `question`, in one atomic call - the "Ask again"/"Ask
+  // another question" entry points (#165) use this instead of navigating to
+  // `/ask?q=`. Prefill only; the reader still presses send. Switches tabs
+  // immediately with no confirmation, even mid Agent conversation, since that
+  // conversation persists server-side independent of the active tab.
+  prefillAsk: (question: string) => void;
+  // Bumped on every `prefillAsk` call. The Ask library tab stays mounted for
+  // the widget's lifetime and keeps its own answer/citations/error local
+  // state independent of `askDraft` (so it survives a tab switch), so this is
+  // the only way it can tell "a prefill just replaced the question" apart
+  // from "the reader is typing" and clear that stale state to match
+  // `/ask?q=`'s old behavior, where each "Ask again" was a fresh page.
+  askPrefillSeq: number;
   // The book id of the most recently visited reader route, live-updated on
   // every navigation while `null` off any reader route so far this session.
   // The Agent tab (#160) falls back to this once the reader route itself is
@@ -62,6 +76,7 @@ export function ChatWidgetProvider({ children }: { children: ReactNode }) {
   const [lastBookId, setLastBookId] = useState<string | null>(null);
   const [pendingHighlight, setPendingHighlight] = useState<string | null>(null);
   const [isStreaming, setIsStreaming] = useState(false);
+  const [askPrefillSeq, setAskPrefillSeq] = useState(0);
 
   // The reader route tree (`routes.tsx`) marks itself via `handle`, so a book
   // id is picked up here from the matched route params rather than
@@ -86,6 +101,12 @@ export function ChatWidgetProvider({ children }: { children: ReactNode }) {
     setActiveTab('agent');
     setIsOpen(true);
   }, []);
+  const prefillAsk = useCallback((question: string) => {
+    setAskDraft(question);
+    setActiveTab('ask-library');
+    setIsOpen(true);
+    setAskPrefillSeq((prev) => prev + 1);
+  }, []);
 
   const value = useMemo(
     () => ({
@@ -97,6 +118,8 @@ export function ChatWidgetProvider({ children }: { children: ReactNode }) {
       setActiveTab,
       askDraft,
       setAskDraft,
+      prefillAsk,
+      askPrefillSeq,
       lastBookId,
       pendingHighlight,
       seedHighlight,
@@ -111,6 +134,8 @@ export function ChatWidgetProvider({ children }: { children: ReactNode }) {
       toggle,
       activeTab,
       askDraft,
+      prefillAsk,
+      askPrefillSeq,
       lastBookId,
       pendingHighlight,
       seedHighlight,

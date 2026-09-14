@@ -16,6 +16,8 @@ function Probe() {
     setActiveTab,
     askDraft,
     setAskDraft,
+    prefillAsk,
+    askPrefillSeq,
     lastBookId,
     pendingHighlight,
     seedHighlight,
@@ -31,6 +33,7 @@ function Probe() {
       <span data-testid="last-book-id">{lastBookId ?? 'none'}</span>
       <span data-testid="pending-highlight">{pendingHighlight ?? 'none'}</span>
       <span data-testid="is-streaming">{String(isStreaming)}</span>
+      <span data-testid="ask-prefill-seq">{askPrefillSeq}</span>
       <button onClick={open}>open</button>
       <button onClick={close}>close</button>
       <button onClick={toggle}>toggle</button>
@@ -39,6 +42,10 @@ function Probe() {
       <button onClick={() => seedHighlight('a highlighted passage')}>
         seed highlight
       </button>
+      <button onClick={() => prefillAsk('what is focus?')}>
+        prefill ask again
+      </button>
+      <button onClick={() => prefillAsk('')}>prefill ask empty</button>
       <button onClick={clearPendingHighlight}>clear pending highlight</button>
       <button onClick={() => setIsStreaming(true)}>start streaming</button>
       <button onClick={() => setIsStreaming(false)}>stop streaming</button>
@@ -189,6 +196,41 @@ test('seedHighlight wins even if the widget was already open on a different tab'
   await user.click(screen.getByText('seed highlight'));
 
   expect(screen.getByTestId('active-tab')).toHaveTextContent('agent');
+});
+
+test('prefillAsk seeds the draft, opens the widget, and switches to the ask-library tab', async () => {
+  renderAt('/library');
+  const user = userEvent.setup();
+
+  await user.click(screen.getByText('switch to agent'));
+  await user.click(screen.getByText('prefill ask again'));
+
+  expect(screen.getByTestId('draft')).toHaveTextContent('what is focus?');
+  expect(screen.getByTestId('is-open')).toHaveTextContent('true');
+  expect(screen.getByTestId('active-tab')).toHaveTextContent('ask-library');
+});
+
+test('prefillAsk bumps askPrefillSeq so the Ask library tab can tell a prefill apart from typing', async () => {
+  renderAt('/library');
+  const user = userEvent.setup();
+
+  expect(screen.getByTestId('ask-prefill-seq')).toHaveTextContent('0');
+  await user.click(screen.getByText('prefill ask again'));
+  expect(screen.getByTestId('ask-prefill-seq')).toHaveTextContent('1');
+  await user.click(screen.getByText('prefill ask empty'));
+  expect(screen.getByTestId('ask-prefill-seq')).toHaveTextContent('2');
+});
+
+test('prefillAsk wins immediately even mid an Agent conversation, with no confirmation', async () => {
+  renderAt('/library');
+  const user = userEvent.setup();
+
+  await user.click(screen.getByText('open'));
+  await user.click(screen.getByText('switch to agent'));
+  await user.click(screen.getByText('prefill ask empty'));
+
+  expect(screen.getByTestId('draft')).toHaveTextContent('');
+  expect(screen.getByTestId('active-tab')).toHaveTextContent('ask-library');
 });
 
 test('clearPendingHighlight resets the pending highlight', async () => {

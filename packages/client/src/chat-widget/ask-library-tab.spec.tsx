@@ -89,11 +89,14 @@ function jsonRes(body: unknown, status = 200): Response {
 // Shows whether the widget panel is open, so a test can assert the upgrade
 // CTA closed it - real open/close state from the provider, not a stand-in.
 function OpenStateProbe() {
-  const { isOpen, open } = useChatWidget();
+  const { isOpen, open, prefillAsk } = useChatWidget();
   return (
     <div>
       <span data-testid="widget-open-state">{isOpen ? 'open' : 'closed'}</span>
       <button onClick={open}>open widget</button>
+      <button onClick={() => prefillAsk('a different question?')}>
+        prefill ask
+      </button>
     </div>
   );
 }
@@ -260,6 +263,27 @@ test('opening with the quota already exhausted shows the banner immediately, wit
   expect(screen.getByLabelText('question')).toBeDisabled();
   expect(screen.getByRole('button', { name: 'Ask' })).toBeDisabled();
   expect(fetchMock).not.toHaveBeenCalled();
+});
+
+test('a prefill (#165) clears a previous answer instead of leaving it stranded under the new question', async () => {
+  const stream = deferredStream();
+  fetchMock.mockResolvedValue(stream.response);
+  renderTab();
+
+  await userEvent.type(screen.getByLabelText('question'), 'What is deep work?');
+  await userEvent.click(screen.getByRole('button', { name: 'Ask' }));
+  stream.push({ type: 'done', answer: 'Deep work is focused effort.' });
+  stream.finish();
+  expect(await screen.findByText('Deep work is focused effort.')).toBeVisible();
+
+  await userEvent.click(screen.getByRole('button', { name: 'prefill ask' }));
+
+  expect(screen.getByLabelText('question')).toHaveValue(
+    'a different question?',
+  );
+  expect(
+    screen.queryByText('Deep work is focused effort.'),
+  ).not.toBeInTheDocument();
 });
 
 test('clicking the upgrade CTA navigates to /pricing and closes the widget', async () => {

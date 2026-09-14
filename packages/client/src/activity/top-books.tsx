@@ -1,12 +1,17 @@
 import { Link } from 'react-router';
 import type { ActivityTopBookDto } from '@scriptorium/contracts';
 
+import { useChatWidget } from '@/chat-widget/chat-widget-context';
+
 // The "most-asked books" panel: up to five books ranked by how many
 // book-filtered questions the reader has put to them, each row a link to that
 // book. Unfiltered questions and questions against deleted books never reach
 // here (the server drops them), so an empty list means "no book-scoped
-// questions yet".
+// questions yet". The empty state's "Ask something" opens the widget's Ask
+// library tab with an empty draft instead of navigating to `/ask` (#165).
 export function TopBooks({ books }: { books: ActivityTopBookDto[] }) {
+  const { prefillAsk } = useChatWidget();
+
   return (
     <section className="flex flex-col gap-3">
       <h2 className="text-foreground font-serif text-sm font-semibold">
@@ -16,9 +21,13 @@ export function TopBooks({ books }: { books: ActivityTopBookDto[] }) {
       {books.length === 0 ? (
         <p className="text-muted-foreground border-border bg-card rounded-lg border px-4 py-6 text-sm">
           Ask a question about a book and it will show up here.{' '}
-          <Link to="/ask" className="text-primary font-medium hover:underline">
+          <button
+            type="button"
+            onClick={() => prefillAsk('')}
+            className="text-primary cursor-pointer font-medium hover:underline"
+          >
             Ask something
-          </Link>
+          </button>
         </p>
       ) : (
         <ol className="border-border bg-card divide-border divide-y overflow-hidden rounded-lg border">

@@ -1,7 +1,9 @@
 import { render, screen, cleanup } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { createMemoryRouter, RouterProvider } from 'react-router';
 
 import { ActivityScreen } from './ActivityScreen';
+import { ChatWidgetProvider, useChatWidget } from '../chat-widget/chat-widget-context';
 
 jest.mock('../env', () => ({
   env: { apiUrl: 'http://api.test', clerkPublishableKey: 'pk_test_x' },
@@ -54,12 +56,33 @@ function activity(overrides: Record<string, unknown> = {}) {
   };
 }
 
+// Exposes the widget's shared state so tests can assert on it without the
+// full `ChatWidget` shell (which lives outside `ActivityScreen`'s tree in the
+// real app).
+function WidgetProbe() {
+  const { isOpen, activeTab, askDraft } = useChatWidget();
+  return (
+    <div>
+      <span data-testid="widget-is-open">{String(isOpen)}</span>
+      <span data-testid="widget-active-tab">{activeTab}</span>
+      <span data-testid="widget-draft">{askDraft}</span>
+    </div>
+  );
+}
+
 function renderScreen() {
   const router = createMemoryRouter(
     [
-      { path: '/activity', element: <ActivityScreen /> },
+      {
+        path: '/activity',
+        element: (
+          <ChatWidgetProvider>
+            <ActivityScreen />
+            <WidgetProbe />
+          </ChatWidgetProvider>
+        ),
+      },
       { path: '/books/:id', element: <h1>Book</h1> },
-      { path: '/ask', element: <h1>Ask</h1> },
       { path: '/pricing', element: <h1>Plans</h1> },
     ],
     { initialEntries: ['/activity'] },
@@ -142,6 +165,15 @@ test('an all-zero series shows the tracking hint instead of a chart', async () =
   ).toBeVisible();
   expect(screen.getByText('No questions in the last 12 months')).toBeVisible();
   expect(screen.getByText(/Ask a question about a book/)).toBeVisible();
+
+  // "Ask something" opens the widget's Ask library tab with an empty draft
+  // instead of navigating to `/ask` (#165).
+  await userEvent.click(screen.getByRole('button', { name: 'Ask something' }));
+  expect(screen.getByTestId('widget-is-open')).toHaveTextContent('true');
+  expect(screen.getByTestId('widget-active-tab')).toHaveTextContent(
+    'ask-library',
+  );
+  expect(screen.getByTestId('widget-draft')).toHaveTextContent('');
 });
 
 test('a failed load surfaces an alert', async () => {
