@@ -17,7 +17,7 @@ import {
   problemMessage,
   type LimitCode,
 } from '../books/problem';
-import { useUsage } from '../usage/use-usage';
+import { queryQuotaExhausted, useUsage } from '../usage/use-usage';
 import { LimitReachedNotice } from '../usage/limit-reached-notice';
 import { useChatWidget } from './chat-widget-context';
 
@@ -34,8 +34,8 @@ type Phase = 'idle' | 'streaming' | 'done' | 'error';
 // answer even if the panel is closed and reopened.
 export function AskLibraryTab() {
   const { getToken } = useAuth();
-  const { refetch: refetchUsage } = useUsage();
-  const { askDraft, setAskDraft, setIsStreaming } = useChatWidget();
+  const { usage, refetch: refetchUsage } = useUsage();
+  const { askDraft, setAskDraft, setIsStreaming, close } = useChatWidget();
   const [phase, setPhase] = useState<Phase>('idle');
   const [answer, setAnswer] = useState('');
   const [citations, setCitations] = useState<Citation[]>([]);
@@ -43,9 +43,16 @@ export function AskLibraryTab() {
   const [limit, setLimit] = useState<LimitCode | null>(null);
   const abortRef = useRef<AbortController | null>(null);
 
+  // Proactive, from the already-fetched pooled allowance - no round-trip
+  // needed to know the quota is spent. `limit` (set from a 402 below) wins
+  // once a request has actually failed, but this covers opening the widget
+  // with the quota already exhausted.
+  const quotaExhausted = queryQuotaExhausted(usage);
+  const bannerCode = limit ?? (quotaExhausted ? 'query_limit_reached' : null);
+
   const ask = useCallback(async () => {
     const trimmed = askDraft.trim();
-    if (!trimmed) return;
+    if (!trimmed || quotaExhausted) return;
 
     abortRef.current?.abort();
     const controller = new AbortController();
@@ -131,7 +138,7 @@ export function AskLibraryTab() {
           break;
       }
     }
-  }, [askDraft, getToken, refetchUsage]);
+  }, [askDraft, getToken, refetchUsage, quotaExhausted]);
 
   const busy = phase === 'streaming';
 
@@ -148,16 +155,19 @@ export function AskLibraryTab() {
         onQuestionChange={setAskDraft}
         onSubmit={() => void ask()}
         busy={busy}
+        disabled={quotaExhausted}
       />
 
-      {phase === 'idle' && !answer && !error && !limit && (
+      {phase === 'idle' && !answer && !error && !bannerCode && (
         <p className="text-muted-foreground mb-6 text-sm">
           Ask a question and get an answer grounded in citations from every book
           in your library.
         </p>
       )}
 
-      {limit && <LimitReachedNotice code={limit} />}
+      {bannerCode && (
+        <LimitReachedNotice code={bannerCode} onUpgradeClick={close} />
+      )}
 
       {error && (
         <Alert variant="destructive" className="mb-6">

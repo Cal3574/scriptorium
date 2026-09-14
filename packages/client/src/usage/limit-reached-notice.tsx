@@ -29,7 +29,16 @@ const NOTICE: Record<LimitCode, { title: string; lever: 'books' | 'queries' }> =
 
 const NOUN = { books: 'books', queries: 'questions' } as const;
 
-export function LimitReachedNotice({ code }: { code: LimitCode }) {
+export function LimitReachedNotice({
+  code,
+  onUpgradeClick,
+}: {
+  code: LimitCode;
+  // Fires alongside the `/pricing` navigation, before it commits - the chat
+  // widget (#163) passes its own `close` here, since the widget has no route
+  // of its own and so isn't unmounted by the navigation on its own.
+  onUpgradeClick?: () => void;
+}) {
   const { usage } = useUsage();
   const { title, lever } = NOTICE[code];
   const noun = NOUN[lever];
@@ -52,7 +61,7 @@ export function LimitReachedNotice({ code }: { code: LimitCode }) {
             : 'This is the Pro plan ceiling.'}
         </span>
         <Button asChild size="sm">
-          <Link to="/pricing">
+          <Link to="/pricing" onClick={onUpgradeClick}>
             {canUpgrade ? 'Upgrade to Pro' : 'View plans'}
           </Link>
         </Button>

@@ -22,7 +22,7 @@ import {
   type LimitCode,
 } from '../books/problem';
 import { useApi } from '../auth/use-api';
-import { useUsage } from '../usage/use-usage';
+import { queryQuotaExhausted, useUsage } from '../usage/use-usage';
 import { LimitReachedNotice } from '../usage/limit-reached-notice';
 import { useAgentBookId } from './use-agent-book-id';
 import { readerBookIdFromMatches } from './reader-route';
@@ -149,7 +149,7 @@ function NoThreadEmptyState({
 export function AgentTab() {
   const { getToken } = useAuth();
   const api = useApi();
-  const { refetch: refetchUsage } = useUsage();
+  const { usage, refetch: refetchUsage } = useUsage();
   const bookId = useAgentBookId();
   const onReader = readerBookIdFromMatches(useMatches()) === bookId;
   const {
@@ -158,6 +158,7 @@ export function AgentTab() {
     setIsStreaming,
     isOpen,
     activeTab,
+    close,
   } = useChatWidget();
 
   const [phase, setPhase] = useState<Phase>('idle');
@@ -169,6 +170,11 @@ export function AgentTab() {
   const [seededHighlight, setSeededHighlight] = useState<string | null>(null);
   const abortRef = useRef<AbortController | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
+
+  // Proactive, from the already-fetched pooled allowance - see
+  // `ask-library-tab.tsx` for the same derivation.
+  const quotaExhausted = queryQuotaExhausted(usage);
+  const bannerCode = limit ?? (quotaExhausted ? 'query_limit_reached' : null);
 
   // Keeps the newest text in view as a reply streams in - the panel's own
   // scroll container (`ChatWidget`) is an ancestor of this tab, not
@@ -237,7 +243,7 @@ export function AgentTab() {
   const send = useCallback(
     async (message: string, highlightedPassage?: string) => {
       const trimmed = message.trim();
-      if (!trimmed || !bookId) return;
+      if (!trimmed || !bookId || quotaExhausted) return;
 
       abortRef.current?.abort();
       const controller = new AbortController();
@@ -365,7 +371,7 @@ export function AgentTab() {
         }
       }
     },
-    [bookId, getToken, refetchUsage],
+    [bookId, getToken, refetchUsage, quotaExhausted],
   );
 
   const busy = phase === 'streaming';
@@ -415,7 +421,7 @@ export function AgentTab() {
               variant="outline"
               size="sm"
               className="mb-4 cursor-pointer"
-              disabled={busy}
+              disabled={busy || quotaExhausted}
               onClick={() =>
                 void send(
                   'What do you make of this?',
@@ -427,7 +433,9 @@ export function AgentTab() {
             </Button>
           )}
 
-          {limit && <LimitReachedNotice code={limit} />}
+          {bannerCode && (
+            <LimitReachedNotice code={bannerCode} onUpgradeClick={close} />
+          )}
 
           {error && (
             <Alert variant="destructive" className="mb-4">
@@ -453,7 +461,7 @@ export function AgentTab() {
               <Textarea
                 rows={2}
                 value={draft}
-                disabled={busy}
+                disabled={busy || quotaExhausted}
                 aria-label="agent message"
                 placeholder={
                   seededHighlight ? 'What do you want to know?' : 'Reply...'
@@ -463,7 +471,7 @@ export function AgentTab() {
               <Button
                 type="submit"
                 className="mt-3 cursor-pointer"
-                disabled={busy || !draft.trim()}
+                disabled={busy || quotaExhausted || !draft.trim()}
               >
                 {busy ? (
                   <span className="inline-flex items-center gap-1.5">

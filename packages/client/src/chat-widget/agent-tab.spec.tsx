@@ -17,9 +17,10 @@ function SeedHighlightButton({ passage }: { passage: string }) {
 // Stands in for `ChatWidget`'s launcher + tab switcher: real open/close and
 // tab-switching, without needing the actual panel chrome.
 function WidgetControls() {
-  const { open, close, setActiveTab } = useChatWidget();
+  const { isOpen, open, close, setActiveTab } = useChatWidget();
   return (
     <div>
+      <span data-testid="widget-open-state">{isOpen ? 'open' : 'closed'}</span>
       <button onClick={open}>open widget</button>
       <button onClick={close}>close widget</button>
       <button onClick={() => setActiveTab('ask-library')}>
@@ -49,8 +50,14 @@ jest.mock('react-markdown', () => ({
 jest.mock('remark-gfm', () => ({ __esModule: true, default: () => undefined }));
 
 const usageRefetch = jest.fn();
+let currentUsage: {
+  plan: 'free' | 'pro';
+  queries: { used: number; limit: number };
+} | null = null;
 jest.mock('../usage/use-usage', () => ({
-  useUsage: () => ({ usage: null, refetch: usageRefetch }),
+  useUsage: () => ({ usage: currentUsage, refetch: usageRefetch }),
+  queryQuotaExhausted: (usage: { queries: { used: number; limit: number } } | null) =>
+    usage != null && usage.queries.used >= usage.queries.limit,
 }));
 
 const BOOK_A = '33333333-3333-4333-8333-333333333333';
@@ -137,22 +144,23 @@ function renderAtWithControls(path: string) {
   const router = createMemoryRouter(
     [
       {
+        // `WidgetControls` sits at this layout level, not inside the reader
+        // route's element, so it survives the `/pricing` navigation the
+        // upgrade CTA triggers - mirroring the real widget's persistence
+        // across routes (#159).
         element: (
           <ChatWidgetProvider>
+            <WidgetControls />
             <Outlet />
           </ChatWidgetProvider>
         ),
         children: [
           {
             path: '/books/:bookId/read',
-            element: (
-              <>
-                <WidgetControls />
-                <AgentTab />
-              </>
-            ),
+            element: <AgentTab />,
             handle: { isReaderRoute: true },
           },
+          { path: '/pricing', element: <p>pricing page</p> },
         ],
       },
     ],
@@ -208,6 +216,7 @@ afterEach(() => {
   fetchMock.mockReset();
   usageRefetch.mockReset();
   scrollIntoViewMock.mockReset();
+  currentUsage = null;
 });
 
 test('off a reader route with no last book, there is nothing to load and no request is made', () => {
@@ -530,6 +539,63 @@ test('a 402 shows the limit-reached notice and refetches usage', async () => {
 
   expect(await screen.findByText(/monthly question limit/i)).toBeVisible();
   expect(usageRefetch).toHaveBeenCalled();
+});
+
+test('opening with the quota already exhausted shows the banner immediately and disables the composer', async () => {
+  currentUsage = { plan: 'free', queries: { used: 20, limit: 20 } };
+  fetchMock.mockResolvedValueOnce(
+    jsonRes({
+      id: THREAD_A,
+      bookId: BOOK_A,
+      createdAt: '2026-01-01T00:00:00Z',
+      messages: [
+        {
+          id: USER_MSG,
+          role: 'user',
+          message: 'Seed',
+          highlightedPassage: 'A seed passage.',
+          createdAt: '2026-01-01T00:00:00Z',
+        },
+      ],
+    }),
+  );
+  renderAt(`/books/${BOOK_A}/read`);
+  await screen.findByText('Seed');
+
+  expect(screen.getByText(/monthly question limit/i)).toBeVisible();
+  expect(screen.getByLabelText('agent message')).toBeDisabled();
+  expect(screen.getByRole('button', { name: 'Send' })).toBeDisabled();
+  expect(fetchMock).toHaveBeenCalledTimes(1);
+});
+
+test('clicking the upgrade CTA navigates to /pricing and closes the widget', async () => {
+  currentUsage = { plan: 'free', queries: { used: 20, limit: 20 } };
+  fetchMock.mockResolvedValueOnce(
+    jsonRes({
+      id: THREAD_A,
+      bookId: BOOK_A,
+      createdAt: '2026-01-01T00:00:00Z',
+      messages: [
+        {
+          id: USER_MSG,
+          role: 'user',
+          message: 'Seed',
+          highlightedPassage: 'A seed passage.',
+          createdAt: '2026-01-01T00:00:00Z',
+        },
+      ],
+    }),
+  );
+  const user = userEvent.setup();
+  renderAtWithControls(`/books/${BOOK_A}/read`);
+  await screen.findByText('Seed');
+  await user.click(screen.getByText('open widget'));
+  expect(screen.getByTestId('widget-open-state')).toHaveTextContent('open');
+
+  await user.click(screen.getByRole('link', { name: 'Upgrade to Pro' }));
+
+  expect(await screen.findByText('pricing page')).toBeVisible();
+  expect(screen.getByTestId('widget-open-state')).toHaveTextContent('closed');
 });
 
 test("switching from one book's reader to another's live-switches the shown thread", async () => {

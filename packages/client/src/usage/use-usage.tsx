@@ -23,6 +23,16 @@ interface UsageContextValue {
 
 const UsageContext = createContext<UsageContextValue | null>(null);
 
+// Whether the reader's pooled monthly question allowance is already spent,
+// derived straight from the last-fetched meter - no request needed. Every
+// turn in either chat-widget mode spends this same allowance (#163), so this
+// is shared by both tabs rather than tracked per-mode or per-attempt.
+// `null` (not yet fetched) reads as not-exhausted: callers show their normal
+// composer until a real number says otherwise.
+export function queryQuotaExhausted(usage: UsageDto | null): boolean {
+  return usage != null && usage.queries.used >= usage.queries.limit;
+}
+
 // Holds the reader's plan-limit standing for the whole signed-in shell. The
 // value is refetched on four triggers: the library screen mounting, a
 // successful upload, a completed query stream (all three call `refetch`
