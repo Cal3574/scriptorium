@@ -3,7 +3,10 @@ import userEvent from '@testing-library/user-event';
 import { createMemoryRouter, RouterProvider } from 'react-router';
 
 import { ActivityScreen } from './ActivityScreen';
-import { ChatWidgetProvider, useChatWidget } from '../chat-widget/chat-widget-context';
+import {
+  ChatWidgetProvider,
+  useChatWidget,
+} from '../chat-widget/chat-widget-context';
 
 jest.mock('../env', () => ({
   env: { apiUrl: 'http://api.test', clerkPublishableKey: 'pk_test_x' },

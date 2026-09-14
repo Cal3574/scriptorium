@@ -465,9 +465,10 @@ test('a failed history row shows a failed chip and re-asks via the widget', asyn
   // No navigation to the soon-to-be-deleted `/ask?q=` route; the widget
   // opens on the Ask library tab with the question pre-filled instead.
   expect(router.state.location.pathname).toBe('/history');
-  expect(
-    screen.getByRole('tab', { name: 'Ask library' }),
-  ).toHaveAttribute('aria-selected', 'true');
+  expect(screen.getByRole('tab', { name: 'Ask library' })).toHaveAttribute(
+    'aria-selected',
+    'true',
+  );
   expect(screen.getByRole('textbox', { name: 'question' })).toHaveValue(
     'What is focus?',
   );
