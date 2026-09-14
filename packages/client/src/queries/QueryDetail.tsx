@@ -15,10 +15,11 @@ import { problemMessage } from '../books/problem';
 // retrieved passages render through the exact same components as a fresh
 // answer (#65) - only `AnswerBlock` runs with `streaming={false}`, so there is
 // no in-progress caret. A null `answer` (synthesis failed) shows a
-// destructive `Alert` plus "Ask again", which re-runs the question as a fresh
-// `POST /queries` via the `/ask?q=` prefill. `citations` is the frozen jsonb
-// snapshot with no `marker` field, so markers are the 1-based list position;
-// it still renders in full after a cited book is deleted.
+// destructive `Alert` plus "Ask again", which opens the chat widget's Ask
+// library tab with the question pre-filled, ready to re-run as a fresh
+// `POST /queries` (#167). `citations` is the frozen jsonb snapshot with no
+// `marker` field, so markers are the 1-based list position; it still renders
+// in full after a cited book is deleted.
 export function QueryDetail({
   queryId,
   onAskAgain,

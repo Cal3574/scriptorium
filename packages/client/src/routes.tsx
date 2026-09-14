@@ -2,7 +2,6 @@ import { redirect, type RouteObject } from 'react-router';
 import { RootLayout } from './root-layout';
 import { Library } from './books/Library';
 import { BookDetail } from './books/BookDetail';
-import { QueryScreen } from './queries/QueryScreen';
 import { QueryHistory } from './queries/QueryHistory';
 import { QueryDetailScreen } from './queries/QueryDetailScreen';
 import { ActivityScreen } from './activity/ActivityScreen';
@@ -43,11 +42,13 @@ export const routes: RouteObject[] = [
           { path: ':chapterNumber', element: <ReaderChapter /> },
         ],
       },
-      { path: 'ask', element: <QueryScreen />, handle: { title: 'Ask' } },
+      // #167: the `/ask` screen is deleted now that the widget's Ask
+      // library tab covers it; old deep links redirect rather than 404,
+      // matching the `/` -> `/library` idiom above.
+      { path: 'ask', loader: () => redirect('/library') },
       {
         path: 'ask/:queryId',
-        element: <QueryScreen />,
-        handle: { title: 'Ask' },
+        loader: ({ params }) => redirect(`/history/${params.queryId}`),
       },
       {
         path: 'history',
@@ -56,7 +57,7 @@ export const routes: RouteObject[] = [
       },
       {
         // #166: QueryDetail relocated under the History route tree, since it
-        // has no code dependency on the soon-to-be-deleted QueryScreen.
+        // had no code dependency on QueryScreen (deleted in #167).
         path: 'history/:queryId',
         element: <QueryDetailScreen />,
         handle: { title: 'History' },
