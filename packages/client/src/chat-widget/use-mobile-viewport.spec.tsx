@@ -21,7 +21,10 @@ beforeEach(() => {
     onchange: null,
     addListener: () => undefined,
     removeListener: () => undefined,
-    addEventListener: (_type: string, cb: (e: { matches: boolean }) => void) => {
+    addEventListener: (
+      _type: string,
+      cb: (e: { matches: boolean }) => void,
+    ) => {
       listeners.push(cb);
     },
     removeEventListener: (
