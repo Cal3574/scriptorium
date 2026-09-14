@@ -95,12 +95,30 @@ export class AgentService {
 
     if (signal?.aborted) return;
 
-    const messageId = await this.agent.insertMessage({
-      threadId: thread.id,
-      role: 'assistant',
-      message: reply,
-    });
-    await this.agent.touchThread(thread.id);
+    let messageId: string;
+    try {
+      messageId = await this.agent.insertMessage({
+        threadId: thread.id,
+        role: 'assistant',
+        message: reply,
+      });
+      await this.agent.touchThread(thread.id);
+    } catch (error) {
+      // The reply was already generated (and streamed to the client in full
+      // via `streamReply` above) - a failure here is a persistence failure,
+      // not a generation failure, but the client still needs a terminal
+      // frame or it's stuck "thinking" forever with a reply it will never
+      // see recorded in history.
+      this.logger.error(
+        `persisting the reply for thread ${thread.id} failed`,
+        error instanceof Error ? error.stack : String(error),
+      );
+      yield {
+        type: 'agent_error',
+        message: 'The reply could not be saved. Try again in a moment.',
+      };
+      return;
+    }
     yield { type: 'agent_done', messageId, message: reply };
 
     // Deliberately after the last yield: by the time the SSE pump resumes this

@@ -212,22 +212,47 @@ afterEach(() => {
 
 test('off a reader route with no last book, there is nothing to load and no request is made', () => {
   renderAt('/library');
-  expect(
-    screen.getByText(/open a book to start a conversation/i),
-  ).toBeVisible();
+  expect(screen.getByText(/nothing to discuss yet/i)).toBeVisible();
+  expect(screen.getByRole('link', { name: /go to library/i })).toHaveAttribute(
+    'href',
+    '/library',
+  );
   expect(fetchMock).not.toHaveBeenCalled();
 });
 
-test('an empty thread shows the highlight nudge, not a freeform composer', async () => {
+test('an empty thread on the reader route shows the on-page nudge, not a freeform composer', async () => {
   fetchMock.mockResolvedValue(
     jsonRes({ id: null, bookId: BOOK_A, createdAt: null, messages: [] }),
   );
   renderAt(`/books/${BOOK_A}/read`);
 
   expect(
-    await screen.findByText(/highlight a passage while reading/i),
+    await screen.findByText(/select a passage on this page/i),
   ).toBeVisible();
   expect(screen.queryByLabelText('agent message')).not.toBeInTheDocument();
+  expect(
+    screen.queryByRole('link', { name: /continue reading/i }),
+  ).not.toBeInTheDocument();
+});
+
+test('a book in context with no thread, off its reader route, shows a way back in', async () => {
+  fetchMock.mockResolvedValueOnce(
+    jsonRes({ id: null, bookId: BOOK_A, createdAt: null, messages: [] }),
+  );
+  const router = renderAt(`/books/${BOOK_A}/read`);
+  await screen.findByText(/select a passage on this page/i);
+
+  await act(async () => {
+    await router.navigate('/library');
+  });
+
+  expect(
+    await screen.findByText(/haven't started a conversation about this book/i),
+  ).toBeVisible();
+  expect(
+    screen.getByRole('link', { name: /continue reading/i }),
+  ).toHaveAttribute('href', `/books/${BOOK_A}/read`);
+  expect(fetchMock).toHaveBeenCalledTimes(1);
 });
 
 test('off a reader route, the Agent tab shows the thread for lastBookId', async () => {
@@ -541,7 +566,7 @@ test("switching from one book's reader to another's live-switches the shown thre
     expect(screen.queryByText('About book A')).not.toBeInTheDocument(),
   );
   expect(
-    await screen.findByText(/highlight a passage while reading/i),
+    await screen.findByText(/select a passage on this page/i),
   ).toBeVisible();
 });
 
@@ -550,13 +575,13 @@ test('a seeded highlight shows a composer before any thread exists, and is sent 
     jsonRes({ id: null, bookId: BOOK_A, createdAt: null, messages: [] }),
   );
   renderAtWithSeeder(`/books/${BOOK_A}/read`, 'A passage worth discussing.');
-  await screen.findByText(/highlight a passage while reading/i);
+  await screen.findByText(/select a passage on this page/i);
 
   await userEvent.click(screen.getByText('seed highlight'));
 
   expect(screen.getByText('A passage worth discussing.')).toBeVisible();
   expect(
-    screen.queryByText(/highlight a passage while reading/i),
+    screen.queryByText(/select a passage on this page/i),
   ).not.toBeInTheDocument();
   const composer = screen.getByLabelText('agent message');
   expect(composer).toHaveAttribute('placeholder', 'What do you want to know?');
