@@ -12,9 +12,16 @@ async function bootstrap() {
   const config = loadApiConfig();
   const app = await NestFactory.create<NestExpressApplication>(
     AppModule.forRoot(config),
-    { bufferLogs: true, rawBody: true },
+    { bufferLogs: true, rawBody: true, bodyParser: false },
   );
   app.useLogger(new RequestAwareLogger());
+
+  // Nest's default body-parser limit (100kb) is smaller than
+  // `CreateBookRequest.coverImageUrl` alone allows (up to 1MB of base64) -
+  // registered manually, with `bodyParser: false` above, so this limit
+  // actually takes effect instead of the default parser winning the race.
+  app.useBodyParser('json', { limit: '2mb' });
+  app.useBodyParser('urlencoded', { limit: '2mb', extended: true });
 
   // The dev upload route (fake mode only) receives raw PDF bytes; scope the
   // raw body parser to that content type so JSON routes are untouched.

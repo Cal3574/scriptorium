@@ -25,6 +25,7 @@ const STATUS_META: Record<number, { code: string; title: string }> = {
   401: { code: 'unauthorized', title: 'Unauthorized' },
   402: { code: 'payment_required', title: 'Payment required' },
   404: { code: 'not_found', title: 'Not found' },
+  413: { code: 'payload_too_large', title: 'Payload too large' },
   422: { code: 'unprocessable_entity', title: 'Unprocessable entity' },
   500: { code: 'internal_error', title: 'Internal server error' },
 };
@@ -82,6 +83,15 @@ export class ProblemDetailsFilter implements ExceptionFilter {
     if (isBodyParseError(exception)) {
       return build(400, 'invalid_json', 'Malformed request body', instance, {
         detail: 'The request body is not valid JSON.',
+      });
+    }
+
+    // body-parser's raw `PayloadTooLargeError` - never wrapped in an
+    // `HttpException`, so it must be caught ahead of the `instanceof
+    // HttpException` branch below or it falls through to a bare `500`.
+    if (isPayloadTooLargeError(exception)) {
+      return build(413, 'payload_too_large', 'Payload too large', instance, {
+        detail: 'The request body exceeds the size limit.',
       });
     }
 
@@ -145,6 +155,12 @@ function isBodyParseError(exception: unknown): boolean {
     exception.getStatus() === 400 &&
     /\bJSON\b/i.test(messageOf(exception) ?? '')
   );
+}
+
+function isPayloadTooLargeError(exception: unknown): boolean {
+  if (!exception || typeof exception !== 'object') return false;
+  const err = exception as { type?: string; name?: string };
+  return err.type === 'entity.too.large' || err.name === 'PayloadTooLargeError';
 }
 
 function messageOf(exception: HttpException): string | undefined {
