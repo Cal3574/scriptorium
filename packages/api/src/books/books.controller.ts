@@ -145,6 +145,7 @@ export class BooksController {
       originalFilename: body.originalFilename,
       s3Key: body.s3Key,
       fileSizeBytes: body.fileSizeBytes,
+      coverImageUrl: body.coverImageUrl ?? null,
     });
 
     // Idempotent both ways: a replay returns the first call's row, and the

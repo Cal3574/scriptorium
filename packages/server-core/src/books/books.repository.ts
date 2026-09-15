@@ -1,7 +1,7 @@
 import { Inject, Injectable } from '@nestjs/common';
 import type { DbClient } from '@scriptorium/database/client';
 import { books, chapters } from '@scriptorium/database/schema';
-import { and, asc, count, desc, eq } from 'drizzle-orm';
+import { and, asc, count, desc, eq, isNull, ne, notInArray } from 'drizzle-orm';
 import { DB } from '../database/database.module.js';
 
 // A `books` row exactly as Drizzle selects it. The API mappers strip the
@@ -26,6 +26,7 @@ export interface CreateBookInput {
   originalFilename: string;
   s3Key: string;
   fileSizeBytes: number;
+  coverImageUrl?: string | null;
 }
 
 export interface CreateBookResult {
@@ -61,6 +62,7 @@ export class BooksRepository {
         originalFilename: input.originalFilename,
         s3Key: input.s3Key,
         fileSizeBytes: input.fileSizeBytes,
+        coverImageUrl: input.coverImageUrl ?? null,
       })
       .onConflictDoNothing({ target: books.s3Key })
       .returning();
@@ -215,5 +217,49 @@ export class BooksRepository {
       total: row?.total ?? 0,
       summarized: row?.summarized ?? 0,
     };
+  }
+
+  /**
+   * Up to `limit` books with no cover image yet, oldest first, excluding
+   * `excludeIds` (books already attempted earlier in the same backfill run -
+   * see `CoverBackfillService`) and any book mid-`deleting`. Excluding
+   * previously-attempted ids each call is what lets the worker's global
+   * backfill's "keep calling until empty" loop terminate: a book that fails
+   * to render stays `cover_image_url IS NULL` forever, so without the
+   * exclusion it would reappear at the head of every subsequent page within
+   * the same run.
+   *
+   * `userId`, when given, scopes to one caller's own books - the self-service
+   * `POST /me/backfill-covers` route never touches another reader's rows.
+   */
+  async listMissingCovers(
+    limit: number,
+    excludeIds: string[] = [],
+    userId?: string,
+  ): Promise<BookRow[]> {
+    const conditions = [
+      isNull(books.coverImageUrl),
+      ne(books.status, 'deleting'),
+    ];
+    if (excludeIds.length > 0) {
+      conditions.push(notInArray(books.id, excludeIds));
+    }
+    if (userId !== undefined) {
+      conditions.push(eq(books.userId, userId));
+    }
+    return this.db
+      .select()
+      .from(books)
+      .where(and(...conditions))
+      .orderBy(asc(books.createdAt))
+      .limit(limit);
+  }
+
+  /** Record a rendered cover image (a `data:` URL) against a book. */
+  async setCoverImageUrl(id: string, coverImageUrl: string): Promise<void> {
+    await this.db
+      .update(books)
+      .set({ coverImageUrl, updatedAt: new Date() })
+      .where(eq(books.id, id));
   }
 }

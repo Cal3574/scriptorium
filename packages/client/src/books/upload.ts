@@ -83,6 +83,7 @@ export type DepositResult = { ok: true } | { ok: false; limitCode: LimitCode };
 export async function depositBook(
   api: ApiFetch,
   file: File,
+  coverImageUrl?: string | null,
 ): Promise<DepositResult> {
   const urlRes = await api('/api/v1/books/upload-url', {
     method: 'POST',
@@ -112,6 +113,7 @@ export async function depositBook(
       s3Key,
       originalFilename: file.name,
       fileSizeBytes: file.size,
+      ...(coverImageUrl ? { coverImageUrl } : {}),
     }),
   });
   if (!createRes.ok) {

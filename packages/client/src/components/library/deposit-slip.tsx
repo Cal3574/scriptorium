@@ -76,7 +76,11 @@ export function DepositSlip({
   async function deposit() {
     setPhase({ name: 'depositing' });
     try {
-      const result = await depositBook(api, file);
+      const result = await depositBook(
+        api,
+        file,
+        preview.state === 'ready' ? preview.preview.thumbnailUrl : null,
+      );
       if (result.ok) {
         onDeposited();
         return;

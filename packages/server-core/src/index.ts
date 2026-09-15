@@ -28,6 +28,7 @@ export {
   type CreateBookResult,
   type UpdateBookInput,
 } from './books/books.repository.js';
+export { renderBookCover } from './books/book-cover.js';
 export {
   QueriesRepository,
   type CandidateRow,

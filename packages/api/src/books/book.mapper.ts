@@ -21,6 +21,7 @@ function toBookShape(row: BookRow) {
     originalFilename: row.originalFilename,
     fileSizeBytes: row.fileSizeBytes,
     pageCount: row.pageCount,
+    coverImageUrl: row.coverImageUrl,
     status: row.status,
     failedStage: row.failedStage,
     failureReason: row.failureReason,

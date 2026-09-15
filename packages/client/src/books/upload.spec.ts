@@ -136,6 +136,48 @@ describe('depositBook', () => {
     );
   });
 
+  it('sends a client-rendered coverImageUrl on register when provided', async () => {
+    const registerBody = jest.fn();
+    const api = jest.fn(async (path: string, init?: RequestInit) => {
+      if (path === '/api/v1/books/upload-url') {
+        return jsonRes({
+          uploadUrl: 'https://s3.test/put',
+          s3Key: 'books/u/1.pdf',
+          expiresInSeconds: 300,
+        });
+      }
+      registerBody(JSON.parse(init?.body as string));
+      return jsonRes({ id: 'b1' }, 201);
+    });
+
+    await depositBook(api, pdf('book.pdf', 10), 'data:image/png;base64,AAA');
+
+    expect(registerBody).toHaveBeenCalledWith(
+      expect.objectContaining({ coverImageUrl: 'data:image/png;base64,AAA' }),
+    );
+  });
+
+  it('omits coverImageUrl on register when none was rendered', async () => {
+    const registerBody = jest.fn();
+    const api = jest.fn(async (path: string, init?: RequestInit) => {
+      if (path === '/api/v1/books/upload-url') {
+        return jsonRes({
+          uploadUrl: 'https://s3.test/put',
+          s3Key: 'books/u/1.pdf',
+          expiresInSeconds: 300,
+        });
+      }
+      registerBody(JSON.parse(init?.body as string));
+      return jsonRes({ id: 'b1' }, 201);
+    });
+
+    await depositBook(api, pdf('book.pdf', 10));
+
+    expect(registerBody).toHaveBeenCalledWith(
+      expect.not.objectContaining({ coverImageUrl: expect.anything() }),
+    );
+  });
+
   it('returns the limit code on a 402 from register', async () => {
     const api = jest.fn(async (path: string) => {
       if (path === '/api/v1/books/upload-url') {

@@ -79,3 +79,6 @@ export type { DeleteJobData } from '@scriptorium/contracts';
 export { QUEUE } from './queue/queue.js';
 export { FakeQueue, type RecordedJob } from './queue/fake-queue.js';
 export { BullMqQueue, type BullMqQueueOptions } from './queue/bullmq-queue.js';
+
+export type { PdfCover } from './pdf-cover/render-pdf-cover.js';
+export { renderPdfCover } from './pdf-cover/render-pdf-cover.js';
