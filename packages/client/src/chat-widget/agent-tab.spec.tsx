@@ -456,7 +456,7 @@ test('reopening the widget, or switching to the Agent tab, jumps to the bottom',
   expect(scrollIntoViewMock).not.toHaveBeenCalled();
 });
 
-test("a user message renders as plain text, not markdown, so it always reads against the primary-colored bubble", async () => {
+test('a user message renders as plain text, not markdown, so it always reads against the primary-colored bubble', async () => {
   fetchMock.mockResolvedValueOnce(
     jsonRes({
       id: THREAD_A,
@@ -486,7 +486,10 @@ test('seeding a highlight scrolls to the bottom so the composer stays in view', 
   fetchMock.mockResolvedValueOnce(
     jsonRes({ id: null, bookId: BOOK_A, createdAt: null, messages: [] }),
   );
-  renderAtWithSeeder(`/books/${BOOK_A}/read`, 'A long passage worth discussing.');
+  renderAtWithSeeder(
+    `/books/${BOOK_A}/read`,
+    'A long passage worth discussing.',
+  );
   await screen.findByText(/select a passage on this page/i);
 
   scrollIntoViewMock.mockClear();
