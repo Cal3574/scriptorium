@@ -223,14 +223,19 @@ export class BooksRepository {
    * Up to `limit` books with no cover image yet, oldest first, excluding
    * `excludeIds` (books already attempted earlier in the same backfill run -
    * see `CoverBackfillService`) and any book mid-`deleting`. Excluding
-   * previously-attempted ids each call is what lets the backfill's "keep
-   * calling until empty" loop terminate: a book that fails to render stays
-   * `cover_image_url IS NULL` forever, so without the exclusion it would
-   * reappear at the head of every subsequent page within the same run.
+   * previously-attempted ids each call is what lets the worker's global
+   * backfill's "keep calling until empty" loop terminate: a book that fails
+   * to render stays `cover_image_url IS NULL` forever, so without the
+   * exclusion it would reappear at the head of every subsequent page within
+   * the same run.
+   *
+   * `userId`, when given, scopes to one caller's own books - the self-service
+   * `POST /me/backfill-covers` route never touches another reader's rows.
    */
   async listMissingCovers(
     limit: number,
     excludeIds: string[] = [],
+    userId?: string,
   ): Promise<BookRow[]> {
     const conditions = [
       isNull(books.coverImageUrl),
@@ -238,6 +243,9 @@ export class BooksRepository {
     ];
     if (excludeIds.length > 0) {
       conditions.push(notInArray(books.id, excludeIds));
+    }
+    if (userId !== undefined) {
+      conditions.push(eq(books.userId, userId));
     }
     return this.db
       .select()

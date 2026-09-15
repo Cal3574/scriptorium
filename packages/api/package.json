@@ -13,6 +13,7 @@
     "@scriptorium/providers": "workspace:*",
     "@scriptorium/server-core": "workspace:*",
     "nestjs-zod": "^5.5.0",
+    "pdfjs-dist": "^6.3.289",
     "reflect-metadata": "^0.2.0",
     "rxjs": "^7.8.0",
     "tslib": "^2.3.0",

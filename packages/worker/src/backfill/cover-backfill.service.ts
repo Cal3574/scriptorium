@@ -1,10 +1,6 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
-import {
-  renderPdfCover,
-  OBJECT_STORAGE,
-  type ObjectStorage,
-} from '@scriptorium/providers';
-import { BooksRepository } from '@scriptorium/server-core';
+import { OBJECT_STORAGE, type ObjectStorage } from '@scriptorium/providers';
+import { BooksRepository, renderBookCover } from '@scriptorium/server-core';
 
 export interface CoverBackfillResult {
   processed: number;
@@ -65,17 +61,7 @@ export class CoverBackfillService {
       for (const book of batch) {
         result.processed += 1;
         try {
-          const pdf = await this.storage.getObject(book.s3Key);
-          if (!pdf) {
-            this.logger.warn(
-              `book ${book.id}: original PDF missing at ${book.s3Key}, skipping`,
-            );
-            result.skipped += 1;
-            skippedIds.add(book.id);
-            continue;
-          }
-
-          const { dataUrl } = await renderPdfCover(pdf);
+          const dataUrl = await renderBookCover(this.storage, book);
           await this.books.setCoverImageUrl(book.id, dataUrl);
           result.updated += 1;
         } catch (err) {

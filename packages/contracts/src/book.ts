@@ -116,6 +116,17 @@ export const CreateBookRequest = z.object({
 });
 export type CreateBookRequest = z.infer<typeof CreateBookRequest>;
 
+// `POST /api/v1/me/backfill-covers`: renders a first-page cover for every book
+// the caller owns that predates the client sending its own
+// (`coverImageUrl IS NULL`). Self-service and idempotent - a book that
+// already has a cover, or a second call once every book does, is a no-op.
+export const BackfillCoversResponse = z.object({
+  processed: z.number().int().nonnegative(),
+  updated: z.number().int().nonnegative(),
+  skipped: z.number().int().nonnegative(),
+});
+export type BackfillCoversResponse = z.infer<typeof BackfillCoversResponse>;
+
 // `PATCH /api/v1/books/:id` field set. `title` is non-empty and not nullable;
 // an explicit `author: null` clears a wrong LLM guess. The "at least one key"
 // rule is NOT expressed here so the API can validate the body against this
