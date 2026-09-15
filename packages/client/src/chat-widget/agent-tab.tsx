@@ -52,7 +52,16 @@ function MessageBubble({ message }: { message: AgentMessageDto }) {
           isUser && 'bg-primary text-primary-foreground',
         )}
       >
-        <SummaryProse markdown={message.message} className="text-sm" />
+        {isUser ? (
+          // Plain text, not markdown: `.prose` (index.css) hardcodes its own
+          // foreground/link/quote colors, tuned for a card/background
+          // surface - against this bubble's `bg-primary` they read as
+          // low-contrast or invisible in several themes. The user's own
+          // typed text was never markdown source anyway.
+          <span className="whitespace-pre-wrap">{message.message}</span>
+        ) : (
+          <SummaryProse markdown={message.message} className="text-sm" />
+        )}
       </div>
     </div>
   );
@@ -179,10 +188,12 @@ export function AgentTab() {
   // Keeps the newest text in view as a reply streams in - the panel's own
   // scroll container (`ChatWidget`) is an ancestor of this tab, not
   // something this component owns, so `scrollIntoView` on a trailing
-  // sentinel reaches it regardless.
+  // sentinel reaches it regardless. Also fires when `seededHighlight`
+  // changes, since seeding a long highlight into the composer can otherwise
+  // leave the Send button below the fold with no scroll to reveal it.
   useEffect(() => {
     bottomRef.current?.scrollIntoView?.({ block: 'end' });
-  }, [messages, streamingReply]);
+  }, [messages, streamingReply, seededHighlight]);
 
   // Also jump to the bottom whenever this tab becomes the one showing -
   // switching to it, or reopening the widget while it was already the

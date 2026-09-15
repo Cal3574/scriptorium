@@ -456,6 +456,46 @@ test('reopening the widget, or switching to the Agent tab, jumps to the bottom',
   expect(scrollIntoViewMock).not.toHaveBeenCalled();
 });
 
+test("a user message renders as plain text, not markdown, so it always reads against the primary-colored bubble", async () => {
+  fetchMock.mockResolvedValueOnce(
+    jsonRes({
+      id: THREAD_A,
+      bookId: BOOK_A,
+      createdAt: '2026-01-01T00:00:00Z',
+      messages: [
+        {
+          id: USER_MSG,
+          role: 'user',
+          message: '**bold** and a [link](https://example.com)',
+          highlightedPassage: null,
+          createdAt: '2026-01-01T00:00:00Z',
+        },
+      ],
+    }),
+  );
+  renderAt(`/books/${BOOK_A}/read`);
+
+  const bubble = await screen.findByText(
+    '**bold** and a [link](https://example.com)',
+  );
+  expect(bubble).toBeVisible();
+  expect(screen.queryByRole('link', { name: 'link' })).not.toBeInTheDocument();
+});
+
+test('seeding a highlight scrolls to the bottom so the composer stays in view', async () => {
+  fetchMock.mockResolvedValueOnce(
+    jsonRes({ id: null, bookId: BOOK_A, createdAt: null, messages: [] }),
+  );
+  renderAtWithSeeder(`/books/${BOOK_A}/read`, 'A long passage worth discussing.');
+  await screen.findByText(/select a passage on this page/i);
+
+  scrollIntoViewMock.mockClear();
+  await userEvent.click(screen.getByText('seed highlight'));
+
+  expect(screen.getByText('A long passage worth discussing.')).toBeVisible();
+  expect(scrollIntoViewMock).toHaveBeenCalled();
+});
+
 test('a mid-turn agent_error leaves the user message unanswered and shows an alert', async () => {
   fetchMock.mockResolvedValueOnce(
     jsonRes({
